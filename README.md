@@ -43,4 +43,6 @@ Discuss what you need to develop this project. This includes background informat
 [John Currie](https://github.com/John-C-Currie)
 
 [Keith Winter](https://github.com/KeWinter)
+
+[Donte' Harmon](https://github.com/dontetu)
 </div>
