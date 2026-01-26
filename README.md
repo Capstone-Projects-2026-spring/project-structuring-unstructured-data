@@ -39,5 +39,7 @@ Discuss what you need to develop this project. This includes background informat
 
 [//]: # (Replace with your collaborators)
 [Wyatt Zantua](https://github.com/zantuaw09)
+[John Currie]
+(https://github.com/John-C-Currie)
 
 </div>
