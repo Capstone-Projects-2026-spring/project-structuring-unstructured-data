@@ -19,11 +19,11 @@ This project aims to develop a novel application capable of collecting and organ
 
 ## High Level Requirement
 
-Describe the requirements – i.e., what the product does and how it does it from a user point of view – at a high level.
+The application will primarily function as a tool compatible with Slack that can extract context from direct messages (DMs) between users and channels/conversations between multiple users. The tool operates within Slack's interface through a bot or similar automation, meaning that users will adjust the application's settings or control whether they consent to their messages being collected through the application directly. When a user begins a DM or enters a conversation where the bot is configured, the user is prompted to give permission for all message data to be collected (either via an opt-in or hybrid approval). If active, the tool marks whenever a new message within the DM or conversation has been stored in memory for contextualization. When the user wishes to retrieve their structured message data, they can prompt the tool within Slack, which will result in the application displaying a basic data model of all included messages in a digestable format, which can be directly downloaded or accessed for the use of context-based automation at a larger scale, such as for summarizing entire channel's worth of information.
 
 ## Conceptual Design
 
-Describe the initial design concept: Hardware/software architecture, programming language, operating system, etc.
+For the scope of our project, our application's design will utilize the Slack API to access all user, message, and channel data, but development of a codebase compatible with multiple communication platforms is anticipated. For the best compatibility with the existing Web API that communication platforms generally provide, the application will integrate with the target platform using routes composed in JavaScript and Node.js; this version of the app specifically will leverege the Bolt for JavaScript open-source framework in the backend designed directly for Slack, allowing both the access of Slack data and interaction with Slack's UI. The tool's backend also will have the ability to extract context and structure data into meaningful units, accomplished through a custom built LLM or similar NLP model designed for organizing data based on learned language patterns. The tools used to implement this may shift as the project scope is fully defined, but possible services include the LangChain framework for Python or JavaScript or the LangExtract Python library. All instances of raw user and message data, as well as all the resulting strucutred conversation data will be placed in a persistent storage source such as MongoDB or NoSQL.
 
 ## Background
 
@@ -31,7 +31,7 @@ Communication platforms like Slack are being increasingly normalized in various 
 
 ## Required Resources
 
-Discuss what you need to develop this project. This includes background information you will need to acquire, hardware resources, and software resources. If these are not part of the standard Computer Science Department lab resources, these must be identified early and discussed with the instructor.
+This project requires significant backround research on existing LLMs that develop context for extensive collections of data, especially from diverse text sources such as documents or verbal conversations, as understanding the current developments of applications that perform a similar structuring task can help discover applicable tools or well-tested data extraction/processing methods. Reviewing existing automations within Slack and other communication platforms will also be useful for the modeling places where the user interacts directly with the interface to ensure the essential features of the tool are fully and securely realized.
 
 ## Collaborators
 
@@ -45,4 +45,6 @@ Discuss what you need to develop this project. This includes background informat
 [Keith Winter](https://github.com/KeWinter)
 
 [Donte' Harmon](https://github.com/dontetu)
+
+[Fares Hagos](https://github.com/FaresHagostu)
 </div>
