@@ -9,8 +9,9 @@ sidebar_position: 4
 2. The system must analyze whether messages have been added, edited, removed, or were manually selected/de-selected by the user for structuring context.
 3. The system must dynamically derive context from relevant chat data in channels/conversations and direct messages.
 4. The system must compose a consistent data model for collections of message data based of the unique context.
-5. The system must store both raw data and structured data with context in a persistent knowledge storage.
-6. The system's features must be interacted with via a user-facing design (chatbot interface, dashboard, or both) that integrates directly into Slack conversations.
+5. The system must construct a structured summary / visualizer of a conversation based on its contextualized message data when prompted by the user.
+6. The system must store both raw data and structured data with context in a persistent knowledge storage.
+7. The system's features must be interacted with via a user-facing design (chatbot interface, dashboard, or both) that integrates directly into Slack conversations.
 
 ## Nonfunctional Requirements
 1. The system shall ensure that consent / proper privacy configurations are made by all users before performing data collection.
