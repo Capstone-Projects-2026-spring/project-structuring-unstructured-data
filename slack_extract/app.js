@@ -7,8 +7,8 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
-// Extract messages via conversations.history
-async function fetchHistory(channelId) {
+// GET select number of messages via conversations.history
+async function getConversationHistory(channelId) {
   try {
     console.log(`🚀 Attempting to pull messages from: ${channelId}`);
     
@@ -24,11 +24,26 @@ async function fetchHistory(channelId) {
   }
 }
 
+// GET info about channel via conversations.info
+async function getConversationInfo(channelId) {
+  try {  
+    const result = await app.client.conversations.info({
+      channel: channelId,
+    });
+
+    console.log(`✅ Success! Found data for conversation ${result.channel.name}!!`);
+    console.log(JSON.stringify(result.channel, null, 2));
+  } catch (error) {
+    console.error("❌ Retrieval Error:", error.data ? error.data.error : error.message);
+  }
+}
+
 // App start
 (async () => {
   await app.start(process.env.PORT || 3000);
   console.log('⚡️ Bolt app is running!');
 
-  const targetChannel = "C0AEQNCL30Q"; 
-  fetchHistory(targetChannel);
+  const targetChannel = "C0ADQ1YAK7D"; 
+  getConversationHistory(targetChannel);
+  getConversationInfo(targetChannel);
 })();
