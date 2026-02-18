@@ -37,33 +37,99 @@ erDiagram
     WORKSPACE }|--o{ USER : contains
     WORKSPACE ||--|{ CONVERSATION : contains
 
-
     USER ||--|{ CONVERSATION : belongsTo
     USER ||--o{ MESSAGE : sends
-    MESSAGE }o--|| CONVERSATION : sentIn
 
+    MESSAGE }o--|| CONVERSATION : contains
+    MESSAGE ||--|{ BLOCK : consistsOf
+    BLOCK ||--|{ ELEMENT : consistsOf
 
     WORKSPACE {
-        int id PK
+        string id PK
         string name
     }
     USER {
-        int id PK
-        int conversation_id FK
+        string id PK
         string username
         string real_name
+        string workspace_id FK
+    }
+    CONVERSATION {
+        string id PK
+        string name
+        string type
+        boolean isPrivate
+        boolean isArchived
+        string creator
+        string workspace_id FK
     }
     MESSAGE {
         int id PK
+        string type
         string text
         string timestamp
-        int author_id FK
-        int conversation_id FK
+        string client_msg_id
+        string author_id FK
+        string workspace_id FK
+        string conversation_id FK
         
     }
-    CONVERSATION {
-        int id PK
-        int workspace_id FK
+    BLOCK {
+        string id PK
         string type
+        string message_id FK
+    }
+    ELEMENT {
+        int id PK
+        string type
+        string value
+        string block_id FK
     }
 ```
+
+### Workspace
+Stores organizational data of an entire workspace
+- id: string - primary key, also known as "team_id" or "team"
+- name: string - name of the workspace
+
+### Conversation
+Stores data of all group objects in Slack, called conversations
+- id: string - primary key
+- name: string - name of the conversation
+- type: string - marks type of conversation (channel, group, mpim)
+- isPrivate: boolean - declares if conversation is private
+- isArchived: boolean - declares if conversation is archived
+- creator: string - id pointing to user that created the conversation
+- workspace_id: string - foreign key (Workspace: id), contains relation to workspace
+
+### User
+Stores user data for specific member in a workspace
+- id: string - primary key, also known as "user"
+- username: string - displayed username of the user
+- real_name: string - first and last name of the user
+- workspace_id: string - foreign key (Workspace: id), contains relation to workspace
+
+### Message
+Stores data of a select message sent into a conversation
+- id: int - primary key, assigned manually per conversation
+- name: string - name of the conversation
+- type: string - marks type of conversation (channel, group, mpim)
+- text: string - string representation of message's text
+- timestamp: string - string representation of timestamp the message was sent
+- client_msg_id: uuid -  unique id for the message on the client side
+- author_id: string - foreign key (User: id), contains relation to user that sent message
+- workspace_id: string - foreign key (Workspace: id), contains relation to workspace
+- conversation_id: string - foreign key (Conversation: id), contains relation to conversation where message is located
+
+### Block
+Collection of objects that make up a message
+- id: string - primary key, also known as "block_id"
+- type: string - type of block object (rich_text, etc.)
+- message_id: string - foreign key (Message: id), contains relation to message the block makes up
+
+### Element
+Composed element/section of a message block
+- id: int - primary key
+- type: string - type of element (text, url)
+- value: string - string representation of the item type associated with the text
+- block_id: string - foreign key (Block: id), contains relation to block that the element belongs to
