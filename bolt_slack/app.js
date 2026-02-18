@@ -1,5 +1,5 @@
 const { App } = require('@slack/bolt');
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 
 // 1. Initialize the App with your secrets
 const app = new App({
