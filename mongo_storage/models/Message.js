@@ -8,4 +8,12 @@ const msgSchema = new Schema({
     date: Date
 });
 
-module.exports = mongoose.model("team1_messages", msgSchema);
+// Function to creates message model for any collection
+const getMessageModel = (collectionName) => {
+  if (mongoose.models[collectionName]) {
+    return mongoose.models[collectionName];
+  }
+  return mongoose.model(collectionName, msgSchema, collectionName);
+};
+
+module.exports = getMessageModel;
