@@ -14,7 +14,6 @@ async function fetchHistory(channelId) {
     
     const result = await app.client.conversations.history({
       channel: channelId,
-      limit: 10 // Let's just grab the last 10 messages for now
     });
 
     console.log(`✅ Success! Found ${result.messages.length} messages.`);
@@ -31,5 +30,13 @@ async function fetchHistory(channelId) {
 
   // TRIGGER: Replace this with YOUR actual Channel ID (the one starting with C0AE...)
   const targetChannel = "C0AEQNCL30Q"; 
+  
+  // Initial fetch
   fetchHistory(targetChannel);
+  
+  // Set up 5-minute interval (300,000 milliseconds)
+  setInterval(() => {
+    fetchHistory(targetChannel);
+  }, 5 * 60 * 1000); // 5 minutes
+  
 })();
