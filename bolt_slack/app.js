@@ -7,29 +7,43 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
-// 2. The Extraction Function
-async function fetchHistory(channelId) {
+// GET select number of messages via conversations.history
+async function getConversationHistory(channelId) {
   try {
     console.log(`🚀 Attempting to pull messages from: ${channelId}`);
     
     const result = await app.client.conversations.history({
       channel: channelId,
-      limit: 10 // Let's just grab the last 10 messages for now
+      limit: 10 // max = 1000 per call
     });
 
     console.log(`✅ Success! Found ${result.messages.length} messages.`);
-    console.log(JSON.stringify(result.messages, null, 2)); // Print them nicely
+    console.log(JSON.stringify(result.messages, null, 2));
   } catch (error) {
     console.error("❌ Extraction Error:", error.data ? error.data.error : error.message);
   }
 }
 
-// 3. Start the App
+// GET info about channel via conversations.info
+async function getConversationInfo(channelId) {
+  try {  
+    const result = await app.client.conversations.info({
+      channel: channelId,
+    });
+
+    console.log(`✅ Success! Found data for conversation ${result.channel.name}!!`);
+    console.log(JSON.stringify(result.channel, null, 2));
+  } catch (error) {
+    console.error("❌ Retrieval Error:", error.data ? error.data.error : error.message);
+  }
+}
+
+// App start
 (async () => {
   await app.start(process.env.PORT || 3000);
   console.log('⚡️ Bolt app is running!');
 
-  // TRIGGER: Replace this with YOUR actual Channel ID (the one starting with C0AE...)
-  const targetChannel = "C0AEQNCL30Q"; 
-  fetchHistory(targetChannel);
+  const targetChannel = "C0ADQ1YAK7D"; 
+  getConversationHistory(targetChannel);
+  getConversationInfo(targetChannel);
 })();
