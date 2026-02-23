@@ -14,7 +14,7 @@ async function getConversationHistory(channelId) {
     
     const result = await app.client.conversations.history({
       channel: channelId,
-      limit: 10 // max = 1000 per call
+      // limit = 1000 per call
     });
 
     console.log(`✅ Success! Found ${result.messages.length} messages.`);
@@ -44,6 +44,13 @@ async function getConversationInfo(channelId) {
   console.log('⚡️ Bolt app is running!');
 
   const targetChannel = "C0ADQ1YAK7D"; 
+    
+  // Initial fetch
   getConversationHistory(targetChannel);
   getConversationInfo(targetChannel);
+
+  // Set up 5-minute interval (300,000 milliseconds)
+  setInterval(() => {
+    fetchHistory(targetChannel);
+  }, 5 * 60 * 1000); // 5 minutes
 })();
