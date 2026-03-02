@@ -3,7 +3,7 @@ This file retrieves messages from channels in the workspace.
 Limited by bot membership and permissions.
 */
 const { App } = require('@slack/bolt');
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: './.env' });
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
