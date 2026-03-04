@@ -1,13 +1,15 @@
 const express = require('express');
-const mongodb = require('mongodb');
-const { connectDB} = require('./mongo_data.js');
+const mongoose = require('mongoose');
 require('dotenv').config({ path: '../.env' });
 
 // Imports router and initializes express app
 const slackRouter = require('./post_endpoint');
 const app = express();
 
-//Imports Port from .env
+
+// Import credentials from .env file
+const DB_USER = process.env.MONGODB_USER;
+const DB_PASSWORD = process.env.MONGODB_PASSWORD;
 const PORT = process.env.PORT;
 
 app.use(express.json());
@@ -23,7 +25,9 @@ app.use((req, res, next) => {
 // Connects to MongoDB
 async function start() {
     try {
-        await connectDB();
+        //Connects to the Database
+        const uri = `mongodb+srv://${DB_USER}:${DB_PASSWORD}@suds-cluster.poxtvnp.mongodb.net/?appName=SUDs-Cluster`;
+        await mongoose.connect(uri, {dbName: "slack"});
 
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
