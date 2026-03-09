@@ -56,6 +56,27 @@ def init_db():
             content     TEXT NOT NULL,
             UNIQUE(problem_id, language, is_correct, content)
         );
+
+        -- Stores one row per quiz submission by a student
+        CREATE TABLE IF NOT EXISTS quiz_attempts (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            problem_id          INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
+            language            TEXT NOT NULL,
+            score               INTEGER NOT NULL DEFAULT 0,
+            total               INTEGER NOT NULL DEFAULT 0,
+            time_taken_seconds  INTEGER,
+            submitted_at        TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        -- Stores each individual answer within an attempt
+        CREATE TABLE IF NOT EXISTS quiz_answers (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            attempt_id      INTEGER NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+            question_index  INTEGER NOT NULL,
+            selected_option TEXT NOT NULL,
+            is_correct      INTEGER NOT NULL CHECK(is_correct IN (0, 1))
+        );
     """)
 
     conn.commit()
