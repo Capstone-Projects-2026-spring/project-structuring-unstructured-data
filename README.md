@@ -112,6 +112,7 @@ To develop, you will need a computer with Git, Node, Bun, and Docker Compose.
 We use two testing libraries: Jest and Playwright. Jest is used for individual API tests while Playwright is used for end-to-end flow tests.
 
 To run the Playwright tests, ensure you have the application running and run `bunx playwright test --workers=1`.
+You may need to have Chromium headless installed.
 
 For the Jest tests, run `bunx jest tests/api/ --forceExit`.
 
