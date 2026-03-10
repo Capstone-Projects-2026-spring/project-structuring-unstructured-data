@@ -50,7 +50,7 @@ The backend is designed to be stateless and inherently scalable. Redis is used f
 
 ## Background
 
-Previous similar projects include leetcode.com, known for its programming challenges. It does not offer any form of collaboration, and fails to realistically simulate a developer's life.
+Previous similar projects include leetcode.com and hackerrank.com, known for their programming challenges. They do not offer any form of collaboration, which fails to realistically simulate a developer's life.
 
 Pair-programming has been shown to be "faster than solo programming when programming task complexity is low and yields code solutions of higher quality when task complexity is high." (See [here](https://www.sciencedirect.com/science/article/abs/pii/S0950584909000123)).
 
@@ -61,9 +61,7 @@ As far as we can tell, this is the first platform of its type.
 
 ## Required Resources
 
-To use the product, a computer with an active internet connection will be required.
-
-Discuss what you need to develop this project. This includes background information you will need to acquire, hardware resources, and software resources. If these are not part of the standard Computer Science Department lab resources, these must be identified early and discussed with the instructor.
+To use the web application, a computer with an active internet connection will be required.
 
 
 ## Development
@@ -82,19 +80,40 @@ To develop, you will need a computer with Git, Node, Bun, and Docker Compose.
     BETTER_AUTH_SECRET=SOME_SECRET_TOKEN
     BETTER_AUTH_URL=http://localhost:3000
     
+    # postgres
+    POSTGRES_USER=appuser
+    POSTGRES_PASSWORD=SOME_SECRET_TOKEN
+    POSTGRES_DB=appdb
+    POSTGRES_HOST=localhost
+    POSTGRES_PORT=5432
+
     # redis
     REDIS_HOST=localhost
     REDIS_PORT=6379
-    
+
     # for prisma
-    DATABASE_URL=postgresql://DB_USER:DB_SECRET_TOKEN@DB_HOST:DB_PORT/DB_NAME
-    
+    DATABASE_URL=postgresql://appuser:SOME_SECRET_TOKEN@localhost:5432/appdb
     ```
+   Remember to `source` as needed!
 3. Run `bun install` to install the dependencies.
 4. Run `bunx prisma generate` to generate the Prisma client and database migrations.
-5. Run `docker compose up -f ./dev-docker-compose.yml up -d` to bring up the containers.
+5. Run `docker compose -f ./dev-docker-compose.yml up -d` to bring up the containers (you may need to run as root).
 6. Run `bunx prisma migrate` to bring the database up to schema.
 7. Run `bun dev` to launch the development server and navigate to `localhost:3000` to view the page.
+8. When done, `docker compose -f ./dev-docker-compose.yml down` will bring the containers down.
+
+### Helpful Common Commands and Tricks
+- `docker compose -f ./dev-docker-compose.yml down -v` will stop the containers and purge the volumes. Good if you _really_ mess something up (you WILL lose data!).
+- `bunx prisma migrate reset` will drop the DB (you WILL lose data!).
+- If your database is stuck out of sync and you can't apply migrations, run `rm -rf ./prisma/migrations/**` to remove all pending migrations. Then recreate the migration with `bunx prisma migrate dev --name dev` and apply it.
+- To see how the websockets are working, try opening up the game page in an incognito tab to be registered as a different client.
+
+## Testing
+We use two testing libraries: Jest and Playwright. Jest is used for individual API tests while Playwright is used for end-to-end flow tests.
+
+To run the Playwright tests, ensure you have the application running and run `bunx playwright test --workers=1`.
+
+For the Jest tests, run `bunx jest tests/api/ --forceExit`.
 
 ## Collaborators
 
@@ -105,9 +124,3 @@ To develop, you will need a computer with Git, Node, Bun, and Docker Compose.
 • [Saad Chaudry](https://github.com/s0dl)
 
 </div>
-
-## Testing
-
-```
-bunx playwright test --workers=1
-```
