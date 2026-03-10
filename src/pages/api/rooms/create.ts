@@ -1,5 +1,4 @@
 import type {NextApiRequest, NextApiResponse} from 'next';
-import {nanoid} from 'nanoid';
 import {auth} from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -25,22 +24,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // try to generate an 8 character random string for the match id.
     // then persist it in postgres (to updated with game status changes such as in progress, completed, etc)
     try {
-        const gameId = nanoid(8);
 
-        // store in postgres
-        const status = "waiting" as const;
+        // Pick random problem for the game room. For MVP, we will just pick the first problem in the database. In the future, we can implement a more sophisticated problem selection algorithm.
+        const problem = await prisma.problem.findFirst();
+        if (!problem) {
+            return res.status(500).json({message: 'No problems found in the database'});
+        }
 
         // Need to make a database call to Problem table but there are no Problems in the table right now
-        // await prisma.gameRoom.upsert({
-        //    where: { id: gameId },
-        //   update: { status },
-        //    create: { id: gameId, status },
-        //});
+        const gameRoom = await prisma.gameRoom.create({
+            data: {
+                problemId: problem.id,
+            },
+        });
 
         // TODO: here, store in redis pubsub channel called "matchmaking" or such so that other players can find it. then, before generating a new room, try to join any existing rooms. if room is joined and becomes full, mark it as in progress in postgres. See CODEBAT-14 and CODEBAT-56
 
         // return generated code
-        return res.status(201).json({gameId});
+        return res.status(201).json({gameRoomid: gameRoom.id});
     } catch (error: unknown) {
         if (error instanceof Error) {
             // Return error message with status 500 (internal server error) if something goes wrong during game room creation
