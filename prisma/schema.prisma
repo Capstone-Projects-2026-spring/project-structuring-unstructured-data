@@ -91,7 +91,7 @@ enum GameStatus {
 }
 
 model GameRoom {
-  id            String      @id
+  id            String      @id @default(uuid())
   status        GameStatus  @default(STARTING)
   createdAt     DateTime    @default(now()) @map("created_at")
   endedAt       DateTime?
@@ -105,7 +105,7 @@ model GameRoom {
 }
 
 model Team {
-  id          String      @id
+  id          String      @id @default(uuid())
   gameRoomId  String
   gameRoom    GameRoom    @relation(fields: [gameRoomId], references: [id], onDelete: Cascade)
   players     TeamPlayer[]
@@ -132,7 +132,7 @@ enum ProblemDifficulty {
 }
 
 model Problem {
-  id                  String @id
+  id                  String @id @default(uuid())
   problemDescription  String
   difficulty          ProblemDifficulty
   gameRooms           GameRoom[]
@@ -140,7 +140,7 @@ model Problem {
 }
 
 model ProblemTest {
-  id            String @id
+  id            String @id @default(uuid())
   testCode      String
   language      String
   problemId     String 
@@ -149,7 +149,7 @@ model ProblemTest {
 }
 
 model GameResult {
-  id                String   @id
+  id                String   @id  @default(uuid())
   gameRoomId        String   @unique
   winningTeamId     String   @unique
   bestCode          String
