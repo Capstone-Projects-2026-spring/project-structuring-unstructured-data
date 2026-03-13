@@ -65,6 +65,7 @@ export default function CoderPOV({ socket, roomId, timeRemaining, duration, game
         <Navbar
           links={["Time", "Players", "Tournament"]}
           title="Code BattleGrounds"
+          isSpectator={isSpectator}
         />
       </Box>
 
@@ -91,7 +92,7 @@ export default function CoderPOV({ socket, roomId, timeRemaining, duration, game
       </Box>
 
       <Box style={{ gridArea: "coderDashBoard" }}>
-        <CoderDashboard />
+        <CoderDashboard isSpectator={isSpectator} />
       </Box>
 
       <Box style={{ gridArea: "chatbox" }}>
