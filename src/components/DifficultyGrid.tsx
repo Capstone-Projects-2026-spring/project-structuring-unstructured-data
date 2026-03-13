@@ -9,9 +9,36 @@ import {
   Button,
 } from "@mantine/core";
 import { useState } from "react";
+import { useRouter } from "next/router";
+import { authClient } from "@/lib/auth-client";
 
 export default function Subgrid() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const handleCreateRoom = async () => {
+    
+    if (!session) {
+      setError("Error: You must be signed in to create a match!");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const response = await fetch("/api/rooms/create", { method: "POST" });
+      const data = await response.json();
+      if (response.ok) {
+        router.push(`/game/${data.gameId}`); // Redirect to the new game room page using the returned gameId
+      } else {
+        alert(data.message || "Failed to create game room"); // Show error message from the server if available, otherwise show a generic error message
+      }
+    } catch (error) {
+      alert("Failed to create game room");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Container my="md">
@@ -47,7 +74,9 @@ export default function Subgrid() {
                   Strings
                 </Text>
 
-                <Button mt={"auto"}>Vote</Button>
+                <Button onClick={handleCreateRoom} mt={"auto"}>
+                  Create Room
+                </Button>
               </Flex>
             </Card>
           )}
@@ -87,7 +116,9 @@ export default function Subgrid() {
                   Sorts
                 </Text>
 
-                <Button mt={"auto"}>Vote</Button>
+                <Button onClick={handleCreateRoom} mt={"auto"}>
+                  Create Room
+                </Button>
               </Flex>
             </Card>
           )}
@@ -115,7 +146,7 @@ export default function Subgrid() {
                 />
                 <Text fw={500}>Hard Difficulty</Text>
                 <Text size="sm" c="dimmed">
-                  For Advanced PRogrammers
+                  For Advanced Programmers
                 </Text>
                 <Text size="sm" c="dimmed">
                   Data Structures And Algorithms
@@ -129,7 +160,9 @@ export default function Subgrid() {
                 <Text size="sm" c="dimmed">
                   Dynamic Programming
                 </Text>
-                <Button mt={"auto"}>Vote</Button>
+                <Button onClick={handleCreateRoom} mt={"auto"}>
+                  Create Room
+                </Button>
               </Flex>
             </Card>
           )}
@@ -138,3 +171,4 @@ export default function Subgrid() {
     </Container>
   );
 }
+
