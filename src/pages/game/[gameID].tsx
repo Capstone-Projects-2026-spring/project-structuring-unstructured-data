@@ -37,6 +37,10 @@ export default function PlayGameRoom() {
       setGameState("Waiting");
     });
 
+    socketInstance.on('spectator', () => {
+      setGameState("In Progress");
+    })
+
     socketInstance.on('gameStarted', ({ start, _duration }) => {
       if (isNaN(start) || isNaN(_duration)) return;
       setTimeRemaining(Number(start));
@@ -87,6 +91,9 @@ export default function PlayGameRoom() {
       <SpectatorPOV
         socket={socket}
         roomId={gameId}
+        timeRemaining={timeRemaining}
+        duration={duration}
+        gameState={gameState}
       />
     );
   }
