@@ -36,12 +36,19 @@ function App() {
   const [user, setUser] = useState(null);
 
   /**
-   * Handles successful login by storing user data and navigating to the dashboard.
+   * Handles successful login by storing user data and navigating to the appropriate page.
+   * Students bypass the dashboard — routed directly to the problem page once backend is wired.
+   * Teachers and admins are routed to the dashboard.
    * @param {Object} userData - The authenticated user's data.
    */
   const handleLogin = (userData) => {
     setUser(userData);
-    setCurrentPage('dashboard');
+    if (userData.role === 'student') {
+      // TODO: resolve problem from userData.problemKey once backend is wired
+      setCurrentPage('dashboard');
+    } else {
+      setCurrentPage('dashboard');
+    }
   };
 
   /**

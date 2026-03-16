@@ -1,153 +1,541 @@
-import React, { useState } from 'react';
-import { AVAILABLE_LANGUAGES, DEFAULT_BOILERPLATE, DEFAULT_SUGGESTIONS } from '../constants';
+import React, { useState, useRef } from 'react';
+import { AVAILABLE_LANGUAGES } from '../constants';
+
+
+const STEPS = ['Details', 'Languages', 'Sections', 'Settings'];
+
+
+/**
+ * Creates a blank suggestion object.
+ * @returns {{ id: number, type: 'ai'|'manual', content: string, isCorrect: boolean }}
+ */
+const makeSuggestion = () => ({
+  id: Date.now() + Math.random(),
+  type: 'ai',
+  content: '',
+  isCorrect: true,
+});
+
+/**
+ * Creates a blank section object.
+ * @returns {{ id: number, label: string, code: string, suggestions: Object[] }}
+ */
+const makeSection = () => ({
+  id: Date.now() + Math.random(),
+  label: '',
+  code: '',
+  suggestions: [makeSuggestion()],
+});
+
+
+function StepDetails({ title, setTitle, description, setDescription, errors }) {
+  return (
+    <div className="cp-step">
+      <div className="cp-step-intro">
+        <h3 className="cp-step-title">Problem Details</h3>
+        <p className="cp-step-subtitle">Give your problem a title and a clear description for students.</p>
+      </div>
+
+      <div className="form-field">
+        <label className="form-label">Title</label>
+        <input
+          type="text"
+          className={`form-input${errors.title ? ' form-input-error' : ''}`}
+          placeholder="e.g. Two Sum, Reverse a String..."
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          autoFocus
+        />
+        {errors.title && <span className="form-error">{errors.title}</span>}
+      </div>
+
+      <div className="form-field">
+        <label className="form-label">Description</label>
+        <textarea
+          className={`form-input form-textarea${errors.description ? ' form-input-error' : ''}`}
+          placeholder="Describe the problem, constraints, and what the student needs to solve..."
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          rows={6}
+        />
+        {errors.description && <span className="form-error">{errors.description}</span>}
+      </div>
+    </div>
+  );
+}
+
+function StepLanguages({ selectedLanguages, toggleLanguage, errors }) {
+  return (
+    <div className="cp-step">
+      <div className="cp-step-intro">
+        <h3 className="cp-step-title">Languages</h3>
+        <p className="cp-step-subtitle">Select which languages students can use to solve this problem.</p>
+      </div>
+
+      <div className="form-field">
+        <label className="form-label">Allowed Languages</label>
+        <div className="language-checkboxes">
+          {AVAILABLE_LANGUAGES.map(({ key, label }) => (
+            <label
+              key={key}
+              className={`lang-checkbox-item${selectedLanguages.includes(key) ? ' lang-checkbox-active' : ''}`}
+            >
+              <input
+                type="checkbox"
+                className="lang-checkbox-input"
+                checked={selectedLanguages.includes(key)}
+                onChange={() => toggleLanguage(key)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        {errors.languages && <span className="form-error">{errors.languages}</span>}
+        <span className="form-hint">At least one language is required.</span>
+      </div>
+    </div>
+  );
+}
+function SuggestionRow({ suggestion, onChange, onRemove, canRemove }) {
+  return (
+    <div className="cp-suggestion-row">
+      <div className="cp-suggestion-controls">
+        <div className="cp-suggestion-type-toggle">
+          <button
+            type="button"
+            className={`cp-type-btn${suggestion.type === 'ai' ? ' active' : ''}`}
+            onClick={() => onChange({ ...suggestion, type: 'ai', content: '' })}
+          >
+            AI
+          </button>
+          <button
+            type="button"
+            className={`cp-type-btn${suggestion.type === 'manual' ? ' active' : ''}`}
+            onClick={() => onChange({ ...suggestion, type: 'manual' })}
+          >
+            Manual
+          </button>
+        </div>
+
+        <div className="cp-suggestion-correctness">
+          <button
+            type="button"
+            className={`cp-correct-btn${suggestion.isCorrect ? ' correct' : ' distractor'}`}
+            onClick={() => onChange({ ...suggestion, isCorrect: !suggestion.isCorrect })}
+          >
+            {suggestion.isCorrect ? '✓ Correct' : '✗ Distractor'}
+          </button>
+        </div>
+
+        {canRemove && (
+          <button type="button" className="cp-remove-btn" onClick={onRemove} title="Remove suggestion">
+            ×
+          </button>
+        )}
+      </div>
+
+      {suggestion.type === 'manual' ? (
+        <textarea
+          className="form-input form-textarea code-textarea cp-suggestion-code"
+          placeholder="Write the code suggestion here..."
+          value={suggestion.content}
+          onChange={e => onChange({ ...suggestion, content: e.target.value })}
+          rows={3}
+          spellCheck={false}
+        />
+      ) : (
+        <div className="cp-ai-note">
+          The AI will generate this suggestion at runtime using this section's label and code as context.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionCard({ section, index, onChange, onRemove, canRemove, selectedLanguages }) {
+  const [activeLanguage, setActiveLanguage] = useState(selectedLanguages[0] || 'python');
+
+  const updateSuggestion = (suggId, updated) => {
+    onChange({
+      ...section,
+      suggestions: section.suggestions.map(s => s.id === suggId ? updated : s),
+    });
+  };
+
+  const removeSuggestion = (suggId) => {
+    onChange({
+      ...section,
+      suggestions: section.suggestions.filter(s => s.id !== suggId),
+    });
+  };
+
+  const addSuggestion = () => {
+    onChange({
+      ...section,
+      suggestions: [...section.suggestions, makeSuggestion()],
+    });
+  };
+
+  const updateCode = (lang, value) => {
+    onChange({
+      ...section,
+      code: { ...section.code, [lang]: value },
+    });
+  };
+
+  return (
+    <div className="cp-section-card">
+      <div className="cp-section-header">
+        <div className="cp-section-number">{index + 1}</div>
+        <input
+          type="text"
+          className="cp-section-label-input"
+          placeholder="Section label (e.g. Initialize data structure)"
+          value={section.label}
+          onChange={e => onChange({ ...section, label: e.target.value })}
+        />
+        {canRemove && (
+          <button type="button" className="cp-remove-section-btn" onClick={onRemove} title="Remove section">
+            ×
+          </button>
+        )}
+      </div>
+
+      <div className="cp-section-body">
+        <div className="cp-code-area">
+          <div className="cp-lang-tabs">
+            {selectedLanguages.map(lang => (
+              <button
+                key={lang}
+                type="button"
+                className={`cp-lang-tab${activeLanguage === lang ? ' active' : ''}`}
+                onClick={() => setActiveLanguage(lang)}
+              >
+                {lang.charAt(0).toUpperCase() + lang.slice(1)}
+              </button>
+            ))}
+          </div>
+          <textarea
+            className="form-input form-textarea code-textarea cp-code-block"
+            placeholder={`Write the code for this section in ${activeLanguage}...`}
+            value={(section.code && section.code[activeLanguage]) || ''}
+            onChange={e => updateCode(activeLanguage, e.target.value)}
+            rows={6}
+            spellCheck={false}
+          />
+          <span className="form-hint">
+            Use comments to describe what students should write in this section. The AI uses them to generate better suggestions.
+          </span>
+        </div>
+
+        <div className="cp-suggestions-area">
+          <div className="cp-suggestions-label">Suggestions for this section</div>
+          {section.suggestions.map(s => (
+            <SuggestionRow
+              key={s.id}
+              suggestion={s}
+              onChange={updated => updateSuggestion(s.id, updated)}
+              onRemove={() => removeSuggestion(s.id)}
+              canRemove={section.suggestions.length > 1}
+            />
+          ))}
+          <button type="button" className="btn-add-distractor" onClick={addSuggestion}>
+            + Add Suggestion
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function StepSections({ sections, setSections, selectedLanguages, errors }) {
+  const addSection = () => {
+    const newSection = makeSection();
+    // Initialise code map for each selected language
+    newSection.code = Object.fromEntries(selectedLanguages.map(l => [l, '']));
+    setSections(prev => [...prev, newSection]);
+  };
+
+  const updateSection = (id, updated) => {
+    setSections(prev => prev.map(s => s.id === id ? updated : s));
+  };
+
+  const removeSection = (id) => {
+    setSections(prev => prev.filter(s => s.id !== id));
+  };
+
+  return (
+    <div className="cp-step">
+      <div className="cp-step-intro">
+        <h3 className="cp-step-title">Sections</h3>
+        <p className="cp-step-subtitle">
+          Break the problem into sections. Each section becomes a block of code the student works through in order.
+          Attach suggestions or distractors to each section, either written by you or generated by AI at runtime.
+        </p>
+
+      </div>
+
+      {errors.sections && <p className="form-error">{errors.sections}</p>}
+
+      <div className="cp-sections-list">
+        {sections.map((section, index) => (
+          <SectionCard
+            key={section.id}
+            section={section}
+            index={index}
+            onChange={updated => updateSection(section.id, updated)}
+            onRemove={() => removeSection(section.id)}
+            canRemove={sections.length > 1}
+            selectedLanguages={selectedLanguages}
+          />
+        ))}
+      </div>
+
+      <button type="button" className="cp-add-section-btn" onClick={addSection}>
+        + Add Section
+      </button>
+
+      <div className="cp-compiled-preview">
+        <div className="cp-preview-label">Boilerplate Preview (what students will see)</div>
+        <pre className="cp-preview-code">
+          {selectedLanguages.length > 0
+            ? sections.map((s, i) => {
+                const lang = selectedLanguages[0];
+                const commentChar = lang === 'python' ? '#' : '//';
+                const label = s.label.trim() || `Section ${i + 1}`;
+                const header = `${commentChar} ${label} ${'-'.repeat(Math.max(0, 40 - label.length))}`;
+                const code = (s.code && s.code[lang]) || '';
+                return `${header}\n${code}`;
+              }).join('\n')
+            : '- select a language to preview -'
+          }
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Step 4: Settings ────────────────────────────────────────────────────────
+
+function StepSettings({
+  timeLimitMinutes, setTimeLimitMinutes,
+  maxSubmissions, setMaxSubmissions,
+  allowCopyPaste, setAllowCopyPaste,
+  trackTabSwitching, setTrackTabSwitching,
+}) {
+  return (
+    <div className="cp-step">
+      <div className="cp-step-intro">
+        <h3 className="cp-step-title">Settings</h3>
+        <p className="cp-step-subtitle">Configure constraints and monitoring options for this problem.</p>
+      </div>
+
+      <div className="form-row">
+        <div className="form-field form-field-half">
+          <label className="form-label">Time Limit</label>
+          <div className="time-limit-wrapper">
+            <input
+              type="number"
+              className="form-input"
+              placeholder="None"
+              value={timeLimitMinutes}
+              min={1}
+              onChange={e => setTimeLimitMinutes(e.target.value)}
+            />
+            <span className="time-limit-unit">minutes</span>
+          </div>
+          <span className="form-hint">Leave blank for no time limit.</span>
+        </div>
+
+        <div className="form-field form-field-half">
+          <label className="form-label">Max Submissions</label>
+          <input
+            type="number"
+            className="form-input"
+            placeholder="Unlimited"
+            value={maxSubmissions}
+            min={1}
+            onChange={e => setMaxSubmissions(e.target.value)}
+          />
+          <span className="form-hint">Leave blank for unlimited submissions.</span>
+        </div>
+      </div>
+
+      <div className="cp-toggles">
+        <div className="toggle-field">
+          <div className="toggle-field-info">
+            <span className="toggle-field-label">Allow Copy &amp; Paste</span>
+            <span className="toggle-field-desc">
+              {allowCopyPaste
+                ? 'Students can freely copy and paste code.'
+                : 'Copy and paste is disabled in the editor.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={`toggle-switch${allowCopyPaste ? ' toggle-on' : ' toggle-off'}`}
+            onClick={() => setAllowCopyPaste(v => !v)}
+            aria-label="Toggle copy and paste"
+          >
+            <span className="toggle-thumb" />
+          </button>
+        </div>
+
+        <div className="toggle-field">
+          <div className="toggle-field-info">
+            <span className="toggle-field-label">Track Tab Switching</span>
+            <span className="toggle-field-desc">
+              {trackTabSwitching
+                ? 'Tab and window focus changes will be logged during the problem.'
+                : 'Tab switching will not be monitored.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={`toggle-switch${trackTabSwitching ? ' toggle-on' : ' toggle-off'}`}
+            onClick={() => setTrackTabSwitching(v => !v)}
+            aria-label="Toggle tab switching tracking"
+          >
+            <span className="toggle-thumb" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step Indicator ──────────────────────────────────────────────────────────
+
+function StepIndicator({ currentStep }) {
+  return (
+    <div className="cp-step-indicator">
+      {STEPS.map((label, i) => (
+        <React.Fragment key={label}>
+          <div className={`cp-step-dot ${i < currentStep ? 'done' : i === currentStep ? 'active' : ''}`}>
+            <span className="cp-step-dot-num">{i < currentStep ? '✓' : i + 1}</span>
+            <span className="cp-step-dot-label">{label}</span>
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className={`cp-step-line${i < currentStep ? ' done' : ''}`} />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 function CreateProblemPage({ onBack }) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedLanguages, setSelectedLanguages] = useState(
-    AVAILABLE_LANGUAGES.map(({ key }) => key)
-  );
-  const [boilerplateCode, setBoilerplateCode] = useState({ ...DEFAULT_BOILERPLATE });
-
-  const [distractorMode, setDistractorMode] = useState('ai');
-  const [numDistractors, setNumDistractors] = useState(4);
-  const [maxGenerations, setMaxGenerations] = useState('');
-  const [prewrittenSuggestions, setPrewrittenSuggestions] = useState(
-    JSON.parse(JSON.stringify(DEFAULT_SUGGESTIONS))
-  );
-
-  const [maxAttempts, setMaxAttempts] = useState('');
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
-
-  const [allowCopyPaste, setAllowCopyPaste] = useState(true);
-  const [trackTabSwitching, setTrackTabSwitching] = useState(false);
-
+  const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
-  const clearError = (field) => setErrors((prev) => ({ ...prev, [field]: null }));
+  // Step 1
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Step 2
+  const [selectedLanguages, setSelectedLanguages] = useState(
+    AVAILABLE_LANGUAGES.map(({ key }) => key)
+  );
+
+  // Step 3 — start with one blank section
+  const initSection = () => {
+    const s = makeSection();
+    s.code = Object.fromEntries(AVAILABLE_LANGUAGES.map(({ key }) => [key, '']));
+    return s;
+  };
+  const [sections, setSections] = useState([initSection()]);
+
+  // Step 4
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
+  const [maxSubmissions, setMaxSubmissions] = useState('');
+  const [allowCopyPaste, setAllowCopyPaste] = useState(true);
+  const [trackTabSwitching, setTrackTabSwitching] = useState(false);
 
   const toggleLanguage = (key) => {
-    setSelectedLanguages((prev) => {
+    setSelectedLanguages(prev => {
       if (prev.includes(key)) {
         if (prev.length === 1) return prev;
-        return prev.filter((l) => l !== key);
+        return prev.filter(l => l !== key);
       }
       return [...prev, key];
     });
-    clearError('selectedLanguages');
   };
 
-  const updateBoilerplate = (lang, code) => {
-    setBoilerplateCode((prev) => ({ ...prev, [lang]: code }));
-  };
-
-  const updateCorrectSuggestion = (lang, value) => {
-    setPrewrittenSuggestions((prev) => ({
-      ...prev,
-      [lang]: { ...prev[lang], correct: value },
-    }));
-  };
-
-  const updateDistractor = (lang, index, value) => {
-    setPrewrittenSuggestions((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        distractors: prev[lang].distractors.map((d, i) => (i === index ? value : d)),
-      },
-    }));
-  };
-
-  const addDistractor = (lang) => {
-    setPrewrittenSuggestions((prev) => ({
-      ...prev,
-      [lang]: { ...prev[lang], distractors: [...prev[lang].distractors, ''] },
-    }));
-  };
-
-  const removeDistractor = (lang, index) => {
-    setPrewrittenSuggestions((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        distractors: prev[lang].distractors.filter((_, i) => i !== index),
-      },
-    }));
-  };
-
+  // ── Validation ──
   const validate = () => {
     const errs = {};
-    if (!title.trim()) errs.title = 'Title is required.';
-    if (!description.trim()) errs.description = 'Description is required.';
-    if (selectedLanguages.length === 0)
-      errs.selectedLanguages = 'At least one language must be selected.';
-
-    if (distractorMode === 'ai') {
-      if (!numDistractors || Number(numDistractors) < 1)
-        errs.numDistractors = 'At least 1 distractor is required.';
-    } else {
-      const prewrittenErrs = {};
-      selectedLanguages.forEach((lang) => {
-        const { correct, distractors } = prewrittenSuggestions[lang];
-        const langErrors = [];
-        if (!correct.trim()) langErrors.push('Correct suggestion is required.');
-        if (distractors.every((d) => !d.trim()))
-          langErrors.push('At least one distractor is required.');
-        if (langErrors.length > 0) prewrittenErrs[lang] = langErrors.join(' ');
-      });
-      if (Object.keys(prewrittenErrs).length > 0) errs.prewritten = prewrittenErrs;
+    if (step === 0) {
+      if (!title.trim()) errs.title = 'Title is required.';
+      if (!description.trim()) errs.description = 'Description is required.';
     }
-
+    if (step === 1) {
+      if (selectedLanguages.length === 0) errs.languages = 'Select at least one language.';
+    }
+    if (step === 2) {
+      const hasEmpty = sections.some(s => !s.label.trim());
+      if (hasEmpty) errs.sections = 'Every section needs a label.';
+    }
     return errs;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleNext = () => {
     const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
-    const starterCode = {};
-    selectedLanguages.forEach((lang) => {
-      starterCode[lang] = boilerplateCode[lang];
-    });
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    setStep(s => s + 1);
+  };
+
+  const handleBack = () => {
+    setErrors({});
+    setStep(s => s - 1);
+  };
+
+
+  const handleSubmit = () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    // Compile boilerplate per language by joining section code blocks in order
+    const boilerplate = Object.fromEntries(
+      selectedLanguages.map(lang => [
+        lang,
+        sections.map(s => (s.code && s.code[lang]) || '').join('\n'),
+      ])
+    );
 
     const problemData = {
       title: title.trim(),
       description: description.trim(),
       languages: selectedLanguages,
-      starterCode,
-      distractorMode,
-      ...(distractorMode === 'ai'
-        ? {
-            numDistractors: Number(numDistractors),
-            maxGenerations: maxGenerations !== '' ? Number(maxGenerations) : null,
-          }
-        : {
-            suggestions: Object.fromEntries(
-              selectedLanguages.map((lang) => [
-                lang,
-                {
-                  correct: prewrittenSuggestions[lang].correct,
-                  distractors: prewrittenSuggestions[lang].distractors.filter((d) => d.trim()),
-                },
-              ])
-            ),
-          }),
-      maxAttempts: maxAttempts !== '' ? Number(maxAttempts) : null,
+      boilerplate,
+      sections: sections.map((s, i) => ({
+        order: i + 1,
+        label: s.label.trim(),
+        code: s.code,
+        suggestions: s.suggestions.map(sg => ({
+          type: sg.type,
+          isCorrect: sg.isCorrect,
+          content: sg.type === 'manual' ? sg.content : '',
+        })),
+      })),
       timeLimitMinutes: timeLimitMinutes !== '' ? Number(timeLimitMinutes) : null,
+      maxSubmissions: maxSubmissions !== '' ? Number(maxSubmissions) : null,
       allowCopyPaste,
       trackTabSwitching,
     };
+
     console.log('Creating problem:', problemData);
     setSubmitted(true);
     setTimeout(() => onBack(), 1500);
   };
 
-  const activeLanguages = AVAILABLE_LANGUAGES.filter(({ key }) => selectedLanguages.includes(key));
-
+  // ── Render ──
   return (
     <div className="app">
       <header className="app-header">
@@ -155,9 +543,7 @@ function CreateProblemPage({ onBack }) {
           <h1 className="logo">AutoSuggestion Quiz</h1>
         </div>
         <div className="header-right">
-          <button className="btn-back" onClick={onBack}>
-            ← Dashboard
-          </button>
+          <button className="btn-back" onClick={onBack}>← Dashboard</button>
         </div>
       </header>
 
@@ -165,9 +551,7 @@ function CreateProblemPage({ onBack }) {
         <div className="create-problem-container">
           <div className="create-problem-header">
             <h2 className="create-problem-title">Create New Problem</h2>
-            <p className="create-problem-subtitle">
-              Configure a coding problem for your students
-            </p>
+            <StepIndicator currentStep={step} />
           </div>
 
           {submitted ? (
@@ -176,312 +560,55 @@ function CreateProblemPage({ onBack }) {
               <span>Problem created successfully! Returning to dashboard...</span>
             </div>
           ) : (
-            <form className="create-problem-form" onSubmit={handleSubmit}>
+            <>
+              {step === 0 && (
+                <StepDetails
+                  title={title} setTitle={setTitle}
+                  description={description} setDescription={setDescription}
+                  errors={errors}
+                />
+              )}
+              {step === 1 && (
+                <StepLanguages
+                  selectedLanguages={selectedLanguages}
+                  toggleLanguage={toggleLanguage}
+                  errors={errors}
+                />
+              )}
+              {step === 2 && (
+                <StepSections
+                  sections={sections}
+                  setSections={setSections}
+                  selectedLanguages={selectedLanguages}
+                  errors={errors}
+                />
+              )}
+              {step === 3 && (
+                <StepSettings
+                  timeLimitMinutes={timeLimitMinutes} setTimeLimitMinutes={setTimeLimitMinutes}
+                  maxSubmissions={maxSubmissions} setMaxSubmissions={setMaxSubmissions}
+                  allowCopyPaste={allowCopyPaste} setAllowCopyPaste={setAllowCopyPaste}
+                  trackTabSwitching={trackTabSwitching} setTrackTabSwitching={setTrackTabSwitching}
+                />
+              )}
 
-              <div className="form-section">
-                <div className="form-section-header">
-                  <span className="form-section-title">Problem Details</span>
-                  <span className="form-section-badge badge-required">Required</span>
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">Title</label>
-                  <input
-                    type="text"
-                    className={`form-input${errors.title ? ' form-input-error' : ''}`}
-                    placeholder="e.g. Two Sum, Reverse a Linked List..."
-                    value={title}
-                    onChange={(e) => { setTitle(e.target.value); clearError('title'); }}
-                  />
-                  {errors.title && <span className="form-error">{errors.title}</span>}
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    className={`form-input form-textarea${errors.description ? ' form-input-error' : ''}`}
-                    placeholder="Describe the problem statement, constraints, and expected behavior..."
-                    value={description}
-                    onChange={(e) => { setDescription(e.target.value); clearError('description'); }}
-                    rows={5}
-                  />
-                  {errors.description && (
-                    <span className="form-error">{errors.description}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-header">
-                  <span className="form-section-title">Languages &amp; Boilerplate</span>
-                  <span className="form-section-badge badge-required">Required</span>
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">Allowed Languages</label>
-                  <div className="language-checkboxes">
-                    {AVAILABLE_LANGUAGES.map(({ key, label }) => (
-                      <label
-                        key={key}
-                        className={`lang-checkbox-item${selectedLanguages.includes(key) ? ' lang-checkbox-active' : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="lang-checkbox-input"
-                          checked={selectedLanguages.includes(key)}
-                          onChange={() => toggleLanguage(key)}
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.selectedLanguages && (
-                    <span className="form-error">{errors.selectedLanguages}</span>
-                  )}
-                  <span className="form-hint">
-                    Select which languages students can use. At least one required.
-                  </span>
-                </div>
-
-                {activeLanguages.map(({ key, label }) => (
-                  <div key={key} className="form-field">
-                    <label className="form-label">{label} Boilerplate</label>
-                    <textarea
-                      className="form-input form-textarea code-textarea"
-                      value={boilerplateCode[key]}
-                      onChange={(e) => updateBoilerplate(key, e.target.value)}
-                      rows={6}
-                      spellCheck={false}
-                    />
-                    <span className="form-hint">
-                      Starter code shown to students when they select {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-header">
-                  <span className="form-section-title">Code Suggestions</span>
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">Suggestion Source</label>
-                  <div className="distractor-mode-selector">
-                    <button
-                      type="button"
-                      className={`distractor-mode-btn${distractorMode === 'ai' ? ' distractor-mode-active' : ''}`}
-                      onClick={() => setDistractorMode('ai')}
-                    >
-                      AI Generated
-                    </button>
-                    <button
-                      type="button"
-                      className={`distractor-mode-btn${distractorMode === 'prewritten' ? ' distractor-mode-active' : ''}`}
-                      onClick={() => setDistractorMode('prewritten')}
-                    >
-                      Pre-written
-                    </button>
-                  </div>
-                  <span className="form-hint">
-                    {distractorMode === 'ai'
-                      ? 'The AI generates code completion suggestions and distractors at quiz time.'
-                      : 'You write the correct completion and incorrect distractors for each language.'}
-                  </span>
-                </div>
-
-                {distractorMode === 'ai' ? (
-                  <div className="form-row">
-                    <div className="form-field form-field-half">
-                      <label className="form-label">
-                        Number of Distractors
-                        <span className="field-required"> *</span>
-                      </label>
-                      <input
-                        type="number"
-                        className={`form-input${errors.numDistractors ? ' form-input-error' : ''}`}
-                        value={numDistractors}
-                        min={1}
-                        max={10}
-                        onChange={(e) => { setNumDistractors(e.target.value); clearError('numDistractors'); }}
-                      />
-                      <span className="form-hint">Incorrect options shown alongside the correct answer</span>
-                      {errors.numDistractors && (
-                        <span className="form-error">{errors.numDistractors}</span>
-                      )}
-                    </div>
-
-                    <div className="form-field form-field-half">
-                      <label className="form-label">Max Regenerations</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="Unlimited"
-                        value={maxGenerations}
-                        min={1}
-                        onChange={(e) => setMaxGenerations(e.target.value)}
-                      />
-                      <span className="form-hint">How many times students can regenerate AI suggestions</span>
-                    </div>
-                  </div>
+              <div className="cp-nav-buttons">
+                {step > 0 && (
+                  <button type="button" className="btn btn-outline" onClick={handleBack}>
+                    ← Back
+                  </button>
+                )}
+                {step < STEPS.length - 1 ? (
+                  <button type="button" className="btn btn-run" onClick={handleNext}>
+                    Next →
+                  </button>
                 ) : (
-                  <div className="prewritten-suggestions">
-                    {activeLanguages.map(({ key, label }) => (
-                      <div key={key} className="prewritten-lang-block">
-                        <div className="prewritten-lang-header">
-                          <span className="prewritten-lang-name">{label}</span>
-                        </div>
-
-                        <div className="form-field">
-                          <label className="form-label">Correct Suggestion</label>
-                          <textarea
-                            className={`form-input form-textarea code-textarea${
-                              errors.prewritten?.[key] ? ' form-input-error' : ''
-                            }`}
-                            value={prewrittenSuggestions[key].correct}
-                            onChange={(e) => updateCorrectSuggestion(key, e.target.value)}
-                            rows={3}
-                            spellCheck={false}
-                            placeholder={`// The correct code completion for ${label}`}
-                          />
-                          {errors.prewritten?.[key] && (
-                            <span className="form-error">{errors.prewritten[key]}</span>
-                          )}
-                          <span className="form-hint">The completion students should identify as correct</span>
-                        </div>
-
-                        <div className="form-field">
-                          <label className="form-label">Distractors</label>
-                          <div className="distractor-list">
-                            {prewrittenSuggestions[key].distractors.map((distractor, idx) => (
-                              <div key={idx} className="distractor-entry">
-                                <textarea
-                                  className="form-input form-textarea code-textarea"
-                                  value={distractor}
-                                  onChange={(e) => updateDistractor(key, idx, e.target.value)}
-                                  rows={2}
-                                  spellCheck={false}
-                                  placeholder={`// Incorrect option ${idx + 1}`}
-                                />
-                                {prewrittenSuggestions[key].distractors.length > 1 && (
-                                  <button
-                                    type="button"
-                                    className="btn-remove-distractor"
-                                    onClick={() => removeDistractor(key, idx)}
-                                    aria-label="Remove distractor"
-                                  >
-                                    ×
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-add-distractor"
-                            onClick={() => addDistractor(key)}
-                          >
-                            + Add Distractor
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <button type="button" className="btn btn-run" onClick={handleSubmit}>
+                    Create Problem
+                  </button>
                 )}
               </div>
-
-              <div className="form-section">
-                <div className="form-section-header">
-                  <span className="form-section-title">Quiz Settings</span>
-                  <span className="form-section-badge badge-optional">Optional</span>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-field form-field-half">
-                    <label className="form-label">Max Code Attempts</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="Unlimited"
-                      value={maxAttempts}
-                      min={1}
-                      onChange={(e) => setMaxAttempts(e.target.value)}
-                    />
-                    <span className="form-hint">Leave blank for unlimited attempts</span>
-                  </div>
-
-                  <div className="form-field form-field-half">
-                    <label className="form-label">Time Limit</label>
-                    <div className="time-limit-wrapper">
-                      <input
-                        type="number"
-                        className="form-input"
-                        placeholder="None"
-                        value={timeLimitMinutes}
-                        min={1}
-                        onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                      />
-                      <span className="time-limit-unit">minutes</span>
-                    </div>
-                    <span className="form-hint">Leave blank for no time limit</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-section">
-                <div className="form-section-header">
-                  <span className="form-section-title">Student Behavior Settings</span>
-                  <span className="form-section-badge badge-optional">Optional</span>
-                </div>
-
-                <div className="toggle-field">
-                  <div className="toggle-field-info">
-                    <span className="toggle-field-label">Allow Copy &amp; Paste</span>
-                    <span className="toggle-field-desc">
-                      {allowCopyPaste
-                        ? 'Students can freely copy and paste code.'
-                        : 'Copy & paste is disabled. Paste attempts will be tracked and recorded.'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle-switch${allowCopyPaste ? ' toggle-on' : ' toggle-off'}`}
-                    onClick={() => setAllowCopyPaste((v) => !v)}
-                    aria-label="Toggle copy and paste"
-                  >
-                    <span className="toggle-thumb" />
-                  </button>
-                </div>
-
-                <div className="toggle-field">
-                  <div className="toggle-field-info">
-                    <span className="toggle-field-label">Track Tab / Window Switching</span>
-                    <span className="toggle-field-desc">
-                      {trackTabSwitching
-                        ? 'Tab and window focus changes will be logged during the problem.'
-                        : 'Tab switching will not be monitored.'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle-switch${trackTabSwitching ? ' toggle-on' : ' toggle-off'}`}
-                    onClick={() => setTrackTabSwitching((v) => !v)}
-                    aria-label="Toggle tab switching tracking"
-                  >
-                    <span className="toggle-thumb" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn btn-outline" onClick={onBack}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-run">
-                  Create Problem
-                </button>
-              </div>
-            </form>
+            </>
           )}
         </div>
       </div>
