@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: '../.env' }); // Load from root directory
 
 // Import routers
 const messagesRouter = require('./routes/messages');
@@ -8,7 +8,7 @@ const messagesRouter = require('./routes/messages');
 // Import database credentials from .env file
 const DB_USER = process.env.MONGODB_USER;
 const DB_PASSWORD = process.env.MONGODB_PASSWORD;
-const PORT = process.env.PORT;
+const PORT = process.env.MONGO_STORAGE_PORT || 3001; // Use dedicated port
 
 // initialize express app
 const app = express();

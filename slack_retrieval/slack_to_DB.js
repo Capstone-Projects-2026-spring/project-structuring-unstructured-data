@@ -73,6 +73,37 @@ async function insertModelsToDB(channelName) {
     }
 }
 
+// New function to insert a single message to the database
+async function insertSingleMessageToDB(channelName, messageData) {
+    try {
+        const MessageModel = createMessageModel(channelName);
+        
+        // Check if message already exists (by timestamp)
+        const existingMessage = await MessageModel.findOne({ ts: messageData.ts });
+        
+        if (existingMessage) {
+            console.log(`Message with timestamp ${messageData.ts} already exists in database`);
+            return { message: 'Message already exists in database', duplicate: true };
+        }
+        
+        // Insert the single message
+        const newMessage = new MessageModel({
+            user: messageData.user,
+            type: messageData.type || 'message',
+            text: messageData.text,
+            ts: messageData.ts
+        });
+        
+        await newMessage.save();
+        console.log(`Single message stored to ${channelName} collection`);
+        
+        return { message: 'Message stored successfully', duplicate: false };
+    } catch (error) {
+        console.error("Database insertion error:", error);
+        throw error;
+    }
+}
+
 async function channelNameToID(channelName) {
     try {
         const channelList = await app.client.conversations.list({
@@ -90,4 +121,4 @@ async function channelNameToID(channelName) {
 //getConversationHistory('social');
 //insertModelsToDB('social');
 
-module.exports = { insertModelsToDB };
+module.exports = { insertModelsToDB, insertSingleMessageToDB };

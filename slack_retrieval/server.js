@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: '../.env' }); // Load from root directory
 
 // Imports router and initializes express app
 const slackRouter = require('./post_endpoint');
@@ -10,7 +10,7 @@ const app = express();
 // Import credentials from .env file
 const DB_USER = process.env.MONGODB_USER;
 const DB_PASSWORD = process.env.MONGODB_PASSWORD;
-const PORT = process.env.PORT;
+const PORT = process.env.SLACK_RETRIEVAL_PORT || 3002; // Use dedicated port
 
 app.use(express.json());
 app.use(slackRouter);
