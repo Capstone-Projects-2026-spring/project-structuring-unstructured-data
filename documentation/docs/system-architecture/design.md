@@ -133,3 +133,43 @@ Composed element/section of a message block
 - type: string - type of element (text, url)
 - value: string - string representation of the item type associated with the text
 - block_id: string - foreign key (Block: id), contains relation to block that the element belongs to
+
+## Application workflow
+```mermaid
+graph LR
+    Slack[Slack] -- Message --> RawData[Raw Data]
+    RawData --> DUM{Daily Update Model}
+    
+    DUM --> LLM[LLM]
+    DUM --> CWT[Current Week Table]
+    CWT --> LLM
+    
+    LLM -- Daily Aggregate Updates --> DPO[Daily Processed Output]
+    LLM -- Higher Level Overview --> PMP[Past Month Processed]
+    
+    DPO -- Last Day Update --> PWP[Past Weeks Processed]
+    PWP --> LLM
+    
+    DPO --> Dashboard[Dashboard]
+    PWP --> Dashboard
+    PMP --> Dashboard
+
+    %% Styling to match the original purple theme
+    classDef purple fill:#f0f0ff,stroke:#9370db,color:#333;
+    class Slack,RawData,DUM,CWT,LLM,DPO,PWP,PMP,Dashboard purple;
+```
+
+### Daily Update Model
+Model created from the raw data reflecting the relevant information for the day
+
+### Current Week Table
+A table of the previous daily models to keep context for LLM
+
+### Daily Processed Output
+Each day the LLM will process our data models and produce strcutred summarizations for the dashboard
+
+### Past Weeks Processed
+An archieve of the final daily output for each week
+
+### Past Month Processed
+Overviews of each month based on the LLM processing the Past Weeks Processed table
