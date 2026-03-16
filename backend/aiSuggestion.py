@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from openai import OpenAI
 
-def aiSuggestion( currentCode,  problemPrompt):
+def aiSuggestion(currentCode, problemPrompt):
 
     # This loads the variables from your .env file into the environment
     load_dotenv()
@@ -22,8 +22,8 @@ def aiSuggestion( currentCode,  problemPrompt):
     completion = client.chat.completions.parse(
         model="gpt-5-mini",  # Or your preferred model (e.g., gpt-4o-mini)
         messages=[
-            {"role": "system", "content": "You are a helpful and concise programming assistant specialized in python. Only give next line suggestions. You are going to assist the user in finishing this problem. "+problemPrompt},
-            {"role": "user", "content": "give me 3 different suggestions for the next line of this code: "+ currentCode}
+            {"role": "system", "content": "You are a helpful and concise programming assistant specialized in python. Only give next line suggestions. You are going to assist the user in finishing this problem. " + problemPrompt},
+            {"role": "user", "content": "give me 3 different suggestions for the next line of this code: " + currentCode}
         ],
         response_format=CodeResponse,
     )
@@ -31,5 +31,3 @@ def aiSuggestion( currentCode,  problemPrompt):
     # Access the structured data
     result = completion.choices[0].message.parsed
     return result
-test = aiSuggestion("def add_numbers(a,b):", "create a function that adds 2 numbers together")
-print(test)
