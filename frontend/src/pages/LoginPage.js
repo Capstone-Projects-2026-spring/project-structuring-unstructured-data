@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authenticateUser, registerUser } from '../api';
+import { authenticateUser } from '../api';
 
 /**
  * @fileoverview Login page component for the AutoSuggestion Quiz application.
@@ -7,49 +7,64 @@ import { authenticateUser, registerUser } from '../api';
  */
 
 /**
- * @typedef {Object} User
- * @property {string} email - The authenticated user's email address.
- * @property {string} [name] - The authenticated user's display name.
- * @property {string} [role] - The authenticated user's role (e.g. 'student', 'admin').
- */
-
-/**
- * A login page component that handles user authentication.
- * Renders a sign-in form with email and password fields, error messaging,
- * and a shortcut "Register" button that pre-fills demo credentials.
+ * Login page with two modes:
+ * - Student (default): prompts for name and a 6-digit problem key. No backend auth.
+ * - Teacher: prompts for email and password, authenticated via the backend.
+ *
+ * A small toggle button in the top-right corner switches between modes.
  *
  * @component
  * @param {Object} props
- * @param {function(User): void} props.onLogin - Callback invoked with the authenticated
- *   user object upon successful login.
+ * @param {function(Object): void} props.onLogin - Callback invoked with the user object on success.
  * @returns {React.ReactElement} The rendered login page.
- *
- * @example
- * <LoginPage onLogin={(user) => console.log('Logged in as', user.email)} />
  */
 function LoginPage({ onLogin }) {
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [name, setName] = useState('');
+  const [mode, setMode] = useState('student'); // 'student' | 'teacher'
+
+  // Student fields
+  const [studentName, setStudentName] = useState('');
+  const [problemKey, setProblemKey] = useState('');
+
+  // Teacher fields
   const [email, setEmail] = useState('');
-
-  /** @type {[string, function(string): void]} The controlled password input value. */
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('student');
-  const [isLoading, setIsLoading] = useState(false);
 
-  /** @type {[string, function(string): void]} The current error message, or empty string if none. */
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setError('');
+  };
+
   /**
-   * Handles form submission by validating inputs and calling the authentication service.
-   * Sets an error message if validation fails or the authentication request rejects.
-   *
-   * @async
-   * @function
-   * @param {React.FormEvent<HTMLFormElement>} e - The form submission event.
-   * @returns {Promise<void>}
+   * Handles student form submission.
+   * Validates that a name and a 6-digit problem key are provided,
+   * then calls onLogin with a synthetic student user object.
+   * Backend wiring is deferred — no API call is made here yet.
    */
-  const handleSubmit = async (e) => {
+  const handleStudentSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!studentName.trim()) {
+      setError('Please enter your name.');
+      return;
+    }
+
+    if (!/^\d{6}$/.test(problemKey.trim())) {
+      setError('Please enter a valid 6-digit problem key.');
+      return;
+    }
+
+    onLogin({ name: studentName.trim(), role: 'student', problemKey: problemKey.trim() });
+  };
+
+  /**
+   * Handles teacher form submission.
+   * Validates email and password, then authenticates via the backend.
+   */
+  const handleTeacherSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -58,20 +73,9 @@ function LoginPage({ onLogin }) {
       return;
     }
 
-    if (isRegistering && !name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-
     setIsLoading(true);
-
     try {
-      let user;
-      if (isRegistering) {
-        user = await registerUser(name, email, password, role);
-      } else {
-        user = await authenticateUser(email, password);
-      }
+      const user = await authenticateUser(email, password);
       onLogin(user);
     } catch (err) {
       setError(err.message);
@@ -86,100 +90,105 @@ function LoginPage({ onLogin }) {
         <div className="header-left">
           <h1 className="logo">AutoSuggestion Quiz</h1>
         </div>
+        <div className="header-right">
+          {mode === 'student' ? (
+            <button className="link-btn" onClick={() => switchMode('teacher')}>
+              Teacher Login →
+            </button>
+          ) : (
+            <button className="link-btn" onClick={() => switchMode('student')}>
+              ← Student Login
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="login-page">
         <div className="login-card">
-          <div className="login-header">
-            <h2 className="login-title">{isRegistering ? 'Create Account' : 'Sign In'}</h2>
-            <p className="login-subtitle">
-              {isRegistering ? 'Register a new account' : 'Enter your credentials to continue'}
-            </p>
-          </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            {isRegistering && (
-              <div className="form-field">
-                <label className="form-label" htmlFor="name">Name</label>
-                <input
-                  id="name"
-                  type="text"
-                  className="form-input"
-                  placeholder="Your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoFocus
-                />
+          {mode === 'student' ? (
+            <>
+              <div className="login-header">
+                <h2 className="login-title">Enter Problem</h2>
+                <p className="login-subtitle">Enter your name and the problem key given by your teacher.</p>
               </div>
-            )}
 
-            <div className="form-field">
-              <label className="form-label" htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="text"
-                className="form-input"
-                placeholder="student@university.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoFocus={!isRegistering}
-              />
-            </div>
+              <form className="login-form" onSubmit={handleStudentSubmit}>
+                <div className="form-field">
+                  <label className="form-label" htmlFor="student-name">Your Name</label>
+                  <input
+                    id="student-name"
+                    type="text"
+                    className="form-input"
+                    placeholder="First Last"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                    autoFocus
+                  />
+                </div>
 
-            <div className="form-field">
-              <label className="form-label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                className="form-input"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+                <div className="form-field">
+                  <label className="form-label" htmlFor="problem-key">Problem Key</label>
+                  <input
+                    id="problem-key"
+                    type="text"
+                    className="form-input"
+                    placeholder="6-digit code"
+                    value={problemKey}
+                    onChange={(e) => setProblemKey(e.target.value)}
+                    maxLength={6}
+                  />
+                </div>
 
-            {isRegistering && (
-              <div className="form-field">
-                <label className="form-label" htmlFor="role">Role</label>
-                <select
-                  id="role"
-                  className="form-input"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                >
-                  <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
-                </select>
+                {error && <p className="form-error">{error}</p>}
+
+                <button type="submit" className="btn login-btn">
+                  Enter
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="login-header">
+                <h2 className="login-title">Teacher Sign In</h2>
+                <p className="login-subtitle">Enter your credentials to continue.</p>
               </div>
-            )}
 
-            {error && <p className="form-error">{error}</p>}
+              <form className="login-form" onSubmit={handleTeacherSubmit}>
+                <div className="form-field">
+                  <label className="form-label" htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="text"
+                    className="form-input"
+                    placeholder="you@school.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoFocus
+                  />
+                </div>
 
-            <button
-              type="submit"
-              className="btn login-btn"
-              disabled={isLoading}
-            >
-              {isLoading
-                ? (isRegistering ? 'Creating account...' : 'Signing in...')
-                : (isRegistering ? 'Create Account' : 'Sign In')}
-            </button>
-          </form>
+                <div className="form-field">
+                  <label className="form-label" htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    className="form-input"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
 
-          <div className="login-footer">
-            <p className="login-footer-text">
-              {isRegistering ? 'Already have an account? ' : "Don't have an account? "}
-              <button
-                className="link-btn"
-                onClick={() => {
-                  setIsRegistering(!isRegistering);
-                  setError('');
-                }}
-              >
-                {isRegistering ? 'Sign In' : 'Register'}
-              </button>
-            </p>
-          </div>
+                {error && <p className="form-error">{error}</p>}
+
+                <button type="submit" className="btn login-btn" disabled={isLoading}>
+                  {isLoading ? 'Signing in...' : 'Sign In'}
+                </button>
+              </form>
+            </>
+          )}
+
         </div>
       </div>
     </div>
