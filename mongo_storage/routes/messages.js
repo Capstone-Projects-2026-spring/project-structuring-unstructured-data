@@ -21,7 +21,7 @@ router.get('/api/messages/:collectionName', async (req, res) => {
 });
 
 // POST - insert all messages from a channel into MongoDB
-router.post('/api/slack/:channelName', async (req, res) => {
+router.post('/api/messages/:channelName', async (req, res) => {
   try {
     const { channelName } = req.params;
     

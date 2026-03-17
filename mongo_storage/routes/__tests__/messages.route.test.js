@@ -127,7 +127,7 @@ describe('GET /api/messages/:collectionName - Unit Tests', () => {
   });
 });
 
-describe('POST /api/slack/:channelName - Unit Tests',() => {
+describe('POST /api/messages/:channelName - Unit Tests',() => {
     let app;
 
     beforeEach(() => {
@@ -149,7 +149,7 @@ describe('POST /api/slack/:channelName - Unit Tests',() => {
         insertModelsToDB.mockResolvedValue();
 
         const response = await request(app)
-        .post(`/api/slack/${channelName}`)
+        .post(`/api/messages/${channelName}`)
         .send();
 
     expect(response.status).toBe(200);
@@ -164,7 +164,7 @@ describe('POST /api/slack/:channelName - Unit Tests',() => {
         insertModelsToDB.mockRejectedValue(new Error(errorMessage));
 
         const response = await request(app)
-        .post(`/api/slack/${channelName}`)
+        .post(`/api/messages/${channelName}`)
         .send();
 
 
