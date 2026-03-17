@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authenticateUser } from '../api';
+import { requestOTP, verifyOTP } from '../api';
 
 /**
  * @fileoverview Login page component for the AutoSuggestion Quiz application.
@@ -9,8 +9,7 @@ import { authenticateUser } from '../api';
 /**
  * Login page with two modes:
  * - Student (default): prompts for name and a 6-digit problem key. No backend auth.
- * - Teacher: prompts for email and password, authenticated via the backend.
- *
+ * - Teacher: prompts for email and OTP
  * A small toggle button in the top-right corner switches between modes.
  *
  * @component
@@ -27,7 +26,9 @@ function LoginPage({ onLogin }) {
 
   // Teacher fields
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState('email'); 
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,6 +36,8 @@ function LoginPage({ onLogin }) {
   const switchMode = (newMode) => {
     setMode(newMode);
     setError('');
+    setStep('email');
+    setOtp('');
   };
 
   /**
@@ -60,23 +63,20 @@ function LoginPage({ onLogin }) {
     onLogin({ name: studentName.trim(), role: 'student', problemKey: problemKey.trim() });
   };
 
-  /**
-   * Handles teacher form submission.
-   * Validates email and password, then authenticates via the backend.
-   */
-  const handleTeacherSubmit = async (e) => {
+  //request otp
+  const handleRequestOtp = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter both email and password.');
+    if (!email.trim()) {
+      setError('Please enter your email.');
       return;
     }
 
     setIsLoading(true);
     try {
-      const user = await authenticateUser(email, password);
-      onLogin(user);
+      await requestOTP(email);
+      setStep('otp'); // move to OTP step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,6 +84,25 @@ function LoginPage({ onLogin }) {
     }
   };
 
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!otp.trim()) {
+      setError('Please enter the code.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const user = await verifyOTP(email, otp);
+      onLogin(user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="app">
       <header className="app-header">
@@ -151,42 +170,64 @@ function LoginPage({ onLogin }) {
             <>
               <div className="login-header">
                 <h2 className="login-title">Teacher Sign In</h2>
-                <p className="login-subtitle">Enter your credentials to continue.</p>
+                <p className="login-subtitle">
+                  {step === 'email'
+                      ? 'Enter your email to receive a login code.'
+                      : 'Enter the code sent to your email.'}
+                </p>
               </div>
 
-              <form className="login-form" onSubmit={handleTeacherSubmit}>
-                <div className="form-field">
-                  <label className="form-label" htmlFor="email">Email</label>
-                  <input
-                    id="email"
-                    type="text"
-                    className="form-input"
-                    placeholder="you@school.edu"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoFocus
-                  />
-                </div>
+              <form className="login-form" 
+              onSubmit={step === 'email' ? handleRequestOtp : handleVerifyOtp}
+              >
+                {step === 'email' && (
+                  <div className="form-field">
+                    <label className="form-label">Email</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                )}
 
-                <div className="form-field">
-                  <label className="form-label" htmlFor="password">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    className="form-input"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-
+                {step === 'otp' && (
+                  <div className="form-field">
+                    <label className="form-label">Enter Code</label>
+                    <input 
+                      type="text"
+                      className="form-input"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      maxLength={6}
+                      autoFocus
+                    />
+                  </div>
+                )}
+                
                 {error && <p className="form-error">{error}</p>}
 
                 <button type="submit" className="btn login-btn" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+                  {isLoading
+                    ? 'Please wait...'
+                    : step === 'email'
+                    ? 'Send Code'
+                    : 'Verify Code'}
                 </button>
+
+                {step === 'otp' && (
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={handleRequestOtp}
+                  >
+                    Resend Code
+                  </button>
+                )}
               </form>
-            </>
+          </>
           )}
 
         </div>
