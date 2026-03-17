@@ -106,10 +106,10 @@ export default async function handler(
           break;
         }
         default: {
-          res.status(400).json({
+          return res.status(400).json({
             question: null,
             error: "Unknown difficulty. Pick from `easy`, `medium`, or `hard`"
-          })
+          });
         }
       }
     }
