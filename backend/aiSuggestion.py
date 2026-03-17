@@ -31,5 +31,3 @@ def aiSuggestion( currentCode,  problemPrompt):
     # Access the structured data
     result = completion.choices[0].message.parsed
     return result
-test = aiSuggestion("def add_numbers(a,b):", "create a function that adds 2 numbers together")
-print(test)
