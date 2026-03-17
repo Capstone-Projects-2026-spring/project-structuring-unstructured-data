@@ -1,6 +1,4 @@
-// Initialize .env and imports
-require('dotenv').config({ path: '../.env' });
-
+// Initialize imports
 const app = require('./boltApp');
 const getMessageModel = require('../mongo_storage/models/Message').getMessageModel;
 
