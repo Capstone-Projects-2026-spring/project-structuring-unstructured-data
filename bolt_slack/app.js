@@ -1,11 +1,6 @@
-const { App } = require('@slack/bolt');
 require('dotenv').config({ path: '../.env' });
 
-// 1. Initialize the App with your secrets
-const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET
-});
+const app = require('./boltApp');
 
 // GET select number of messages via conversations.history
 async function getConversationHistory(channelId) {
@@ -40,17 +35,16 @@ async function getConversationInfo(channelId) {
 
 // App start
 (async () => {
-  await app.start(process.env.PORT || 3000);
+  await app.start(process.env.BOLT_PORT || 3000);
   console.log('⚡️ Bolt app is running!');
 
   const targetChannel = "C0ADQ1YAK7D"; 
     
   // Initial fetch
-  getConversationHistory(targetChannel);
-  getConversationInfo(targetChannel);
+  // getConversationHistory(targetChannel);
+  // getConversationInfo(targetChannel);
 
   // Set up 5-minute interval (300,000 milliseconds)
   setInterval(() => {
-    fetchHistory(targetChannel);
   }, 5 * 60 * 1000); // 5 minutes
 })();

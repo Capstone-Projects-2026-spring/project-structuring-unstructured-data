@@ -8,7 +8,7 @@ const messagesRouter = require('./routes/messages');
 // Import database credentials from .env file
 const DB_USER = process.env.MONGODB_USER;
 const DB_PASSWORD = process.env.MONGODB_PASSWORD;
-const PORT = process.env.PORT;
+const PORT = process.env.DB_PORT;
 
 // initialize express app
 const app = express();

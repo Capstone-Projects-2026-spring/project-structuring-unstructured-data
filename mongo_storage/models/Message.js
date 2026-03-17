@@ -16,4 +16,4 @@ const getMessageModel = (collectionName) => {
   return model(collectionName, msgSchema, collectionName);
 };
 
-module.exports = getMessageModel;
+module.exports = { getMessageModel };
