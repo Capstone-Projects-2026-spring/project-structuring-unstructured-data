@@ -1,8 +1,7 @@
 import pytest
 import jwt
 
-from auth import hash_password, verify_password, create_token, decode_token
-
+from backend.auth import hash_password, verify_password, create_token, decode_token
 
 def test_hash_password_returns_string():
     password = "mypassword123"
