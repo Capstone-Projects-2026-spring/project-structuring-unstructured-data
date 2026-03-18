@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           node-version: 20
+      - run: npm install
       - run: npm ci
       - run: npm test -- --passWithNoTests
   test-mongo:
