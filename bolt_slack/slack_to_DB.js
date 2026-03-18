@@ -1,40 +1,13 @@
-// Initialize all imports
-const mongoose = require('mongoose');
-const { Schema, model } = require("mongoose");
-const { App } = require('@slack/bolt');
-require('dotenv').config({ path: './.env' });
-
-
-
-const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET
-});
-
-const msgSchema = new Schema({
-    user: String,
-    type: String,
-    text: String,
-    ts: String
-});
-
-const createMessageModel = (channelName) => {
-  // Checks if the models for the collection exists
-  if (mongoose.models[channelName]) {
-    return mongoose.models[channelName];
-  }
-
-  const model = mongoose.model(channelName, msgSchema, channelName);
-  return model;
-};
-
-
+// Initialize imports
+const app = require('./boltApp');
+const getMessageModel = require('../mongo_storage/models/Message').getMessageModel;
 
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
 async function getConversationHistory(channelName) {
   try {
     
     const channelId = await channelNameToID(channelName);
+    console.log(`Searching for messages at channel id: ${channelId}.`);
     if (!channelId) {
       throw new Error(`Channel ID not found for channel name: ${channelName}`);
     }
@@ -43,6 +16,9 @@ async function getConversationHistory(channelName) {
       channel: channelId,
       // limit = 1000 per call
     });
+
+    console.log(`✅ Success! Found ${result.messages.length} messages at channel id: ${channelId}.`);
+
     return result.messages;
   } catch (error) {
     const errCode = error.data?.error;
@@ -60,13 +36,14 @@ async function getConversationHistory(channelName) {
 
 async function insertModelsToDB(channelName) {
     try {
-        
-
         const history = await getConversationHistory(channelName);
+        console.log(`History: ${history.length}.`);
+        const Message = getMessageModel(channelName);
+        if (!history || history.length === 0) {
+          return;
+        }
 
-
-        const MessageModel = createMessageModel(channelName);
-        await MessageModel.insertMany(history);
+    await Message.insertMany(history);
     } catch (error) {
         console.error("Database connection error:", error);
         throw error;
@@ -117,8 +94,5 @@ async function channelNameToID(channelName) {
         throw error;
     }
   }
-
-//getConversationHistory('social');
-//insertModelsToDB('social');
 
 module.exports = { insertModelsToDB, insertSingleMessageToDB };
