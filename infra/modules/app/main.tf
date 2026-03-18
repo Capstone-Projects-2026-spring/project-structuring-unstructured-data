@@ -106,7 +106,7 @@ resource "google_cloud_run_service" "app" {
 
         env {
           name  = "BETTER_AUTH_URL"
-          value = var.better_auth_url
+          value = "https://app-hnjkqlohiq-uc.a.run.app"
         }
 
         env {
