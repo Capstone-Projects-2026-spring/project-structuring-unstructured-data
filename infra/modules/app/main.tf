@@ -44,6 +44,9 @@ resource "google_redis_instance" "redis" {
   memory_size_gb     = 1
   region             = var.region
   authorized_network = var.vpc_network_id
+  redis_configs = {
+    notify-keyspace-events = "Ex"
+  }
 }
 
 # cloud run migrate job to apply db deployments
