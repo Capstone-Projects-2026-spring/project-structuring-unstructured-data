@@ -3,6 +3,8 @@ steps:
   - name: gcr.io/cloud-builders/docker
     args:
       - build
+      - -f
+      - build/Dockerfile
       - -t
       - "us-central1-docker.pkg.dev/code-battlegrounds/poc-app/app:latest"
       - .
@@ -16,7 +18,7 @@ steps:
     args:
       - build
       - -f
-      - Dockerfile.migrate
+      - build/Dockerfile.migrate
       - -t
       - "us-central1-docker.pkg.dev/code-battlegrounds/poc-app/migrate:latest"
       - .
@@ -24,7 +26,6 @@ steps:
   # push deployment image
   - name: gcr.io/cloud-builders/docker
     args: ["push", "us-central1-docker.pkg.dev/code-battlegrounds/poc-app/migrate:latest"]
-
 
 images:
   - "us-central1-docker.pkg.dev/code-battlegrounds/poc-app/app:latest"

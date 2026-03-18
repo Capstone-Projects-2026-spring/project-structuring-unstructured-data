@@ -58,4 +58,3 @@ ENV NODE_ENV=production
 
 # set command to run the prisma deployment, can be overriden in cloud run job as well
 CMD ["npx", "prisma", "migrate", "deploy"]
-
