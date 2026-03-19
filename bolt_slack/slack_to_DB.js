@@ -1,12 +1,20 @@
-// Initialize imports
+const axios = require('axios');
 const app = require('./boltApp');
-const getMessageModel = require('../mongo_storage/models/Message').getMessageModel;
+const config = require('./config');
+
+const apiClient = axios.create({
+  baseURL: config.apiBaseUrl,
+  timeout: 10000,
+});
 
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
 async function getConversationHistory(channelName) {
   try {
-    
-    const channelId = await channelNameToID(channelName);
+    if (!channelName) {
+      throw new Error('channelName is required to fetch conversation history');
+    }
+
+    const channelId = await channelNameToID(channelName.trim());
     console.log(`Searching for messages at channel id: ${channelId}.`);
     if (!channelId) {
       throw new Error(`Channel ID not found for channel name: ${channelName}`);
@@ -30,53 +38,46 @@ async function getConversationHistory(channelName) {
     }
 
     console.error("Extraction Error:", error.data ? error.data.error : error.message);
+    throw error;
   }
 }
 
 
 async function insertModelsToDB(channelName) {
     try {
+        if (!channelName) {
+          throw new Error('channelName is required to insert messages');
+        }
+
         const history = await getConversationHistory(channelName);
         console.log(`History: ${history.length}.`);
-        const Message = getMessageModel(channelName);
         if (!history || history.length === 0) {
           return;
         }
 
-    await Message.insertMany(history);
+        const response = await apiClient.post(`/api/messages/${channelName}`, history);
+        console.log(response.data.message || `Messages from channel ${channelName} successfully posted to API.`);
     } catch (error) {
-        console.error("Database connection error:", error);
+        console.error("API connection error:", error);
         throw error;
     }
 }
 
-// New function to insert a single message to the database
+// New function to insert a single message to the database via API
 async function insertSingleMessageToDB(channelName, messageData) {
     try {
-        const MessageModel = createMessageModel(channelName);
-        
-        // Check if message already exists (by timestamp)
-        const existingMessage = await MessageModel.findOne({ ts: messageData.ts });
-        
-        if (existingMessage) {
-            console.log(`Message with timestamp ${messageData.ts} already exists in database`);
-            return { message: 'Message already exists in database', duplicate: true };
+        if (!channelName) {
+          throw new Error('channelName is required to insert a message');
         }
-        
-        // Insert the single message
-        const newMessage = new MessageModel({
-            user: messageData.user,
-            type: messageData.type || 'message',
-            text: messageData.text,
-            ts: messageData.ts
-        });
-        
-        await newMessage.save();
-        console.log(`Single message stored to ${channelName} collection`);
-        
-        return { message: 'Message stored successfully', duplicate: false };
+
+        if (!messageData || typeof messageData !== 'object') {
+          throw new Error('messageData must be a non-null object');
+        }
+
+        const response = await apiClient.post(`/api/messages/${channelName}`, messageData);
+        return response.data;
     } catch (error) {
-        console.error("Database insertion error:", error);
+        console.error("API insertion error:", error.response?.data || error.message);
         throw error;
     }
 }
@@ -86,9 +87,9 @@ async function channelNameToID(channelName) {
         const channelList = await app.client.conversations.list({
             types: "public_channel"
         });
-        const channel = channelList.channels.find(c => c.name === channelName);
+    const channel = channelList?.channels?.find(c => c.name === channelName);
 
-        return channel ? channel.id : null;
+    return channel ? channel.id : null;
     } catch (error) {
         console.error("Channel List Retrieval Error:", error.data ? error.data.error : error.message);
         throw error;

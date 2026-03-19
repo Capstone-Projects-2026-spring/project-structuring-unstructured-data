@@ -1,0 +1,7 @@
+{
+  "name": "project-structuring-unstructured-data",
+  "private": true,
+  "scripts": {
+    "test": "npm --prefix bolt_slack test -- --passWithNoTests && npm --prefix mongo_storage test -- --passWithNoTests"
+  }
+}

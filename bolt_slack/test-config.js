@@ -3,13 +3,14 @@
  * Run with: node test-config.js
  */
 
-require('dotenv').config(); // Loads .env from current directory
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // Load from repo root
 
 const requiredEnvVars = {
   'SLACK_BOT_TOKEN': process.env.SLACK_BOT_TOKEN,
   'SLACK_SIGNING_SECRET': process.env.SLACK_SIGNING_SECRET,
-  'API_BASE_URL': process.env.API_BASE_URL || 'http://localhost:3000',
-  'PORT': process.env.PORT || '3000'
+  'API_BASE_URL': process.env.API_URL || process.env.API_BASE_URL || 'http://localhost:5000',
+  'PORT': process.env.SLACK_BOT_PORT || process.env.PORT || '3000'
 };
 
 const optionalEnvVars = {

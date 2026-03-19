@@ -1,19 +1,28 @@
 const { App } = require('@slack/bolt');
 const axios = require('axios');
-require('dotenv').config({ path: '../.env' }); // Load from root directory
+const config = require('./config');
+
+const { insertModelsToDB, insertSingleMessageToDB } = require('./slack_to_DB');
+
+// Shared API client for Mongo storage
+const apiClient = axios.create({
+  baseURL: config.apiBaseUrl,
+  timeout: 10000,
+});
+
+const BOT_USER_ID = config.slackBotUserId;
 
 // Initialize the Slack App with your secrets
 // Socket Mode = true means no need for ngrok or public URL!
 const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
-  socketMode: process.env.SLACK_SOCKET_MODE === 'true', // Enable Socket Mode for local dev
-  appToken: process.env.SLACK_APP_TOKEN // Required for Socket Mode
+  token: config.slackBotToken,
+  signingSecret: config.slackSigningSecret,
+  socketMode: config.socketMode,
+  appToken: config.socketMode ? config.slackAppToken : undefined,
 });
 
 // API endpoint configuration
-const API_GET_URL = process.env.API_GET_URL || 'http://localhost:3001'; // Retrieve messages
-const API_POST_URL = process.env.API_POST_URL || 'http://localhost:3002'; // Store messages
+const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
 
 // ====================
 // Helper Functions
@@ -55,21 +64,10 @@ async function getConversationInfo(channelId) {
 // Fetch messages from API
 async function fetchMessagesFromAPI(collectionName) {
   try {
-    const response = await axios.get(`${API_GET_URL}/api/messages/${collectionName}`);
+    const response = await apiClient.get(`/api/messages/${collectionName}`);
     return response.data;
   } catch (error) {
-    console.error('API Error:', error.message);
-    throw error;
-  }
-}
-
-// Store messages to API
-async function storeMessagesToAPI(channelName) {
-  try {
-    const response = await axios.post(`${API_POST_URL}/api/slack/${channelName}`);
-    return response.data;
-  } catch (error) {
-    console.error('API Error:', error.message);
+    console.error('API Error:', error.response?.data || error.message);
     throw error;
   }
 }
@@ -82,7 +80,7 @@ async function storeMessagesToAPI(channelName) {
 app.event('member_joined_channel', async ({ event, client, logger }) => {
   try {
     // Check if the bot was added
-    if (event.user === process.env.SLACK_BOT_USER_ID) {
+    if (event.user === BOT_USER_ID) {
       await client.chat.postMessage({
         channel: event.channel,
         text: `👋 Hello! I'm your Slack API bot. I can help you manage and store messages from this channel.\n\n*🎯 Interactive Message Storage:*\nWhenever someone posts a message, I'll reply with a question:\n💾 "Would you like to save this message to the database?"\n\nSimply click:\n• "✅ Yes, Save" to store it\n• "❌ No, Skip" to ignore it\n\n*📋 Available Commands:*\n• \`/messages\` - View messages stored in database\n• \`/store-messages\` - Store ALL channel messages at once\n• \`/channel-info\` - Get channel information\n• \`@bot help\` - Show detailed help`
@@ -102,13 +100,13 @@ app.event('app_mention', async ({ event, client, logger }) => {
       await client.chat.postMessage({
         channel: event.channel,
         thread_ts: event.ts,
-        text: `🤖 *Slack API Bot - Help*\n\n*Interactive Message Storage:*\n• I'll reply to every message asking if you want to save it\n• Click the "✅ Yes, Save" button to save to database\n• Click the "❌ No, Skip" button to skip\n\n*Slash Commands:*\n• \`/messages\` - Retrieve recent messages from database\n• \`/store-messages\` - Store ALL channel messages to database\n• \`/channel-info\` - Get detailed channel information\n• \`@bot help\` - Show this help message\n• \`@bot status\` - Check bot and API status\n\n*Direct API Access:*\n• GET \`${API_GET_URL}/api/messages/{channelName}\` - Retrieve messages\n• POST \`${API_POST_URL}/api/slack/{channelName}\` - Store messages`
+        text: `🤖 *Slack API Bot - Help*\n\n*Interactive Message Storage:*\n• I'll reply to every message asking if you want to save it\n• Click the "✅ Yes, Save" button to save to database\n• Click the "❌ No, Skip" button to skip\n\n*Slash Commands:*\n• \`/messages\` - Retrieve recent messages from database\n• \`/store-messages\` - Store ALL channel messages to database\n• \`/channel-info\` - Get detailed channel information\n• \`@bot help\` - Show this help message\n• \`@bot status\` - Check bot and API status\n\n*Direct API Access:*\n• GET \`${API_BASE_URL}/api/messages/{channelName}\` - Retrieve messages\n• POST \`${API_BASE_URL}/api/messages/{channelName}\` - Store messages`
       });
     } else if (text.includes('status')) {
       await client.chat.postMessage({
         channel: event.channel,
         thread_ts: event.ts,
-        text: `✅ Bot is running and connected!\nGET API: ${API_GET_URL}\nPOST API: ${API_POST_URL}\n\n💾 Interactive message storage is enabled - I'll ask about each message with easy buttons!`
+        text: `✅ Bot is running and connected!\nGET API: ${API_BASE_URL}\nPOST API: ${API_BASE_URL}\n\n💾 Interactive message storage is enabled - I'll ask about each message with easy buttons!`
       });
     } else {
       await client.chat.postMessage({
@@ -187,11 +185,11 @@ app.command('/store-messages', async ({ command, ack, respond }) => {
       text: `⏳ Storing messages from *${channelName}*...`
     });
     
-    const result = await storeMessagesToAPI(channelName);
+    await insertModelsToDB(channelName);
     
     await respond({
       response_type: 'in_channel',
-      text: `✅ ${result.message || 'Messages stored successfully!'}`
+      text: `✅ Messages from *${channelName}* stored successfully to the database!`
     });
   } catch (error) {
     console.error('Error in /store-messages command:', error);
@@ -243,7 +241,7 @@ app.message(async ({ message, client, logger }) => {
     }
 
     // Skip if message is from this bot (double check)
-    if (message.user === process.env.SLACK_BOT_USER_ID) {
+    if (BOT_USER_ID && message.user === BOT_USER_ID) {
       return;
     }
 
@@ -417,11 +415,8 @@ app.action('save_message_confirm', async ({ ack, body, client, logger, respond }
     };
 
     try {
-      // Post to API to store the message
-      const response = await axios.post(
-        `${API_POST_URL}/api/slack/${channelName}`,
-        { message: messageToStore }
-      );
+      // Use the database function to store the message
+      const result = await insertSingleMessageToDB(channelName, messageToStore);
 
       // Update with success message
       await respond({
@@ -451,7 +446,7 @@ app.action('save_message_confirm', async ({ ack, body, client, logger, respond }
       
       // Update with error message
       await respond({
-        text: `❌ *Error storing message*\n${error.message}\n\n_Make sure the API server is running at ${API_POST_URL}_`,
+        text: `❌ *Error storing message*\n${error.message}`,
         replace_original: true
       });
 
@@ -538,12 +533,17 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
 // ====================
 
 (async () => {
-  const port = process.env.SLACK_BOT_PORT || 3000;
-  await app.start(port);
-  
-  console.log('⚡️ Slack Bot is running!');
-  console.log(`📡 Listening on port ${port}`);
-  console.log(`🔗 GET API (Retrieve): ${API_GET_URL}`);
-  console.log(`🔗 POST API (Store): ${API_POST_URL}`);
-  console.log('\n✅ Bot is ready to receive commands and events!');
+  const port = config.botPort;
+
+  try {
+    await app.start(port);
+
+    console.log('⚡️ Slack Bot is running!');
+    console.log(`📡 Listening on port ${port}`);
+    console.log(`🔗 Database API: ${API_BASE_URL}`);
+    console.log('\n✅ Bot is ready to receive commands and events!');
+  } catch (error) {
+    console.error('❌ Failed to start Slack Bot:', error.message);
+    process.exit(1);
+  }
 })();
