@@ -1,35 +1,32 @@
-const API_URL = "http://localhost:8000";
+import { createClient } from '@supabase/supabase-js';
 
-export async function authenticateUser(email, password) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+const supabase = createClient(
+  "https://hiascmgwbykhwswbynqs.supabase.co" ,
+  
+);
+
+export const requestOTP = async (email) => {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: undefined, // 🚨 disables magic link behavior
+    },
   });
 
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.detail || "Login failed");
-  }
+  if (error) throw new Error(error.message);
+};
 
-  const data = await response.json();
-  localStorage.setItem("token", data.token);
-  return data.user;
-}
-
-export async function registerUser(name, email, password, role = "student") {
-  const response = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password, role }),
+export const verifyOTP = async (email, otp) => {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token: otp,
+    type: 'email',
   });
 
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.detail || "Registration failed");
-  }
+  if (error) throw new Error(error.message);
 
-  const data = await response.json();
-  localStorage.setItem("token", data.token);
-  return data.user;
-}
+  return {
+    email: data.user.email,
+    role: 'teacher',
+  };
+};
