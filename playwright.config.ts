@@ -4,11 +4,11 @@ export default defineConfig({
   // Look for test files in the "tests" directory, relative to this configuration file.
   testDir: 'tests/pw',
 
-  // 2 minutes per test
-  timeout: 120000,
+  // 30 secs per test
+  timeout: 30000,
 
   // Run all tests in parallel.
-  fullyParallel: true,
+  fullyParallel: false,
 
   // Fail the build on CI if you accidentally left test.only in the source code.
   forbidOnly: !!process.env.CI,
@@ -16,8 +16,8 @@ export default defineConfig({
   // Retry on CI only.
   retries: process.env.CI ? 2 : 0,
 
-  // Opt out of parallel tests on CI.
-  workers: process.env.CI ? 1 : undefined,
+  // Try with 3 workers out of parallel tests on CI.
+  //workers: process.env.CI ? 1 : undefined,
 
   // Reporter to use
   reporter: 'html',
@@ -38,9 +38,9 @@ export default defineConfig({
   ],
   // May not need to start a web server if you run the tests with the dev server already running.
   // Run your local dev server before starting the tests.
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-  },
+  //webServer: {
+  //  command: 'npm run dev',
+  //  url: 'http://localhost:3000',
+  //  reuseExistingServer: !process.env.CI,
+  //},
 });
