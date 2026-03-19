@@ -1,5 +1,5 @@
 // The game service handlers itself. note that this is the only file that should interact with redis
-// ^ GET A LOAD OF THIS HAHAHAHAHA
+// Redis can be accessed in the api layer for special cases now
 
 const GAME_DURATION_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
 

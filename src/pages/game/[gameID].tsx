@@ -16,7 +16,7 @@ export default function PlayGameRoom() {
   const router = useRouter();
   const gameId = router.query.gameID as string;
 
-  const { data: session, error, isPending } = authClient.useSession() // auth check still needs some work to make work correct
+  const { data: session, error, isPending } = authClient.useSession() // auth check still needs some work to make work fully correct
 
   // 2. Set up our state for the socket connection and the user's role
   const [role, setRole] = useState<Role | null>(null);
@@ -98,7 +98,7 @@ export default function PlayGameRoom() {
           onJoined={(teamId, role) => {
             setTeamSelected(teamId);
             setGameState(GameStatus.WAITING);
-            setRole(role) // Maybe add localStorage persistence
+            setRole(role) // TODO: add localStorage persistence
             if (role === Role.SPECTATOR) {
               setGameState(GameStatus.ACTIVE);
             }
@@ -128,7 +128,7 @@ export default function PlayGameRoom() {
   if (gameState === GameStatus.WAITING) {
     return (
       <Center h="100vh">
-        <Text size="xl" c="dimmed">Waiting for another player to join...</Text>
+        <Text data-testid="waiting-for-second" size="xl" c="dimmed">Waiting for another player to join...</Text>
       </Center>
     );
   }
@@ -149,7 +149,6 @@ export default function PlayGameRoom() {
   // State C: Successfully joined as a player! Render the correct layout.
   return (
     <>
-      <div datatest-id="successful"></div>
       {role === Role.CODER && teamSelected && (
         <CoderPOV
           socket={socket}

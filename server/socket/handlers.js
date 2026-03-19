@@ -22,8 +22,6 @@ function registerSocketHandlers(io, socket, services) {
     console.log(`Room ${gameId} now has ${socketsInRoom.size} sockets`);
     const numPlayers = socketsInRoom ? socketsInRoom.size : 0;
 
-    // REENTRY IS A PROBLEM WITH THIS SETUP (3 second load no matter what and gameStarting emitted every time) 
-    // WILL NEED TO FIX TRYING TO SOLVE MINIMUM CASE FIRST
     const gameExists = await gameService.isGameStarted(gameId);
     console.log(`Game Exists: ${gameExists}`)
     if (gameExists) {

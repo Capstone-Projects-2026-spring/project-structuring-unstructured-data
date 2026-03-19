@@ -1,5 +1,5 @@
 import { test, expect, chromium, Browser, Page } from '@playwright/test';
-import { loginAs, setupGame } from './helpers';
+import { loginAs, setupGame, createGame } from './helpers';
 
 test.describe('Game flow', () => {
     let browsers: Browser[] = [];
@@ -18,10 +18,19 @@ test.describe('Game flow', () => {
     });
 
     test.afterAll(async () => {
-        await Promise.all(browsers.map(b => b.close().catch(() => {})));
+        await Promise.all(browsers.map(b => b.close().catch(() => { })));
         browsers = [];
         pages = [];
     });
+
+    test('Need 4 players to be joined to a team for the game to start', async () => {
+        await createGame(pages[0]);
+
+        await pages[0].locator('[data-testid="team-1-button"]').waitFor({ state: 'visible' });
+        await pages[0].click('[data-testid="team-1-button"]');
+
+        await expect(pages[0].locator('[data-testid="waiting-for-second"]')).toBeVisible({ timeout: 15000 })
+    })
 
     test('4 players join and game starts', async () => {
         await setupGame(pages);

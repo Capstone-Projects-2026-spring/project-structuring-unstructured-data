@@ -5,6 +5,8 @@ import { Role } from '@prisma/client';
 
 /**
  * Switches the roles of the teams
+ * NOT DONE YET TODO: Make it so depends 
+ * on gameId rather than 2 teamIds
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
