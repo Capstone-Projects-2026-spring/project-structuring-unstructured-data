@@ -4,65 +4,53 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import ProblemPage from './pages/ProblemPage';
 import CreateProblemPage from './pages/CreateProblemPage';
-import { PROBLEMS } from './constants';
 
 /**
- * @fileoverview Root application component for the Auto Suggestion Quiz app.
- * Handles top-level routing between Login, Dashboard, and Problem pages.
- * @module App
+ * Attempt to restore a teacher session from a saved JWT in localStorage.
+ * Returns a user object if the token exists and hasn't expired, null otherwise.
  */
+function restoreSession() {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem('token');
+      return null;
+    }
+    return { token, email: payload.email, role: payload.role, id: payload.user_id };
+  } catch {
+    return null;
+  }
+}
 
-/**
- * Main App component. Manages page navigation and shared state
- * for the current user and selected problem.
- *
- * @component
- * @returns {JSX.Element} The currently active page component.
- */
 function App() {
-  /**
-   * @type {[string, Function]} Current page identifier — 'login', 'dashboard', or 'problem'.
-   */
-  const [currentPage, setCurrentPage] = useState('login');
+  const restoredUser = restoreSession();
 
-  /**
-   * @type {[Object|null, Function]} The currently selected problem object, or null if none.
-   */
+  const [currentPage, setCurrentPage] = useState(
+    restoredUser ? 'dashboard' : 'login'
+  );
   const [selectedProblem, setSelectedProblem] = useState(null);
+  const [user, setUser] = useState(restoredUser);
 
-  /**
-   * @type {[Object|null, Function]} The logged-in user's data, or null if not logged in.
-   */
-  const [user, setUser] = useState(null);
-
-  /**
-   * Handles successful login by storing user data and navigating to the appropriate page.
-   * Students bypass the dashboard — routed directly to the problem page once backend is wired.
-   * Teachers and admins are routed to the dashboard.
-   * @param {Object} userData - The authenticated user's data.
-   */
   const handleLogin = (userData) => {
     setUser(userData);
+    if (userData.token) {
+      localStorage.setItem('token', userData.token);
+    }
     if (userData.role === 'student') {
-      // TODO: resolve problem from userData.problemKey once backend is wired
-      setCurrentPage('dashboard');
+      setSelectedProblem(userData.problem);
+      setCurrentPage('problem');
     } else {
       setCurrentPage('dashboard');
     }
   };
 
-  /**
-   * Opens a specific problem and navigates to the Problem page.
-   * @param {Object} problem - The problem object to display.
-   */
   const handleOpenProblem = (problem) => {
     setSelectedProblem(problem);
     setCurrentPage('problem');
   };
 
-  /**
-   * Navigates back to the dashboard and clears the selected problem.
-   */
   const handleBackToDashboard = () => {
     setCurrentPage('dashboard');
     setSelectedProblem(null);
@@ -70,6 +58,13 @@ function App() {
 
   const handleCreateProblem = () => {
     setCurrentPage('createProblem');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setUser(null);
+    setSelectedProblem(null);
+    setCurrentPage('login');
   };
 
   if (currentPage === 'login') {
@@ -91,9 +86,9 @@ function App() {
 
   return (
     <Dashboard
-      problems={PROBLEMS}
       onOpenProblem={handleOpenProblem}
       onCreateProblem={handleCreateProblem}
+      onLogout={handleLogout}
       user={user}
     />
   );

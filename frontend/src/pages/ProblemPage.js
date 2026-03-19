@@ -1,42 +1,23 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import {
-  AI_SUGGESTIONS_BY_PROBLEM,
-  DEFAULT_AI_SUGGESTIONS,
-  LANGUAGE_MAP,
-} from '../constants';
+import { LANGUAGE_MAP } from '../constants';
 
 /**
  * @fileoverview Problem page component for the AutoSuggestion Quiz application.
  * @module ProblemPage
  */
 
-/**
- * @typedef {Object} Example
- * @property {string} input - The example input value.
- * @property {string} output - The expected output for the given input.
- * @property {string} [explanation] - Optional explanation of why the output is correct.
- */
-
-/**
- * @typedef {Object} Problem
- * @property {string} id - Unique identifier used to look up AI suggestions.
- * @property {string} title - Display title of the problem.
- * @property {string} description - Full problem description shown to the user.
- * @property {Object.<string, string>} starterCode - Map of language key to starter code string.
- * @property {Example[]} examples - List of input/output examples shown in the problem panel.
- */
-
-/**
- * @typedef {Object} SuggestionLogEntry
- * @property {string} time - Locale time string of when the suggestion was accepted.
- * @property {'accepted'} action - The action taken on the suggestion.
- * @property {string} label - The label of the accepted suggestion.
- */
-
 function ProblemPage({ problem, onBack }) {
-  const [language, setLanguage] = useState('python');
-  const [code, setCode] = useState(problem.starterCode.python);
+  const language = problem.language;
+  const starterCode = (problem.sections || [])
+    .sort((a, b) => a.order_index - b.order_index)
+    .map((s) => {
+      const sectionCode = (typeof s.code === 'object' ? s.code[language] : s.code) || '';
+      return `# ${s.label}\n${sectionCode}`;
+    })
+    .join('\n');
+
+  const [code, setCode] = useState(starterCode);
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('output');
@@ -71,8 +52,7 @@ function ProblemPage({ problem, onBack }) {
               endColumn: word.endColumn,
             };
 
-            let rawSuggestions =
-              AI_SUGGESTIONS_BY_PROBLEM[problem.id] || DEFAULT_AI_SUGGESTIONS;
+            let rawSuggestions = [];
 
             try {
               const currentCode = model.getValue();
@@ -271,15 +251,6 @@ function ProblemPage({ problem, onBack }) {
     initPyodide();
   }, []);
 
-  const handleLanguageChange = (newLang) => {
-    setLanguage(newLang);
-    setCode(problem.starterCode[newLang] || '');
-
-    if (monacoRef.current) {
-      registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[newLang]);
-    }
-  };
-
   const handleRunCode = async () => {
     if (!pyodide) {
       setOutput('Error: Python runtime not loaded yet. Please wait...\n');
@@ -307,13 +278,15 @@ function ProblemPage({ problem, onBack }) {
 import sys
 from io import StringIO
 
-sys.stdout = StringIO()
-sys.stderr = StringIO()
+_stdout_buf = StringIO()
+_stderr_buf = StringIO()
+sys.stdout = _stdout_buf
+sys.stderr = _stderr_buf
 
 ${code}
 
-_stdout = sys.stdout.getvalue()
-_stderr = sys.stderr.getvalue()
+_stdout = _stdout_buf.getvalue()
+_stderr = _stderr_buf.getvalue()
 `;
 
       await pyodide.runPythonAsync(fullCode);
@@ -321,8 +294,25 @@ _stderr = sys.stderr.getvalue()
       const stdout = pyodide.globals.get('_stdout');
       const stderr = pyodide.globals.get('_stderr');
 
+      // Try to evaluate the last meaningful line as an expression (REPL-style),
+      // so that return values like most_frequent([1,3,3]) are shown automatically.
+      let returnValue = '';
+      const lines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+      const lastLine = lines[lines.length - 1];
+      if (lastLine) {
+        try {
+          const val = await pyodide.runPythonAsync(lastLine);
+          if (val !== undefined && val !== null) {
+            returnValue = `\n=> ${val}`;
+          }
+        } catch {
+          // last line isn't an expression (e.g. it's a def or assignment) — that's fine
+        }
+      }
+
       let result = '';
       if (stdout) result += stdout;
+      if (returnValue) result += returnValue;
       if (stderr) result += 'Error: ' + stderr;
 
       setOutput(result || 'Code executed successfully (no output)\n');
@@ -368,40 +358,15 @@ _stderr = sys.stderr.getvalue()
           <div className="panel-body problem-body">
             <h2 className="problem-heading">{problem.title}</h2>
             <p className="problem-description">{problem.description}</p>
-
-            <div className="examples">
-              {problem.examples.map((ex, i) => (
-                <div key={i} className="example">
-                  <h4>Example {i + 1}:</h4>
-                  <pre className="example-block">
-                    <strong>Input:</strong> {ex.input}
-                    {'\n'}
-                    <strong>Output:</strong> {ex.output}
-                    {ex.explanation && (
-                      <>
-                        {'\n'}
-                        <strong>Explanation:</strong> {ex.explanation}
-                      </>
-                    )}
-                  </pre>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
         <div className="panel editor-panel">
           <div className="panel-header editor-header">
             <div className="language-selector">
-              {Object.keys(LANGUAGE_MAP).map((lang) => (
-                <button
-                  key={lang}
-                  className={`lang-btn ${language === lang ? 'active' : ''}`}
-                  onClick={() => handleLanguageChange(lang)}
-                >
-                  {lang.charAt(0).toUpperCase() + lang.slice(1)}
-                </button>
-              ))}
+              <span className="lang-btn active">
+                {language.charAt(0).toUpperCase() + language.slice(1)}
+              </span>
             </div>
 
             <div className="editor-actions">

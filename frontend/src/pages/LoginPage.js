@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { requestOTP, verifyOTP } from '../api';
+import { requestOTP, verifyOTP, getProblemByCode } from '../api';
 
 /**
  * @fileoverview Login page component for the AutoSuggestion Quiz application.
@@ -8,8 +8,8 @@ import { requestOTP, verifyOTP } from '../api';
 
 /**
  * Login page with two modes:
- * - Student (default): prompts for name and a 6-digit problem key. No backend auth.
- * - Teacher: prompts for email and OTP
+ * - Student (default): prompts for name and a 6-digit problem key.
+ * - Teacher: prompts for email and receives an OTP via Supabase.
  * A small toggle button in the top-right corner switches between modes.
  *
  * @component
@@ -26,9 +26,8 @@ function LoginPage({ onLogin }) {
 
   // Teacher fields
   const [email, setEmail] = useState('');
-
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('email'); 
+  const [step, setStep] = useState('email'); // 'email' | 'otp'
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,10 +42,9 @@ function LoginPage({ onLogin }) {
   /**
    * Handles student form submission.
    * Validates that a name and a 6-digit problem key are provided,
-   * then calls onLogin with a synthetic student user object.
-   * Backend wiring is deferred — no API call is made here yet.
+   * then fetches the problem and calls onLogin.
    */
-  const handleStudentSubmit = (e) => {
+  const handleStudentSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -60,10 +58,20 @@ function LoginPage({ onLogin }) {
       return;
     }
 
-    onLogin({ name: studentName.trim(), role: 'student', problemKey: problemKey.trim() });
+    setIsLoading(true);
+    try {
+      const problem = await getProblemByCode(problemKey.trim());
+      onLogin({ name: studentName.trim(), role: 'student', problem });
+    } catch (err) {
+      setError('No problem found with that code. Please check with your teacher and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  //request otp
+  /**
+   * Handles teacher email submission — requests an OTP via Supabase.
+   */
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     setError('');
@@ -73,10 +81,29 @@ function LoginPage({ onLogin }) {
       return;
     }
 
+    // Dev bypass — type "dev" as the email to skip OTP entirely
+    if (email.trim().toLowerCase() === 'dev') {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/auth/dev-login`,
+          { method: 'POST' }
+        );
+        if (!response.ok) throw new Error('Dev login failed — is the backend running with DEBUG=True?');
+        const data = await response.json();
+        onLogin({ ...data.user, token: data.token });
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     setIsLoading(true);
     try {
       await requestOTP(email);
-      setStep('otp'); // move to OTP step
+      setStep('otp');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,6 +111,9 @@ function LoginPage({ onLogin }) {
     }
   };
 
+  /**
+   * Handles OTP verification — completes teacher login via Supabase.
+   */
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError('');
@@ -103,6 +133,7 @@ function LoginPage({ onLogin }) {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -161,8 +192,8 @@ function LoginPage({ onLogin }) {
 
                 {error && <p className="form-error">{error}</p>}
 
-                <button type="submit" className="btn login-btn">
-                  Enter
+                <button type="submit" className="btn login-btn" disabled={isLoading}>
+                  {isLoading ? 'Looking up...' : 'Enter'}
                 </button>
               </form>
             </>
@@ -172,13 +203,14 @@ function LoginPage({ onLogin }) {
                 <h2 className="login-title">Teacher Sign In</h2>
                 <p className="login-subtitle">
                   {step === 'email'
-                      ? 'Enter your email to receive a login code.'
-                      : 'Enter the code sent to your email.'}
+                    ? 'Enter your email to receive a login code.'
+                    : 'Enter the code sent to your email.'}
                 </p>
               </div>
 
-              <form className="login-form" 
-              onSubmit={step === 'email' ? handleRequestOtp : handleVerifyOtp}
+              <form
+                className="login-form"
+                onSubmit={step === 'email' ? handleRequestOtp : handleVerifyOtp}
               >
                 {step === 'email' && (
                   <div className="form-field">
@@ -186,6 +218,7 @@ function LoginPage({ onLogin }) {
                     <input
                       type="text"
                       className="form-input"
+                      placeholder="you@school.edu"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       autoFocus
@@ -196,7 +229,7 @@ function LoginPage({ onLogin }) {
                 {step === 'otp' && (
                   <div className="form-field">
                     <label className="form-label">Enter Code</label>
-                    <input 
+                    <input
                       type="text"
                       className="form-input"
                       value={otp}
@@ -206,7 +239,7 @@ function LoginPage({ onLogin }) {
                     />
                   </div>
                 )}
-                
+
                 {error && <p className="form-error">{error}</p>}
 
                 <button type="submit" className="btn login-btn" disabled={isLoading}>
@@ -227,7 +260,7 @@ function LoginPage({ onLogin }) {
                   </button>
                 )}
               </form>
-          </>
+            </>
           )}
 
         </div>
