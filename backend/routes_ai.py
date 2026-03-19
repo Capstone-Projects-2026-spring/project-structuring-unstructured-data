@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from aiSuggestion import ai_suggestion
-
+from aiSuggestion import aiSuggestion
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -13,29 +12,20 @@ class AISuggestionRequest(BaseModel):
     problem_prompt: str
 
 
-class AISuggestionResponse(BaseModel):
-    label: str
-    detail: str
-    insertText: str
+class SingleSuggestion(BaseModel):
+    suggestion: str
     explanation: str
+
+
+class AISuggestionResponse(BaseModel):
+    suggestions: list[SingleSuggestion]
 
 
 @router.post("/suggestion", response_model=AISuggestionResponse)
 def get_ai_suggestion(req: AISuggestionRequest) -> AISuggestionResponse:
-    """
-    This calls the existing `ai_suggestion` helper and reshapes the result so
-    the frontend can plug it directly into the suggestions window.
-    """
     try:
-        result = ai_suggestion(req.current_code, req.problem_prompt)
-    except Exception as exc:  # pragma: no cover - defensive
+        result = aiSuggestion(req.current_code, req.problem_prompt)
+    except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    # Shape the response so the frontend can plug it directly into Monaco / UI.
-    return AISuggestionResponse(
-        label="AI suggestion",
-        detail="AI Suggestion",
-        insertText=result.suggestion,
-        explanation=result.explanation,
-    )
-
+    return result
