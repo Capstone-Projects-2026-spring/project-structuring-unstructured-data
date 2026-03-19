@@ -46,6 +46,24 @@ async function getConversationHistory(channelId, limit = 100) {
   }
 }
 
+// GET select number of messages via conversations.history, ONLY collecting messages posted AFTER the last call
+async function getRecentConversationHistory(channelId, lastTimestamp) {
+  try {
+    console.log(`🚀 Attempting to pull messages from: ${channelId} since ${lastTimestamp}`);
+    
+    const result = await app.client.conversations.history({
+      channel: channelId,
+      oldest: lastTimestamp,
+      // limit = 1000 per call
+    });
+
+    console.log(`✅ Success! Found ${result.messages.length} new messages.`);
+    console.log(JSON.stringify(result.messages, null, 2));
+  } catch (error) {
+    console.error("❌ Extraction Error:", error.data ? error.data.error : error.message);
+  }
+}
+
 // GET info about channel via conversations.info
 async function getConversationInfo(channelId) {
   try {  
