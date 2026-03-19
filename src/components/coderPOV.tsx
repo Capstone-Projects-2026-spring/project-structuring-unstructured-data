@@ -44,7 +44,7 @@ export default function CoderPOV({
   };
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column" }}>
+    <Box data-testid="coder-pov" h="100vh" style={{ display: "flex", flexDirection: "column" }}>
       <Navbar
         links={["Timer", "Players", "Tournament"]}
         title="CODE BATTLEGROUNDS | GAMEMODE: TIMER"

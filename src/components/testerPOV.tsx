@@ -44,7 +44,7 @@ export default function TesterPOV({
   };
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Box data-testid="tester-pov" h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <Navbar
         links={["Timer", "Players", "Tournament"]}
         title="CODE BATTLEGROUNDS | GAMEMODE: TIMER"
