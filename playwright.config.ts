@@ -5,7 +5,7 @@ export default defineConfig({
   testDir: 'tests/pw',
 
   // 30 secs per test
-  timeout: 10000,
+  timeout: 30000,
 
   // Run all tests in parallel.
   fullyParallel: false,

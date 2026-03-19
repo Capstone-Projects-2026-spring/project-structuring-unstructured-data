@@ -7,6 +7,7 @@ test.describe('Spectator flow', () => {
     const players = ["alice@test.com", "bob@test.com", "charlie@test.com", "diana@test.com", "erik@test.com"];
 
     test.beforeAll(async () => {
+        test.setTimeout(30000);
         browsers = await Promise.all([...Array(5)].map(() => chromium.launch()));
 
         for (let i = 0; i < 5; i++) {
