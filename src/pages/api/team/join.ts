@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let playerCount = await prisma.teamPlayer.count({ where: { teamId } })
         let role: Role = Role.CODER;
 
-        if (playerCount > 2) {
+        if (playerCount >= 2) {
             role = Role.SPECTATOR
             return res.status(201).json({ role })
         } else if (playerCount === 1) {

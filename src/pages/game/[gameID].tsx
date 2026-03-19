@@ -149,6 +149,7 @@ export default function PlayGameRoom() {
   // State C: Successfully joined as a player! Render the correct layout.
   return (
     <>
+      <div datatest-id="successful"></div>
       {role === Role.CODER && teamSelected && (
         <CoderPOV
           socket={socket}

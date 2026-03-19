@@ -45,6 +45,7 @@ export default function TesterPOV({ socket, roomId, timeRemaining, duration, gam
           "prob edit edit chatbox"
         `,
       }}
+      data-testid="tester-pov"
     >
       <Box style={{ gridArea: "nav" }}>
         <Navbar

@@ -88,6 +88,7 @@ export default function Home() {
             size='lg' 
             loading={loading} 
             disabled={loading} 
+            data-testid="create-room-button"
           >
             Create A NewGame Room
           </Button>

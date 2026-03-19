@@ -61,6 +61,7 @@ export default function CoderPOV({ socket, roomId, timeRemaining, duration, game
           "prob edit edit chatbox"
         `,
       }}
+      data-testid="coder-pov"
     >
       <Box style={{ gridArea: "nav" }}>
         <Navbar

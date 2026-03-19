@@ -24,20 +24,20 @@ export default function SpectatorPOV({ socket, teams, timeRemaining, duration, g
       <Box style={{ position: 'absolute', top: 12, left: 12, zIndex: 20 }}>
         {teams.map((team, i) => (
           <Group key={team.teamId} gap="xs">
-            <Button size="sm" onClick={() => { setView('coder'); setViewTeamId(team.teamId); }}>
+            <Button data-testid={`team-${i+1}-coder`} size="sm" onClick={() => { setView('coder'); setViewTeamId(team.teamId); }}>
               Team {i + 1} Coder
             </Button>
-            <Button size="sm" onClick={() => { setView('tester'); setViewTeamId(team.teamId); }}>
+            <Button data-testid={`team-${i+1}-tester`} size="sm" onClick={() => { setView('tester'); setViewTeamId(team.teamId); }}>
               Team {i + 1} Tester
             </Button>
           </Group>
         ))}
-        <Button size="sm" onClick={() => setView('none')}>Exit View</Button>
+        <Button data-testid="exit-spectator" size="sm" onClick={() => setView('none')}>Exit View</Button>
       </Box>
 
       {view === 'none' && (
         <Center h="100vh">
-          <Text size="xl" c="dimmed">The room is full. You are spectating.</Text>
+          <Text data-testid="spectating-words" size="xl" c="dimmed">The room is full. You are spectating.</Text>
         </Center>
       )}
 

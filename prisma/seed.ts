@@ -19,6 +19,7 @@ async function main() {
     { name: "Bob", email: "bob@test.com" },
     { name: "Charlie", email: "charlie@test.com" },
     { name: "Diana", email: "diana@test.com" },
+    { name: "Erik", email: "erik@test.com" }
   ];
 
   for (const u of userDefs) {
@@ -27,7 +28,7 @@ async function main() {
       .catch(() => console.log(`${u.name} already exists, skipping...`));
   }
 
-  const [alice, bob, charlie, diana] = await Promise.all(
+  const [alice, bob, charlie, diana, erik] = await Promise.all(
     userDefs.map((u) => prisma.user.findUniqueOrThrow({ where: { email: u.email } }))
   );
 
@@ -176,6 +177,7 @@ async function main() {
   console.log("   bob@test.com     / password123");
   console.log("   charlie@test.com / password123");
   console.log("   diana@test.com   / password123");
+  console.log("   erik@test.com    / password123");
 }
 
 main()

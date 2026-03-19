@@ -54,6 +54,7 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
                         return (
                             <Stack key={team.teamId} align="center" gap="xs">
                                 <Button
+                                    data-testid={`team-${i+1}-button`}
                                     variant="default"
                                     disabled={isFull}
                                     loading={loading === team.teamId}
@@ -61,12 +62,13 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
                                 >
                                     Team {i + 1}
                                 </Button>
-                                <Text size="sm" c="dimmed">{team.playerCount} / 2</Text>
-                                {isFull && <Badge color="red" size="sm">Full</Badge>}
+                                <Text data-testid={`team-${i+1}-count`} size="sm" c="dimmed">{team.playerCount} / 2</Text>
+                                {isFull && <Badge data-testid={`team-${i + 1}-full`} color="red" size="sm">Full</Badge>}
                             </Stack>
                         );
                     })}
                     <Button
+                        data-testid="spectator-button"
                         onClick={() => { onJoined(null, Role.SPECTATOR) }}
                     >
                         Spectator Mode
