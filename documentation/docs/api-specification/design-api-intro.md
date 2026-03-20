@@ -1,41 +1,77 @@
 ---
 sidebar_position: 1
-description: What should be in this section.
+description: API reference for implemented message routes.
 ---
 
-Design Document - Part II API
-=============================
+# Backend API
 
-**Purpose**
 
-This Design Document gives the complete design of the software implementation. This information should be in structured comments (e.g. Javadoc) in the source files. We encourage the use of a documentation generation tool to generate a draft of your API that you can augment to include the following details.
+## Message Endpoints
 
-**Requirements**
+Base route prefix: `/api/messages`
 
-In addition to the general documentation requirements the Design Document - Part II API will contain:
+---
 
-General review of the software architecture for each module specified in Design Document - Part I Architecture. Please include your class diagram as an important reference.
+## `GET /api/messages/:collectionName`
 
-**For each class define the data fields, methods.**
+<details>
+  <summary>Details</summary>
+  - Retrieves all documents from the MongoDB collection identified by `collectionName` and returns them as an array. This endpoint is used to fetch a full conversation history that has already been stored.
+  - **Path Parameters:** 
+      - `collectionName` (`string`, required): Name of the MongoDB collection to query.
+  - **Success response:**
+    - Status: `200 OK`
+    - Body: `Array<object>` containing all documents from the target collection.
+    - Typical document fields include:
+        - `user` (`string`)
+        - `type` (`string`)
+        - `text` (`string`)
+        - `ts` (`string`)
+        - Additional fields may appear because the message schema is non-strict.
+- **Error response:**
+    - Status: `500 Internal Server Error`
+    - Body: plain text string: `"Server Error"`
 
-The purpose of the class.
+Example `200` response:
 
-The purpose of each data field.
+```json
+[
+	{
+		"_id": "67d6f4e6f12a9a71a51d0001",
+		"user": "U12345678",
+		"type": "message",
+		"text": "Hello from Slack",
+		"ts": "1712312345.678900"
+	}
+]
+```
+</details>
 
-The purpose of each method
+---
 
-Pre-conditions if any.
+## `POST /api/messages/:channelName`
 
-Post-conditions if any.
+<details>
+  <summary>Details</summary>
+  - Pulls messages from the Slack channel identified by `channelName` and inserts them into MongoDB under a collection with the same name.
+  - **Path Parameters:** 
+      - `channelName` (`string`, required): Slack channel name used both for Slack retrieval and for selecting the MongoDB collection name.
+  - **Success response:**
+    - Status: `200 OK`
+    - Body:
+    ```json
+    {
+        "message": "Messages from channel <channelName> inserted into the database successfully."
+    }
+    ```
 
-Parameters and data types
+- **Error response:**
+    - Status: `400 Bad Request`
+    - Body:
+    ```json
+    {
+        "error": "<error message>"
+    }
+    ```
+</details>
 
-Return value and output variables
-
-Exceptions thrown\* (PLEASE see note below for details).
-
-An example of an auto-generated and then augmented API specification is here ([Fiscal Design Document 2\_API.docx](https://templeu.instructure.com/courses/106563/files/16928898?wrap=1 "Fiscal Design Document 2_API.docx") )
-
-This group developed their API documentation by hand ([Design Document Part 2 API-1\_MovieMatch.docx](https://templeu.instructure.com/courses/106563/files/16928899?wrap=1 "Design Document Part 2 API-1_MovieMatch.docx") )
-
-\*At the top level, or where appropriate, all exceptions should be caught and an error message that is meaningful to the user generated. It is not OK to say ("xxxx has encountered a problem and will now close (OK?)". Error messages and recovery procedures should be documented in the User’s Manual.

@@ -1,9 +1,8 @@
 {
   "dependencies": {
     "@slack/bolt": "^4.6.0",
-    "dotenv": "^17.2.4",
-    "mongodb": "^7.1.0",
-    "mongoose": "^9.2.1"
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5"
   },
   "type": "commonjs",
   "devDependencies": {
@@ -11,6 +10,8 @@
     "supertest": "^7.2.2"
   },
   "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "jest",
     "test:unit": "jest messages.route.test.js",
     "test:integration": "jest messages.integration.test.js",

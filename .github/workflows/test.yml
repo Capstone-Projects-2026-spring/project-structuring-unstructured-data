@@ -6,30 +6,12 @@ on:
       - main
 
 jobs:
-  test-bolt:
+  test-all:
     runs-on: ubuntu-latest
     container:
       image: node:20
-    defaults:
-      run:
-        working-directory: ./bolt_slack
     steps:
       - uses: actions/checkout@v3
-        with:
-          node-version: 20
-      - run: npm install
-      - run: npm ci
-      - run: npm test -- --passWithNoTests
-  test-mongo:
-    runs-on: ubuntu-latest
-    container:
-      image: node:20
-    defaults:
-      run:
-        working-directory: ./mongo_storage
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          node-version: 20  
-      - run: npm install
-      - run: npm test -- --passWithNoTests
+      - run: npm install --prefix bolt_slack
+      - run: npm install --prefix mongo_storage
+      - run: npm test
