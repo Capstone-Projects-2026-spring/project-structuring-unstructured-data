@@ -19,6 +19,57 @@ router.get('/api/messages/:collectionName', async (req, res) => {
   } 
 });
 
+// GET /api/insights/week/:collectionName - Basic dashboard insights for current week
+router.get('/api/insights/week/:collectionName', async (req, res) => {
+  try {
+    const { collectionName } = req.params;
+    const Message = getMessageModel(collectionName);
+
+    // Compute start of week (Monday 00:00) and end (now)
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun,1=Mon...
+    const diffToMonday = (day === 0 ? 6 : day - 1); // if Sunday, go back 6
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - diffToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Pull messages for the week (Slack ts can be string/number; we'll filter in JS if needed)
+    const messages = await Message.find({}).lean();
+
+    const weekMessages = messages.filter(m => {
+      const tsDate = new Date(parseFloat(m.ts) * 1000);
+      return !isNaN(tsDate) && tsDate >= startOfWeek && tsDate <= now;
+    });
+
+    const messageCount = weekMessages.length;
+
+    // Active users + top users
+    const userCounts = {};
+    for (const msg of weekMessages) {
+      if (!msg.user) continue;
+      userCounts[msg.user] = (userCounts[msg.user] || 0) + 1;
+    }
+
+    const activeUsers = Object.keys(userCounts).length;
+    const topUsers = Object.entries(userCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([user, count]) => ({ user, count }));
+
+    res.status(200).json({
+      collectionName,
+      startOfWeek: startOfWeek.toISOString(),
+      end: now.toISOString(),
+      messageCount,
+      activeUsers,
+      topUsers
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
+  }
+});
+
 // POST - insert messages (single or array) from a channel into MongoDB
 router.post('/api/messages/:channelName', async (req, res) => {
   try {
