@@ -6,7 +6,6 @@ const apiClient = axios.create({
   baseURL: config.apiBaseUrl,
   timeout: 10000,
 });
-const getUserModel = require('../mongo_storage/models/User').getUserModel;
 
 const normalizeChannelName = (channelName) => {
   const sanitized = String(channelName || '')
@@ -71,7 +70,7 @@ async function getConversationHistory(channelName) {
 }
 
 
-async function insertModelsToDB(channelName) {
+async function insertMessageModels(channelName) {
     try {
         if (!channelName) {
           throw new Error('channelName is required to insert messages');
@@ -112,6 +111,53 @@ async function insertSingleMessageToDB(channelName, messageData) {
     }
 }
 
+// Retrieves list of member ids from a specified channel
+async function getMembersData(channelId) {
+  try {
+    const resolvedChannelId = await channelNameToID(channelId);
+    console.log(`Searching for messages at channel id: ${resolvedChannelId}.`);
+    if (!resolvedChannelId) {
+      throw new Error(`Channel ID not found for channel name: ${channelId}`);
+    }
+
+    const membersResult = await app.client.conversations.members({
+      channel: resolvedChannelId,
+    });
+
+    const fullMemberData = [];
+
+    for (const memberId of membersResult.members) {
+      const userInfoResult = await app.client.users.info({
+        user: memberId,
+      });
+      fullMemberData.push(userInfoResult.user);
+    }
+
+    return fullMemberData;
+    
+  } catch (error) {
+    console.error("Member ID Retrieval Error:", error.data ? error.data.error : error.message);
+    throw error;
+  }
+}
+
+async function insertUserModels(channelName) {
+    try {
+        const members = await getMembersData(channelName);
+        if (!members || members.length === 0) {
+          return;
+        }
+
+        const channelKey = await buildChannelKey(channelName);
+
+        const response = await apiClient.post(`/api/users/${encodeURIComponent(channelKey)}`, members);
+        console.log(response.data.message || `Member data from channel ${channelName} successfully posted to API.`);
+    } catch (error) {
+        console.error("Database connection error:", error);
+        throw error;
+    }
+}
+
 async function channelNameToID(channelName) {
     try {
         const channelList = await app.client.conversations.list({
@@ -126,4 +172,4 @@ async function channelNameToID(channelName) {
     }
   }
 
-module.exports = { insertModelsToDB, insertSingleMessageToDB };
+module.exports = { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, channelNameToID };

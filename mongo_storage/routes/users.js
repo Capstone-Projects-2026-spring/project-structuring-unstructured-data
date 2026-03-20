@@ -1,7 +1,5 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const getUserModel = require('../models/User').getUserModel;
-const insertModelsToDB = require('../../bolt_slack/slack_to_DB').insertModelsToDB;
 
 const router = express.Router();
 
@@ -24,10 +22,18 @@ router.get('/api/users/:collectionName', async (req, res) => {
 router.post('/api/users/:channelName', async (req, res) => {
   try {
     const { channelName } = req.params;
-    
-    // TODO: inserUserModels should be called within insertModelsToDB to ensure users are inserted before messages (to preserve referential integrity)
-    // add logic to put users in a separate collection from messages (e.g. channelName_users)
+    const membersData = req.body;
+
+    if (!channelName || !String(channelName).trim()) {
+      return res.status(400).json({ error: 'channelName path parameter is required' });
+    }
+
+    const UserModel = getUserModel(channelName);
+    await UserModel.insertMany(membersData);
+    console.log(`Array of ${membersData.length} members inserted into channel ${channelName}`);
+    return res.status(200).json({ message: `Members from channel ${channelName} inserted into the database successfully.` });
   } catch (err) {
+    console.error("Database insertion error:", err);
     res.status(400).json({ error: err.message });
   }
 });
