@@ -77,8 +77,41 @@ socket.on('sendChat', async (data) => {
   const { teamId, message } = data || {};
   if (!teamId || !message) return;
 
+  try {
+    await gameService.saveChatMessage(teamId, message);
+  } catch (e) {
+    console.error('Error saving chat message to Redis', e);
+  }
+
   // Broadcast the chat message to everyone else in the same room (except the sender)
   socket.to(teamId).emit('receiveChat', message);
+});
+
+socket.on('requestChatSync', async ({ teamId }) => {
+  try {
+    const parsed = await gameService.getChatMessages(teamId);
+    socket.emit('receiveChatHistory', parsed);
+  } catch (e) {
+    console.error('Error fetching chat history', e);
+  }
+});
+
+socket.on('updateTestCases', async ({ teamId, testCases }) => {
+  try {
+    await gameService.saveTestCases(teamId, testCases);
+  } catch (e) {
+    console.error('Error saving test cases', e);
+  }
+  // socket.to(teamId).emit('receiveTestCaseSync', testCases);
+});
+
+socket.on('requestTestCaseSync', async ({ teamId }) => {
+  try {
+    const testCases = await gameService.getTestCases(teamId);
+    if (testCases) socket.emit('receiveTestCaseSync', testCases);
+  } catch (e) {
+    console.error('Error fetching test cases', e);
+  }
 });
 
 // 3. Handle graceful disconnection

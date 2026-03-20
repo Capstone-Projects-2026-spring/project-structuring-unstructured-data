@@ -11,31 +11,35 @@ import { GameStatus } from "@prisma/client";
 interface CoderPOVProps {
   socket: Socket;
   roomId: string;
+  userId: string;
   timeRemaining: number;
   duration: number;
   gameState: GameStatus;
-  isSpectator?: boolean
+  isSpectator?: boolean;
 }
 
 export default function CoderPOV({
   socket,
   roomId,
+  userId,
   timeRemaining,
   duration,
   gameState,
   isSpectator = false,
 }: CoderPOVProps) {
   const [activeTab, setActiveTab] = useState<string | null>("console");
-  const [liveCode, setLiveCode] = useState<string>("// Waiting for code...");
+  const [liveCode, setLiveCode] = useState<string>("");
 
   useEffect(() => {
-    if (!isSpectator) return;
-    const handler = (newCode: string) => setLiveCode(newCode);
+    const handler = (newCode: string) => {
+      setLiveCode(newCode);
+      console.log(newCode);
+    };
     socket.on("receiveCodeUpdate", handler);
     return () => {
       socket.off("receiveCodeUpdate", handler);
     };
-  }, [socket, isSpectator]);
+  }, [socket]);
 
   const handleEditorChange = (value: string | undefined) => {
     if (value !== undefined && !isSpectator) {
@@ -44,7 +48,11 @@ export default function CoderPOV({
   };
 
   return (
-    <Box data-testid="coder-pov" h="100vh" style={{ display: "flex", flexDirection: "column" }}>
+    <Box
+      data-testid="coder-pov"
+      h="100vh"
+      style={{ display: "flex", flexDirection: "column" }}
+    >
       <Navbar
         links={["Timer", "Players", "Tournament"]}
         title="CODE BATTLEGROUNDS | GAMEMODE: TIMER"
@@ -60,7 +68,7 @@ export default function CoderPOV({
             color: "white",
             padding: "1rem",
             overflowY: "auto",
-            display: "block", 
+            display: "block",
           }}
         >
           {gameState === GameStatus.ACTIVE && (
@@ -115,7 +123,7 @@ export default function CoderPOV({
                 height="100%"
                 theme="vs-dark"
                 defaultLanguage="javascript"
-                value={isSpectator ? liveCode : undefined}
+                value={liveCode}
                 onChange={handleEditorChange}
                 options={{ readOnly: isSpectator, minimap: { enabled: false } }}
               />
@@ -124,7 +132,8 @@ export default function CoderPOV({
               <ChatBox
                 socket={socket}
                 roomId={roomId}
-                role="Coder"
+                userId={userId}
+                role="coder"
                 isSpectator={isSpectator}
               />
             </Box>

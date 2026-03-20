@@ -44,6 +44,25 @@ function createGameService(stateRedis) {
       return stateRedis.set(`game:${teamId}:code`, code);
     },
 
+    async getChatMessages(teamId) {
+      const messages = await stateRedis.lrange(`chat:${teamId}`, 0, -1);
+      return messages.map(m => JSON.parse(m));
+    },
+
+    async saveChatMessage(teamId, message) {
+      await stateRedis.rpush(`chat:${teamId}`, JSON.stringify(message));
+      await stateRedis.ltrim(`chat:${teamId}`, -50, -1); // Keep only latest 50 messages
+    },
+
+    async saveTestCases(teamId, testCases) {
+      await stateRedis.set(`testcases:${teamId}`, JSON.stringify(testCases));
+    },
+
+    async getTestCases(teamId) {
+      const data = await stateRedis.get(`testcases:${teamId}`);
+      return data ? JSON.parse(data) : null;
+    },
+
     async getActiveGames() {
       return stateRedis.smembers('activeGames');
     },

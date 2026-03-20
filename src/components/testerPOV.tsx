@@ -11,6 +11,7 @@ import { GameStatus } from "@prisma/client";
 interface TesterPOVProps {
   socket: Socket;
   roomId: string;
+  userId: string;
   timeRemaining: number;
   duration: number;
   gameState: GameStatus;
@@ -20,6 +21,7 @@ interface TesterPOVProps {
 export default function TesterPOV({
   socket,
   roomId,
+  userId,
   timeRemaining,
   duration,
   gameState,
@@ -30,10 +32,16 @@ export default function TesterPOV({
   const [activeTab, setActiveTab] = useState<string | null>("1");
 
   useEffect(() => {
+    socket.emit('requestTestCaseSync', { teamId: roomId });
+    
+    socket.on('receiveTestCaseSync', (cases) => {
+      setTestCases(cases);
+    })
+
     const handler = (newCode: string) => setLiveCode(newCode);
     socket.on("receiveCodeUpdate", handler);
     return () => { socket.off("receiveCodeUpdate", handler); };
-  }, [socket]);
+  }, [socket, roomId]);
 
   const addNewTest = () => {
     if (testCases.length < 5) {
@@ -42,6 +50,13 @@ export default function TesterPOV({
       setActiveTab(newId);
     }
   };
+
+  const handleTestCaseChange = (id: string, value: string | undefined) => {
+    if (isSpectator || value === undefined) return;
+    const updated = testCases.map(test => test.id === id ? { ...test, content: value } : test); 
+    setTestCases(updated);
+    socket.emit('updateTestCases', { teamId: roomId, testCases: updated });
+  }
 
   return (
     <Box data-testid="tester-pov" h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -94,7 +109,7 @@ export default function TesterPOV({
               />
             </Box>
             <Box style={{ width: "30%", minWidth: "200px", flexShrink: 0 }}>
-              <ChatBox socket={socket} roomId={roomId} role="Quality" isSpectator={isSpectator} />
+              <ChatBox socket={socket} roomId={roomId} userId={userId} role="Quality" isSpectator={isSpectator} />
             </Box>
           </Box>
 
@@ -122,6 +137,8 @@ export default function TesterPOV({
               <Editor 
                 height="100%" 
                 theme="vs-dark" 
+                value={testCases.find(test => test.id === activeTab)?.content}
+                onChange={(val) => handleTestCaseChange(activeTab!, val)}
                 defaultLanguage="javascript" 
                 options={{ readOnly: isSpectator, minimap: { enabled: false }, fontSize: 13 }} 
               />
