@@ -12,7 +12,7 @@ from main import app
 
 client = TestClient(app)
 
-def test_login_success():
+def test_loginRoute_success():
     """
     Mock a successful login for a student.
     """
@@ -37,7 +37,7 @@ def test_login_success():
         assert response.json()["user"]["email"] == "john@test.com"
         assert "token" in response.json()
 
-def test_login_wrong_password():
+def test_loginRoute_wrong_password():
     """
     Mock a failed login where password is incorrect.
     """
