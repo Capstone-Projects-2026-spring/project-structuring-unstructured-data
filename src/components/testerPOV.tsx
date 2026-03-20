@@ -91,7 +91,11 @@ export default function TesterPOV({
                 theme="vs-light"
                 language="javascript"
                 value={liveCode}
-                options={{ readOnly: true, domReadOnly: true, minimap: { enabled: false } }}
+                options={{ 
+                  readOnly: true, 
+                  domReadOnly: true, 
+                  minimap: { enabled: false } 
+                }}
               />
             </Box>
             <Box style={{ width: "30%", minWidth: "200px", flexShrink: 0 }}>
@@ -100,7 +104,13 @@ export default function TesterPOV({
           </Box>
 
           {/* Bottom Row: Testing Board */}
-          <Box style={{ flex: "1 1 40%", backgroundColor: "#1e1e1e", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Box style={{ 
+            flex: "1 1 40%", 
+            backgroundColor: "#1e1e1e", 
+            display: "flex", 
+            flexDirection: "column", 
+            minHeight: 0 
+          }}>
             <Box p="xs" style={{ borderBottom: "1px solid #444" }}>
               <Group justify="space-between">
                 <Tabs value={activeTab} onChange={setActiveTab} variant="outline" color="gray">
