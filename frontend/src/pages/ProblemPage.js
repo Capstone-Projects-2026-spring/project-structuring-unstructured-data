@@ -56,7 +56,8 @@ function ProblemPage({ problem, onBack }) {
 
             try {
               const currentCode = model.getValue();
-              const response = await fetch('http://localhost:8000/ai/suggestion', {
+              const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+              const response = await fetch(`${apiUrl}/ai/suggestion`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
