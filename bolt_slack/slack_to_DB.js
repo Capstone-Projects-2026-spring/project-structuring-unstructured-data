@@ -6,6 +6,34 @@ const apiClient = axios.create({
   baseURL: config.apiBaseUrl,
   timeout: 10000,
 });
+const getUserModel = require('../mongo_storage/models/User').getUserModel;
+
+const normalizeChannelName = (channelName) => {
+  const sanitized = String(channelName || '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (!sanitized) {
+    throw new Error('A valid channel name is required');
+  }
+
+  return sanitized;
+};
+
+async function buildChannelKey(channelName) {
+  const normalizedName = normalizeChannelName(channelName);
+  const channelId = await channelNameToID(channelName);
+
+  if (!channelId) {
+    throw new Error(`Channel ID not found for channel name: ${channelName}`);
+  }
+
+  return `${normalizedName}_${channelId}`;
+}
+
 
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
 async function getConversationHistory(channelName) {
@@ -49,13 +77,14 @@ async function insertModelsToDB(channelName) {
           throw new Error('channelName is required to insert messages');
         }
 
+        const channelKey = await buildChannelKey(channelName);
         const history = await getConversationHistory(channelName);
         console.log(`History: ${history.length}.`);
         if (!history || history.length === 0) {
           return;
         }
 
-        const response = await apiClient.post(`/api/messages/${channelName}`, history);
+        const response = await apiClient.post(`/api/messages/${encodeURIComponent(channelKey)}`, history);
         console.log(response.data.message || `Messages from channel ${channelName} successfully posted to API.`);
     } catch (error) {
         console.error("API connection error:", error);
@@ -74,7 +103,8 @@ async function insertSingleMessageToDB(channelName, messageData) {
           throw new Error('messageData must be a non-null object');
         }
 
-        const response = await apiClient.post(`/api/messages/${channelName}`, messageData);
+        const channelKey = await buildChannelKey(channelName);
+        const response = await apiClient.post(`/api/messages/${encodeURIComponent(channelKey)}`, messageData);
         return response.data;
     } catch (error) {
         console.error("API insertion error:", error.response?.data || error.message);

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { Schema, model } = require("mongoose");
+const { Schema } = require("mongoose");
 
 const userSchema = new Schema(
   {
@@ -13,12 +13,32 @@ const userSchema = new Schema(
   { strict: false } // Ensures all raw fields are logged
 );
 
-// Function to creates message model for any collection
-const getUserModel = (collectionName) => {
-  if (mongoose.models[collectionName]) {
-    return mongoose.models[collectionName];
+const toChannelDbName = (channelKey) => {
+  const sanitized = String(channelKey || '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (!sanitized) {
+    throw new Error('A valid channel key is required');
   }
-  return model(collectionName, userSchema, collectionName);
+
+  return sanitized;
+};
+
+// Returns a user model scoped to a database named from the channel key.
+const getUserModel = (channelKey) => {
+  const dbName = toChannelDbName(channelKey);
+  const modelName = 'Member';
+  const channelDb = mongoose.connection.useDb(dbName, { useCache: true });
+
+  if (channelDb.models[modelName]) {
+    return channelDb.models[modelName];
+  }
+
+  return channelDb.model(modelName, userSchema, 'members');
 };
 
 module.exports = { getUserModel };
