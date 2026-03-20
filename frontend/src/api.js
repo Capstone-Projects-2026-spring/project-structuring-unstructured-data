@@ -1,32 +1,64 @@
-import { createClient } from '@supabase/supabase-js';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-const supabase = createClient(
-  "https://hiascmgwbykhwswbynqs.supabase.co" ,
-  
-);
+// --- Teacher auth (OTP via backend → Supabase) ---
 
 export const requestOTP = async (email) => {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: undefined, // 🚨 disables magic link behavior
+  const response = await fetch(`${API_URL}/auth/otp/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail || 'Failed to send OTP');
+  }
+};
+
+export const verifyOTP = async (email, token) => {
+  const response = await fetch(`${API_URL}/auth/otp/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, token }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail || 'Invalid or expired OTP');
+  }
+
+  return response.json(); // { token, user }
+};
+
+// --- Problems (student flow) ---
+
+export async function getProblemByCode(code) {
+  const response = await fetch(`${API_URL}/problems/access/${code}`);
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail || 'Problem not found');
+  }
+
+  return response.json();
+}
+
+// --- Problems (teacher flow) ---
+
+export async function createProblem(problemData, token) {
+  const response = await fetch(`${API_URL}/problems/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
     },
+    body: JSON.stringify(problemData),
   });
 
-  if (error) throw new Error(error.message);
-};
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail || 'Failed to create problem');
+  }
 
-export const verifyOTP = async (email, otp) => {
-  const { data, error } = await supabase.auth.verifyOtp({
-    email,
-    token: otp,
-    type: 'email',
-  });
-
-  if (error) throw new Error(error.message);
-
-  return {
-    email: data.user.email,
-    role: 'teacher',
-  };
-};
+  return response.json();
+}

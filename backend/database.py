@@ -16,66 +16,91 @@ def init_db():
     cursor = conn.cursor()
 
     cursor.executescript("""
+        -- Users: teachers (OTP via Supabase) and admins only.
+        -- Students are not stored here; they identify via problem access code + name.
         CREATE TABLE IF NOT EXISTS users (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT NOT NULL,
             email       TEXT NOT NULL UNIQUE,
-            password    TEXT NOT NULL,
-            role        TEXT NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            password    TEXT,
+            role        TEXT NOT NULL DEFAULT 'teacher'
+                            CHECK (role IN ('teacher', 'admin')),
+            created_at  TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
+        -- Problems created by teachers.
         CREATE TABLE IF NOT EXISTS problems (
             id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            teacher_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             access_code         TEXT NOT NULL UNIQUE,
             title               TEXT NOT NULL,
             description         TEXT NOT NULL,
-            distractor_mode     TEXT NOT NULL CHECK (distractor_mode IN ('ai', 'prewritten')),
-            num_distractors     INTEGER,
-            max_generations     INTEGER,
-            max_attempts        INTEGER,
+            language            TEXT NOT NULL,
+            languages           TEXT NOT NULL DEFAULT '[]',
             time_limit_minutes  INTEGER,
+            max_attempts        INTEGER,
             allow_copy_paste    INTEGER NOT NULL DEFAULT 1 CHECK (allow_copy_paste IN (0, 1)),
             track_tab_switching INTEGER NOT NULL DEFAULT 0 CHECK (track_tab_switching IN (0, 1)),
             created_at          TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
-        CREATE TABLE IF NOT EXISTS problem_languages (
+        -- Ordered sections within a problem. Each section has a label and
+        -- per-language starter code displayed to the student.
+        CREATE TABLE IF NOT EXISTS sections (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             problem_id  INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
-            language    TEXT NOT NULL,
-            boilerplate TEXT NOT NULL DEFAULT '',
-            UNIQUE(problem_id, language)
+            order_index INTEGER NOT NULL,
+            label       TEXT NOT NULL,
+            code        TEXT NOT NULL DEFAULT '',
+            UNIQUE(problem_id, order_index)
         );
 
-        CREATE TABLE IF NOT EXISTS problem_suggestions (
+        -- Suggestions (correct answers and distractors) tied to a specific section.
+        CREATE TABLE IF NOT EXISTS suggestions (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            problem_id  INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
-            language    TEXT NOT NULL,
-            is_correct  INTEGER NOT NULL CHECK(is_correct IN (0,1)),
+            section_id  INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
             content     TEXT NOT NULL,
-            UNIQUE(problem_id, language, is_correct, content)
+            is_correct  INTEGER NOT NULL CHECK (is_correct IN (0, 1)),
+            source      TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'ai'))
         );
 
-        -- Stores one row per quiz submission by a student
-        CREATE TABLE IF NOT EXISTS quiz_attempts (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            problem_id          INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
-            language            TEXT NOT NULL,
-            score               INTEGER NOT NULL DEFAULT 0,
-            total               INTEGER NOT NULL DEFAULT 0,
-            time_taken_seconds  INTEGER,
-            submitted_at        TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-
-        -- Stores each individual answer within an attempt
-        CREATE TABLE IF NOT EXISTS quiz_answers (
+        -- One row per student session on a problem. Students are anonymous —
+        -- identified only by the name they entered and the problem they accessed.
+        CREATE TABLE IF NOT EXISTS sessions (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            attempt_id      INTEGER NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
-            question_index  INTEGER NOT NULL,
-            selected_option TEXT NOT NULL,
-            is_correct      INTEGER NOT NULL CHECK(is_correct IN (0, 1))
+            problem_id      INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
+            student_name    TEXT NOT NULL,
+            started_at      TEXT NOT NULL DEFAULT (datetime('now')),
+            submitted_at    TEXT,
+            score           INTEGER,
+            total           INTEGER
+        );
+
+        -- One row per answer a student submitted within a session.
+        CREATE TABLE IF NOT EXISTS answers (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id      INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            section_id      INTEGER NOT NULL REFERENCES sections(id),
+            suggestion_id   INTEGER REFERENCES suggestions(id),
+            is_correct      INTEGER NOT NULL CHECK (is_correct IN (0, 1))
+        );
+
+        -- Logs for auditable events: tab switches, copy/paste attempts, session
+        -- start/end. Keyed to a session so they're always tied to a student+problem.
+        CREATE TABLE IF NOT EXISTS logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            event_type  TEXT NOT NULL
+                            CHECK (event_type IN (
+                                'session_start',
+                                'session_end',
+                                'tab_switch',
+                                'copy_attempt',
+                                'paste_attempt',
+                                'submission'
+                            )),
+            detail      TEXT,
+            logged_at   TEXT NOT NULL DEFAULT (datetime('now'))
         );
     """)
 

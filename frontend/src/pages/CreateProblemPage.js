@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { AVAILABLE_LANGUAGES } from '../constants';
+import { createProblem } from '../api';
 
 
 const STEPS = ['Details', 'Languages', 'Sections', 'Settings'];
@@ -433,6 +434,8 @@ function CreateProblemPage({ onBack }) {
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   // Step 1
   const [title, setTitle] = useState('');
@@ -497,7 +500,7 @@ function CreateProblemPage({ onBack }) {
   };
 
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
@@ -530,9 +533,13 @@ function CreateProblemPage({ onBack }) {
       trackTabSwitching,
     };
 
-    console.log('Creating problem:', problemData);
-    setSubmitted(true);
-    setTimeout(() => onBack(), 1500);
+    try {
+      const result = await createProblem(problemData, localStorage.getItem('token'));
+      setAccessCode(result.access_code);
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.message);
+    }
   };
 
   // ── Render ──
@@ -557,7 +564,12 @@ function CreateProblemPage({ onBack }) {
           {submitted ? (
             <div className="submit-success">
               <span className="submit-success-icon">✓</span>
-              <span>Problem created successfully! Returning to dashboard...</span>
+              <span>Problem created successfully!</span>
+              <div className="access-code-display">
+                <p className="access-code-label">Share this code with your students:</p>
+                <span className="access-code-value">{accessCode}</span>
+              </div>
+              <button className="btn btn-outline" onClick={onBack}>Back to Dashboard</button>
             </div>
           ) : (
             <>
@@ -591,6 +603,8 @@ function CreateProblemPage({ onBack }) {
                   trackTabSwitching={trackTabSwitching} setTrackTabSwitching={setTrackTabSwitching}
                 />
               )}
+
+              {submitError && <p className="form-error">{submitError}</p>}
 
               <div className="cp-nav-buttons">
                 {step > 0 && (
