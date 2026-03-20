@@ -1,22 +1,23 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { Center, Loader, Text, Group } from '@mantine/core';
-import { io, Socket } from 'socket.io-client';
-import { authClient } from '@/lib/auth-client'
-import { Role, GameStatus } from '@prisma/client';
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/router";
+import { Center, Loader, Text, Group } from "@mantine/core";
+import { io, Socket } from "socket.io-client";
+import { authClient } from "@/lib/auth-client";
+import { Role, GameStatus } from "@prisma/client";
 
-import CoderPOV from '@/components/coderPOV';
-import TesterPOV from '@/components/testerPOV';
-import SpectatorPOV from '@/components/spectatorPOV';
-import TeamSelect from '@/components/TeamSelect';
-import { TeamCount } from '@/components/TeamSelect';
+import CoderPOV from "@/components/coderPOV";
+import TesterPOV from "@/components/testerPOV";
+import SpectatorPOV from "@/components/spectatorPOV";
+import TeamSelect from "@/components/TeamSelect";
+import { TeamCount } from "@/components/TeamSelect";
+import { Message } from "@/components/ChatBox";
 
 export default function PlayGameRoom() {
   // 1. Grab the ID from the URL (e.g., "624")
   const router = useRouter();
   const gameId = router.query.gameID as string;
 
-  const { data: session, error, isPending } = authClient.useSession()
+  const { data: session, error, isPending } = authClient.useSession();
 
   // 2. Set up our state for the socket connection and the user's role
   const [role, setRole] = useState<Role | null>(null);
@@ -26,6 +27,13 @@ export default function PlayGameRoom() {
   const [duration, setDuration] = useState<number>(0);
   const [teams, setTeams] = useState<TeamCount[]>([]);
   const [teamSelected, setTeamSelected] = useState<string | null>(null);
+  const [liveCode, setLiveCode] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [testCases, setTestCases] = useState([
+    { id: "1", content: "// Write Test 1 here..." },
+  ]);
+
+  const endTimeRef = useRef<number | null>(null);
 
   // ONLY HAPPENS ON PAGE LAUNCH
   useEffect(() => {
@@ -33,7 +41,7 @@ export default function PlayGameRoom() {
     if (!gameId) return;
 
     if (!isPending && !session) {
-      router.push("/auth")
+      router.push("/auth");
     }
 
     // fetch teams and their player counts
@@ -47,14 +55,17 @@ export default function PlayGameRoom() {
     // 3. Initialize the connection to our custom server.js backend
     const socketInstance = io();
     setSocket(socketInstance);
-    socketInstance.emit('register', session.user.id);
+    socketInstance.emit("register", session.user.id);
 
-    socketInstance.on('gameStarting', () => {
+    socketInstance.on("gameStarting", () => {
       setGameState(GameStatus.STARTING);
-    })
+    });
 
-    socketInstance.on('gameStarted', ({ start, _duration }) => {
+    socketInstance.on("gameStarted", ({ start, _duration }) => {
       if (isNaN(start) || isNaN(_duration)) return;
+      if (!endTimeRef.current) {
+        endTimeRef.current = Date.now() + Number(start);
+      }
       setTimeRemaining(Number(start));
       setDuration(Number(_duration));
       setGameState(GameStatus.ACTIVE);
@@ -62,13 +73,23 @@ export default function PlayGameRoom() {
 
     socketInstance.on("gameEnded", () => {
       setGameState(GameStatus.FINISHED);
+      router.push(`/results/${gameId}`);
+    });
+
+    socketInstance.on("roleSwapping", () => {
+      setGameState(GameStatus.FLIPPING);
+    });
+
+    socketInstance.on("roleSwap", ({ teamId }) => {
+      setGameState(GameStatus.ACTIVE);
+      setRole((prev) => (prev === Role.CODER ? Role.TESTER : Role.CODER));
     });
 
     // This is so if another person picks while someone is deciding
-    socketInstance.on('teamUpdated', ({ teamId, playerCount }) => {
-      setTeams(prev => prev.map(t =>
-        t.teamId === teamId ? { ...t, playerCount } : t
-      ));
+    socketInstance.on("teamUpdated", ({ teamId, playerCount }) => {
+      setTeams((prev) =>
+        prev.map((t) => (t.teamId === teamId ? { ...t, playerCount } : t)),
+      );
     });
 
     // 6. Cleanup: disconnect the socket if the user leaves the page
@@ -79,10 +100,10 @@ export default function PlayGameRoom() {
 
   useEffect(() => {
     // Runs after team gets selected
-    console.log('Effect 2:', { socket: !!socket, teamSelected, gameId });
+    console.log("Effect 2:", { socket: !!socket, teamSelected, gameId });
     if (!socket || !teamSelected || !gameId) return;
-    socket.emit('joinGame', { gameId, teamId: teamSelected });
-  }, [socket, teamSelected, gameId])
+    socket.emit("joinGame", { gameId, teamId: teamSelected });
+  }, [socket, teamSelected, gameId]);
 
   // --- RENDERING LOGIC ---
   if (!teamSelected && role !== Role.SPECTATOR) {
@@ -94,13 +115,13 @@ export default function PlayGameRoom() {
         onJoined={(teamId, role) => {
           setTeamSelected(teamId);
           setGameState(GameStatus.WAITING);
-          setRole(role) // TODO: add localStorage persistence
+          setRole(role); // TODO: add localStorage persistence
           if (role === Role.SPECTATOR) {
             setGameState(GameStatus.ACTIVE);
           }
         }}
       />
-    )
+    );
   }
 
   // State A: Still connecting to the WebSocket server
@@ -109,22 +130,24 @@ export default function PlayGameRoom() {
       <Center h="100vh">
         <Group>
           <Loader color="blue" type="bars" />
-          <Text size="xl" fw={500}>Entering BattleGround {gameId}...</Text>
+          <Text size="xl" fw={500}>
+            Entering BattleGround {gameId}...
+          </Text>
         </Group>
       </Center>
     );
   }
 
   if (gameState == GameStatus.STARTING) {
-    return (
-      <Center>Starting...3...2...1...!</Center>
-    )
+    return <Center>Starting...3...2...1...!</Center>;
   }
 
   if (gameState === GameStatus.WAITING) {
     return (
       <Center h="100vh">
-        <Text data-testid="waiting-for-second" size="xl" c="dimmed">Waiting for another player to join...</Text>
+        <Text data-testid="waiting-for-second" size="xl" c="dimmed">
+          Waiting for another player to join...
+        </Text>
       </Center>
     );
   }
@@ -135,8 +158,14 @@ export default function PlayGameRoom() {
       <SpectatorPOV
         socket={socket}
         teams={teams}
+        liveCode={liveCode}
+        setLiveCode={setLiveCode}
+        messages={messages}
+        setMessages={setMessages}
+        testCases={testCases}
+        setTestCases={setTestCases}
         userId={session?.user.id as string}
-        timeRemaining={timeRemaining}
+        endTimeRef={endTimeRef.current ?? 0}
         duration={duration}
         gameState={gameState}
       />
@@ -151,7 +180,11 @@ export default function PlayGameRoom() {
           socket={socket}
           roomId={teamSelected}
           userId={session?.user.id as string}
-          timeRemaining={timeRemaining}
+          liveCode={liveCode}
+          setLiveCode={setLiveCode}
+          messages={messages}
+          setMessages={setMessages}
+          endTimeRef={endTimeRef.current ?? 0}
           duration={duration}
           gameState={gameState}
         />
@@ -161,7 +194,13 @@ export default function PlayGameRoom() {
           socket={socket}
           roomId={teamSelected}
           userId={session?.user.id as string}
-          timeRemaining={timeRemaining}
+          liveCode={liveCode}
+          setLiveCode={setLiveCode}
+          messages={messages}
+          setMessages={setMessages}
+          testCases={testCases}
+          setTestCases={setTestCases}
+          endTimeRef={endTimeRef.current ?? 0}
           duration={duration}
           gameState={gameState}
         />
