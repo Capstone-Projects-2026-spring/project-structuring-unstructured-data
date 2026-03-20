@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Box, Group, Button, Center, Text } from "@mantine/core";
 import CoderPOV from "@/components/coderPOV";
 import TesterPOV from "@/components/testerPOV";
@@ -24,7 +24,7 @@ export default function SpectatorPOV({ socket, roomId, timeRemaining, duration, 
         <Group gap="xs">
           <Button size="sm" onClick={() => setView('coder')}>View Coder</Button>
           <Button size="sm" onClick={() => setView('tester')}>View Tester</Button>
-          <Button size="sm" onClick={() => setView('none')}>Exit View</Button> 
+          <Button size="sm" onClick={() => setView('none')}>Exit View</Button>
         </Group>
       </Box>
 
@@ -42,7 +42,7 @@ export default function SpectatorPOV({ socket, roomId, timeRemaining, duration, 
 
       {view === 'tester' && (
         <Box style={{ height: '100%' }}>
-          <TesterPOV socket={socket} roomId={roomId} isSpectator={true} timeRemaining={timeRemaining} duration={duration} gameState={gameState} problem={problem}  />
+          <TesterPOV socket={socket} roomId={roomId} isSpectator={true} timeRemaining={timeRemaining} duration={duration} gameState={gameState} problem={problem} />
         </Box>
       )}
     </Box>

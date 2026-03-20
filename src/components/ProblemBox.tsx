@@ -19,25 +19,25 @@ export default function ProblemBox({ problem }: ProblemBoxProps) {
         ? `${problem.difficulty} | ${problem.topics.join(", ")}`
         : "";
 
-  return (
-    // Remove shadow and use h="100%" to fill the parent Box
-    <Paper p="md" h="100%" bg="transparent">
-        {/* Remove the width: "20%" here! Let the parent handle width. */}
-        <ScrollArea h="100%" offsetScrollbars>
-            <Stack gap="md">
-                <Title order={3}>
-                                        {title}
-                </Title>
-                                {metadata && (
-                                    <Text size="xs" c="dimmed">
-                                        {metadata}
-                                    </Text>
-                                )}
-                <Text size="sm">
-                                        {description}
-                </Text>
-            </Stack>
-        </ScrollArea>
-    </Paper>
-  );
+    return (
+        // Remove shadow and use h="100%" to fill the parent Box
+        <Paper p="md" h="100%" bg="transparent">
+            {/* Remove the width: "20%" here! Let the parent handle width. */}
+            <ScrollArea h="100%" offsetScrollbars>
+                <Stack gap="md">
+                    <Title order={3}>
+                        {title}
+                    </Title>
+                    {metadata && (
+                        <Text size="xs" c="dimmed">
+                            {metadata}
+                        </Text>
+                    )}
+                    <Text size="sm">
+                        {description}
+                    </Text>
+                </Stack>
+            </ScrollArea>
+        </Paper>
+    );
 }
