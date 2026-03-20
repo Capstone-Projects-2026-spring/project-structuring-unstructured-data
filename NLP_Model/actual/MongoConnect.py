@@ -1,9 +1,8 @@
-import os
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.database import Database
-from pymongo.collection import Collection
-from dotenv import load_dotenv
+import os
+import json
 
 class MongoConnect:
 
@@ -27,12 +26,9 @@ class MongoConnect:
 
     def extract(self,database):
         '''
-        Returns a dictionary that maps a collection name to all of the messages 
+        Maps a collection name to all of the messages 
         within the corresponding channel
         '''
-        # Initialize resulting dictionary
-        res = {}
-
         # Establishes connection
         client = self.connect(self.user,self.password)
 
@@ -40,29 +36,28 @@ class MongoConnect:
         db_inst = Database(client,database)
         coll_names = db_inst.list_collection_names()
 
-        # Maps collection name to its messages
+        # Writes documents into corresponding collection files
         for collection in coll_names:
             temp = db_inst.get_collection(collection)
-            res[collection] = []
+            
+            if temp.count_documents({}) == 0:
+                continue
+            file = open(f'collections\{collection}.json','w')
             with temp.find() as cursor:
                 for doc in cursor:
-                    res[collection].append(doc)
+                    doc.pop('_id')
+                    file.write(json.dumps(doc) + '\n')
+        return 1
 
-        return res
-
-        
-
+    def clear_folder(self):
         '''
-        print(db_inst.list_collection_names())
-        print(db_inst.get_collection('all-structuring-data'))
-        print(col_inst.find())
-        with col_inst.find() as cursor:
-            for doc in cursor:
-                print(doc)
+        Clears collections folder
         '''
-
+        for file in os.listdir('collections'):
+            os.remove(f'collections\{file}')
+        return 1
         
-
+'''
 if __name__ == '__main__':
     
     # Variable initialization
@@ -77,15 +72,4 @@ if __name__ == '__main__':
     inst = MongoConnect(mongo_user,mongo_password)
 
     print(inst.extract(ext_database))
-#mongo_user = os.getenv()
-'''
-uri = "mongodb+srv://<db_username>:<db_password>@suds-cluster.poxtvnp.mongodb.net/?appName=SUDs-Cluster"
-# Create a new client and connect to the server
-client = MongoClient(uri, server_api=ServerApi('1'))
-# Send a ping to confirm a successful connection
-try:
-    client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    print(e)
 '''
