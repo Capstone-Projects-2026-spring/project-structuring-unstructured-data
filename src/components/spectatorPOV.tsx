@@ -9,12 +9,13 @@ import { TeamCount } from "@/components/TeamSelect";
 interface SpectatorPOVProps {
   socket: Socket;
   teams: TeamCount[];
+  userId: string;
   timeRemaining: number;
   duration: number;
   gameState: GameStatus;
 }
 
-export default function SpectatorPOV({ socket, teams, timeRemaining, duration, gameState }: SpectatorPOVProps) {
+export default function SpectatorPOV({ socket, teams, userId, timeRemaining, duration, gameState }: SpectatorPOVProps) {
   const [view, setView] = useState<'none' | 'coder' | 'tester'>('none');
   const [viewTeamId, setViewTeamId] = useState<string>("");
 
@@ -43,13 +44,13 @@ export default function SpectatorPOV({ socket, teams, timeRemaining, duration, g
 
       {view === 'coder' && (
         <Box style={{ height: '100%' }}>
-          <CoderPOV socket={socket} roomId={viewTeamId} isSpectator={true} timeRemaining={timeRemaining} duration={duration} gameState={gameState} />
+          <CoderPOV socket={socket} roomId={viewTeamId} isSpectator={true} userId={userId} timeRemaining={timeRemaining} duration={duration} gameState={gameState} />
         </Box>
       )}
 
       {view === 'tester' && (
         <Box style={{ height: '100%' }}>
-          <TesterPOV socket={socket} roomId={viewTeamId} isSpectator={true} timeRemaining={timeRemaining} duration={duration} gameState={gameState} />
+          <TesterPOV socket={socket} roomId={viewTeamId} isSpectator={true} userId={userId} timeRemaining={timeRemaining} duration={duration} gameState={gameState} />
         </Box>
       )}
     </Box>

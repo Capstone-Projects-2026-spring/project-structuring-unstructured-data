@@ -135,6 +135,7 @@ export default function PlayGameRoom() {
       <SpectatorPOV
         socket={socket}
         teams={teams}
+        userId={session?.user.id as string}
         timeRemaining={timeRemaining}
         duration={duration}
         gameState={gameState}
@@ -149,6 +150,7 @@ export default function PlayGameRoom() {
         <CoderPOV
           socket={socket}
           roomId={teamSelected}
+          userId={session?.user.id as string}
           timeRemaining={timeRemaining}
           duration={duration}
           gameState={gameState}
@@ -158,6 +160,7 @@ export default function PlayGameRoom() {
         <TesterPOV
           socket={socket}
           roomId={teamSelected}
+          userId={session?.user.id as string}
           timeRemaining={timeRemaining}
           duration={duration}
           gameState={gameState}
