@@ -5,17 +5,24 @@ import TesterPOV from "@/components/testerPOV";
 import { Socket } from "socket.io-client";
 import { GameStatus } from "@prisma/client";
 import { TeamCount } from "@/components/TeamSelect";
+import { Message } from "@/components/ChatBox"
 
 interface SpectatorPOVProps {
   socket: Socket;
   teams: TeamCount[];
   userId: string;
-  timeRemaining: number;
+  liveCode: string;
+  setLiveCode: React.Dispatch<React.SetStateAction<string>>;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  testCases: { id: string; content: string}[];
+  setTestCases: React.Dispatch<React.SetStateAction<{ id: string; content: string}[]>>;
+  endTimeRef: number;
   duration: number;
   gameState: GameStatus;
 }
 
-export default function SpectatorPOV({ socket, teams, userId, timeRemaining, duration, gameState }: SpectatorPOVProps) {
+export default function SpectatorPOV({ socket, teams, userId, liveCode, setLiveCode, messages, setMessages, testCases, setTestCases, endTimeRef, duration, gameState }: SpectatorPOVProps) {
   const [view, setView] = useState<'none' | 'coder' | 'tester'>('none');
   const [viewTeamId, setViewTeamId] = useState<string>("");
 
@@ -44,13 +51,13 @@ export default function SpectatorPOV({ socket, teams, userId, timeRemaining, dur
 
       {view === 'coder' && (
         <Box style={{ height: '100%' }}>
-          <CoderPOV socket={socket} roomId={viewTeamId} isSpectator={true} userId={userId} timeRemaining={timeRemaining} duration={duration} gameState={gameState} />
+          <CoderPOV socket={socket} roomId={viewTeamId} isSpectator={true} userId={userId}  liveCode={liveCode} setLiveCode={setLiveCode} messages={messages} setMessages={setMessages} endTimeRef={endTimeRef} duration={duration} gameState={gameState} />
         </Box>
       )}
 
       {view === 'tester' && (
         <Box style={{ height: '100%' }}>
-          <TesterPOV socket={socket} roomId={viewTeamId} isSpectator={true} userId={userId} timeRemaining={timeRemaining} duration={duration} gameState={gameState} />
+          <TesterPOV socket={socket} roomId={viewTeamId} isSpectator={true} userId={userId} liveCode={liveCode} setLiveCode={setLiveCode} messages={messages} setMessages={setMessages} testCases={testCases} setTestCases={setTestCases} endTimeRef={endTimeRef} duration={duration} gameState={gameState} />
         </Box>
       )}
     </Box>

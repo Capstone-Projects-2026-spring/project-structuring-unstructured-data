@@ -1,7 +1,8 @@
 // The game service handlers itself. note that this is the only file that should interact with redis
 // Redis can be accessed in the api layer for special cases now
 
-const GAME_DURATION_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+const GAME_DURATION_MS = .5 * 60 * 1000; // 5 minutes in milliseconds
+
 
 function createGameService(stateRedis) {
   return {
@@ -16,6 +17,11 @@ function createGameService(stateRedis) {
       // try to set key only if it doesnt exist (to avoid potential race condition)
       const started = await stateRedis.set(key, '1', 'PX', GAME_DURATION_MS, 'NX');
       if (started) {
+        const flipRatio = Math.random() * (0.7 - 0.3) + 0.3; // random between 0.3 and 0.7
+        const flipped_duration = Math.floor(GAME_DURATION_MS * flipRatio);
+        const flippedKey = `game:${gameId}:roleswap`
+        console.log("Flipped key being set");
+        await stateRedis.set(flippedKey, '1', 'PX', flipped_duration, 'NX'); // set flip timer at the same time
         await stateRedis.sadd('activeGames', gameId);
         console.log(
           `Game ${gameId} started with duration ${GAME_DURATION_MS / 1000} seconds`

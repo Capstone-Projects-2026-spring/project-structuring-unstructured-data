@@ -3,26 +3,24 @@ import { ScrollArea, TextInput, ActionIcon, Paper, Text, Stack, Box } from '@man
 import { IconSend } from '@tabler/icons-react';
 import type { Socket } from 'socket.io-client';
 
-interface Message {
+export interface Message {
   id: string;
   text: string;
   userId: string;
   role: string;
   timestamp: number;
 }
-
 interface ChatBoxProps {
   socket: Socket;
   roomId: string;
   userId: string;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   role: string;
   isSpectator?: boolean;
 }
 
-export default function ChatBox({ socket, roomId, userId, role, isSpectator = false }: ChatBoxProps) {
-
-  // State for the entire chat history
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatBox({ socket, roomId, userId, messages, setMessages, role, isSpectator = false }: ChatBoxProps) {
 
   // State for the text currently being typed in the input box
   const [currentText, setCurrentText] = useState('');

@@ -5,14 +5,20 @@ import Navbar from "@/components/Navbar";
 import ProblemBox from "@/components/ProblemBox";
 import ChatBox from "@/components/ChatBox";
 import GameTimer from "@/components/GameTimer";
+import RoleFlipPopup from "@/components/RoleFlipPopup";
 import { Socket } from "socket.io-client"; // <-- 1. Import Socket type
 import { GameStatus } from "@prisma/client";
+import { Message } from "@/components/ChatBox"
 
 interface CoderPOVProps {
   socket: Socket;
   roomId: string;
   userId: string;
-  timeRemaining: number;
+  liveCode: string;
+  setLiveCode: React.Dispatch<React.SetStateAction<string>>;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  endTimeRef: number;
   duration: number;
   gameState: GameStatus;
   isSpectator?: boolean;
@@ -22,18 +28,20 @@ export default function CoderPOV({
   socket,
   roomId,
   userId,
-  timeRemaining,
+  liveCode,
+  setLiveCode,
+  messages,
+  setMessages,
+  endTimeRef,
   duration,
   gameState,
   isSpectator = false,
 }: CoderPOVProps) {
   const [activeTab, setActiveTab] = useState<string | null>("console");
-  const [liveCode, setLiveCode] = useState<string>("");
 
   useEffect(() => {
     const handler = (newCode: string) => {
       setLiveCode(newCode);
-      console.log(newCode);
     };
     socket.on("receiveCodeUpdate", handler);
     return () => {
@@ -53,6 +61,7 @@ export default function CoderPOV({
       h="100vh"
       style={{ display: "flex", flexDirection: "column" }}
     >
+      <RoleFlipPopup gameState={gameState} /> 
       <Navbar
         links={["Timer", "Players", "Tournament"]}
         title="CODE BATTLEGROUNDS | GAMEMODE: TIMER"
@@ -71,9 +80,9 @@ export default function CoderPOV({
             display: "block",
           }}
         >
-          {gameState === GameStatus.ACTIVE && (
+          {(gameState === GameStatus.ACTIVE || gameState === GameStatus.FLIPPING) && (
             <Box mb="md">
-              <GameTimer _timeRemaining={timeRemaining} duration={duration} />
+              <GameTimer endTime={endTimeRef} duration={duration} />
             </Box>
           )}
           <ProblemBox />
@@ -133,6 +142,8 @@ export default function CoderPOV({
                 socket={socket}
                 roomId={roomId}
                 userId={userId}
+                messages={messages}
+                setMessages={setMessages}
                 role="coder"
                 isSpectator={isSpectator}
               />

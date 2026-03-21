@@ -5,14 +5,23 @@ import Navbar from "@/components/Navbar";
 import ProblemBox from "@/components/ProblemBox";
 import ChatBox from "@/components/ChatBox";
 import GameTimer from "@/components/GameTimer";
+import RoleFlipPopup from "@/components/RoleFlipPopup"
 import { Socket } from "socket.io-client";
 import { GameStatus } from "@prisma/client";
+import { Message } from "@/components/ChatBox"
+
 
 interface TesterPOVProps {
   socket: Socket;
   roomId: string;
   userId: string;
-  timeRemaining: number;
+  liveCode: string;
+  setLiveCode: React.Dispatch<React.SetStateAction<string>>;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  testCases: { id: string; content: string }[];
+  setTestCases: React.Dispatch<React.SetStateAction<{id: string; content: string}[]>>;
+  endTimeRef: number;
   duration: number;
   gameState: GameStatus;
   isSpectator?: boolean;
@@ -22,25 +31,34 @@ export default function TesterPOV({
   socket,
   roomId,
   userId,
-  timeRemaining,
+  liveCode,
+  setLiveCode,
+  messages,
+  setMessages,
+  testCases,
+  setTestCases,
+  endTimeRef,
   duration,
   gameState,
   isSpectator = false,
 }: TesterPOVProps) {
-  const [liveCode, setLiveCode] = useState("// Waiting for coder...");
-  const [testCases, setTestCases] = useState([{ id: "1", content: "// Write Test 1 here..." }]);
   const [activeTab, setActiveTab] = useState<string | null>("1");
 
   useEffect(() => {
+    socket.emit('requestCodeSync', { teamId: roomId });
     socket.emit('requestTestCaseSync', { teamId: roomId });
     
     socket.on('receiveTestCaseSync', (cases) => {
       setTestCases(cases);
     })
 
+    socket.on("receiveCodeUpdate", (newCode: string) => {
+        setLiveCode(newCode);
+    });
+
     const handler = (newCode: string) => setLiveCode(newCode);
     socket.on("receiveCodeUpdate", handler);
-    return () => { socket.off("receiveCodeUpdate", handler); };
+    return () => { socket.off("receiveCodeUpdate", handler); socket.off("recieveCodeUpdate") }; // Need to clean up leaked socket stuff
   }, [socket, roomId]);
 
   const addNewTest = () => {
@@ -60,6 +78,7 @@ export default function TesterPOV({
 
   return (
     <Box data-testid="tester-pov" h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <RoleFlipPopup gameState={gameState} /> 
       <Navbar
         links={["Timer", "Players", "Tournament"]}
         title="CODE BATTLEGROUNDS | GAMEMODE: TIMER"
@@ -80,9 +99,9 @@ export default function TesterPOV({
             flexShrink: 0 
           }}
         >
-          {gameState === GameStatus.ACTIVE && (
+          {(gameState === GameStatus.ACTIVE || gameState === GameStatus.FLIPPING) && (
             <Box mb="md">
-              <GameTimer _timeRemaining={timeRemaining} duration={duration} />
+              <GameTimer endTime={endTimeRef} duration={duration} />
             </Box>
           )}
           <ProblemBox />
@@ -109,7 +128,7 @@ export default function TesterPOV({
               />
             </Box>
             <Box style={{ width: "30%", minWidth: "200px", flexShrink: 0 }}>
-              <ChatBox socket={socket} roomId={roomId} userId={userId} role="Quality" isSpectator={isSpectator} />
+              <ChatBox socket={socket} roomId={roomId} userId={userId} messages={messages} setMessages={setMessages} role="Quality" isSpectator={isSpectator} />
             </Box>
           </Box>
 

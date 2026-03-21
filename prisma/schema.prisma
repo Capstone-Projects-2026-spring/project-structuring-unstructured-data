@@ -87,6 +87,7 @@ enum GameStatus {
   WAITING
   STARTING
   ACTIVE
+  FLIPPING
   FINISHED
   CANCELLED
 }
