@@ -1,4 +1,4 @@
-import { ActionIcon, Paper, ScrollArea, Stack, Text, Title } from "@mantine/core";
+import { ActionIcon, Paper, ScrollArea, Stack, Text, Title, Tooltip } from "@mantine/core";
 import { IconEyeOff } from "@tabler/icons-react";
 
 export interface ActiveProblem {
@@ -28,15 +28,17 @@ export default function ProblemBox({ problem, onToggleVisibility }: ProblemBoxPr
         <Paper p="md" h="100%" bg="transparent" style={{ position: 'relative' }}>
             {/* Toggle button to hide the problem box */}
             {onToggleVisibility && (
-                <ActionIcon
-                    variant="transparent"
-                    color="gray"
-                    onClick={onToggleVisibility}
-                    style={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}
-                    title="Hide Problem"
-                >
-                    <IconEyeOff size={20} />
-                </ActionIcon>
+                <Tooltip label="Hide Problem">
+                    <ActionIcon
+                        variant="transparent"
+                        color="gray"
+                        onClick={onToggleVisibility}
+                        style={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}
+                        title="Hide Problem"
+                    >
+                        <IconEyeOff size={20} />
+                    </ActionIcon>
+                </Tooltip>
             )}
             {/* Remove the width: "20%" here! Let the parent handle width. */}
             <ScrollArea h="100%" offsetScrollbars>

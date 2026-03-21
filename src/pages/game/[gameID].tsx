@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Center, Group, Loader, Select, Tabs, Text } from '@mantine/core';
+import { ActionIcon, Box, Button, Center, Group, Loader, Select, Tabs, Text, Tooltip } from '@mantine/core';
 import { Editor } from '@monaco-editor/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
@@ -215,9 +215,12 @@ export default function PlayGameRoom() {
                   <ProblemBox problem={problem} onToggleVisibility={toggleProblemVisibility} />
                 </Box>
               ) : (
-                <ActionIcon variant="transparent" color="gray" size="xl" onClick={toggleProblemVisibility} title="Show Problem">
-                  <IconEye size={24} />
-                </ActionIcon>
+                <Tooltip label="Show Problem">
+                  <ActionIcon variant="transparent" color="gray" size="xl" onClick={toggleProblemVisibility} title="Show Problem">
+                    <IconEye size={24} />
+                  </ActionIcon>
+                </Tooltip>
+
               )}
             </Box>
 
