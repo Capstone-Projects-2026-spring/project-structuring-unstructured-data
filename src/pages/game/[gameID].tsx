@@ -310,7 +310,7 @@ export default function PlayGameRoom() {
                     theme="vs-dark"
                     defaultLanguage="javascript"
                     options={{
-                      readOnly: isSpectator || role !== 'coder',
+                      readOnly: role !== 'tester',
                       minimap: { enabled: false }
                     }}
                   />
