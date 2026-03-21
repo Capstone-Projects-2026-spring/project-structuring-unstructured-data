@@ -1,6 +1,7 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.database import Database
+from dotenv import load_dotenv
 import os
 import json
 
@@ -39,8 +40,10 @@ class MongoConnect:
         # Writes documents into corresponding collection files
         for collection in coll_names:
             temp = db_inst.get_collection(collection)
-            
+            #print(temp)
+            #print(temp.count_documents({}))
             if temp.count_documents({}) == 0:
+                
                 continue
             file = open(f'collections\{collection}.json','w')
             with temp.find() as cursor:
@@ -48,6 +51,24 @@ class MongoConnect:
                     doc.pop('_id')
                     file.write(json.dumps(doc) + '\n')
         return 1
+
+    def send(self, dic, time):
+     client = self.connect(self.user, self.password)
+
+     for db in dic:
+        df = dic[db]
+        db_inst = Database(client, f'{db}_{time}')
+
+        for day in df['day'].unique():
+            filt_df = df[df['day'] == day].drop('day', axis=1, errors='ignore')
+
+            if filt_df.empty:
+                continue  # skip empty DataFrames
+
+            db_inst[day].insert_many(filt_df.to_dict('records'))  # add 'records'
+
+     return 1
+
 
     def clear_folder(self):
         '''
