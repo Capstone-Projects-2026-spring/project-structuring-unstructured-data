@@ -2,7 +2,7 @@ const { App } = require('@slack/bolt');
 const axios = require('axios');
 const config = require('./config');
 
-const { insertModelsToDB, insertSingleMessageToDB } = require('./slack_to_DB');
+const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey } = require('./slack_to_DB');
 
 // Shared API client for Mongo storage
 const apiClient = axios.create({
@@ -69,6 +69,7 @@ async function getConversationInfo(channelId) {
   try {  
     const result = await app.client.conversations.info({
       channel: channelId,
+      include_num_members: true
     });
 
     console.log(`✅ Success! Found data for conversation ${result.channel.name}`);
@@ -152,7 +153,8 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
     
     // Try to fetch from API first
     try {
-      const messages = await fetchMessagesFromAPI(channelName);
+      const channelKey = await buildChannelKey(channelName);
+      const messages = await fetchMessagesFromAPI(channelKey);
       
       if (messages && messages.length > 0) {
         const messageText = messages.slice(0, 5).map((msg, idx) => 
@@ -203,7 +205,7 @@ app.command('/store-messages', async ({ command, ack, respond }) => {
       text: `⏳ Storing messages from *${channelName}*...`
     });
     
-    await insertModelsToDB(channelName);
+    await insertMessageModels(channelName);
     
     await respond({
       response_type: 'in_channel',
@@ -214,6 +216,32 @@ app.command('/store-messages', async ({ command, ack, respond }) => {
     await respond({
       response_type: 'ephemeral',
       text: `❌ Error storing messages: ${error.message}`
+    });
+  }
+});
+
+// /store-members - Store channel members data to database
+app.command('/store-members', async ({ command, ack, respond }) => {
+  await ack();
+  try {
+    const channelInfo = await getConversationInfo(command.channel_id);
+    const channelName = channelInfo.name;
+
+    await respond({
+      response_type: 'ephemeral',
+      text: `⏳ Storing member data from *${channelName}*...`
+    });
+    await insertUserModels(channelName);
+
+    await respond({
+      response_type: 'in_channel',
+      text: `✅ Member data from *${channelName}* stored successfully to the database!`
+    });
+  } catch (error) {
+    console.error('Error in /store-members command:', error);
+    await respond({
+      response_type: 'ephemeral',
+      text: `❌ Error storing member data: ${error.message}`
     });
   }
 });

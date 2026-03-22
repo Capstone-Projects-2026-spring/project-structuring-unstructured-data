@@ -6,6 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // Load 
 
 // Import routers
 const messagesRouter = require('./routes/messages');
+const usersRouter = require('./routes/users');
 
 // Import database credentials from .env file
 const DB_USER = process.env.MONGODB_USER;
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
 
 // Mount routers
 app.use(messagesRouter);
+app.use(usersRouter);
 
 // Simple health endpoint for uptime checks
 app.get('/health', (_req, res) => {
@@ -47,8 +49,8 @@ const start = async () => {
       throw new Error('MONGODB_USER and MONGODB_PASSWORD must be set in the environment');
     }
 
-    // Mongoose v6+ does not require useNewUrlParser/useUnifiedTopology options
-    await mongoose.connect(uri, { dbName: 'slack' });
+    // Connect once to the Mongo cluster; channel-specific databases are selected later via useDb.
+    await mongoose.connect(uri);
 
     mongoose.connection.on('error', (err) => {
       console.error('Mongo connection error:', err);
