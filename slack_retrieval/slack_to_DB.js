@@ -35,6 +35,7 @@ async function getConversationHistory(channelName) {
   try {
     
     const channelId = await channelNameToID(channelName);
+    console.log(channelId);
     if (!channelId) {
       throw new Error(`Channel ID not found for channel name: ${channelName}`);
     }
@@ -57,37 +58,66 @@ async function getConversationHistory(channelName) {
   }
 }
 
-
-async function insertModelsToDB(channelName) {
+//Inserts all messages from all available channels into MongoDB
+async function insertModelsToDB() {
     try {
         
+        const channelNames = await channelList();
+        //console.log(channelNames);
 
-        const history = await getConversationHistory(channelName);
+        for(const name of channelNames){
+          //console.log(name);
+          const history = await getConversationHistory(name);
+          const MessageModel = createMessageModel(name);
+          await MessageModel.insertMany(history);
 
-
-        const MessageModel = createMessageModel(channelName);
-        await MessageModel.insertMany(history);
+        }
+        
     } catch (error) {
         console.error("Database connection error:", error);
         throw error;
     }
 }
 
+//Returns the ID of a channel in a workspace
 async function channelNameToID(channelName) {
     try {
         const channelList = await app.client.conversations.list({
-            types: "public_channel"
         });
-        const channel = channelList.channels.find(c => c.name === channelName);
 
-        return channel ? channel.id : null;
+        const channels = channelList.channels;
+
+        for(const channel in channels){
+          //console.log(channel)
+          //console.log(channels[channel].name)
+          if(channelName == channels[channel].name){
+            return channels[channel].id;
+          }
+        }
+        //const channel = channelList.channels.find(c => c.name === channelName);
+
+        return null;
     } catch (error) {
         console.error("Channel List Retrieval Error:", error.data ? error.data.error : error.message);
         throw error;
     }
   }
 
-//getConversationHistory('social');
-//insertModelsToDB('social');
 
+  //Returns list of channel names within a slack workspace
+  async function channelList(){
+    try{
+      const slack_channels = await app.client.conversations.list();
+
+      const channels = slack_channels.channels;
+
+      const channelNames = channels.map(channel => channel.name)
+      //console.log(channelNames);
+
+      return channelNames;
+
+    } catch (error){
+        console.error("Channel List Retrieval Error:", error.data ? error.data.error : error.message);
+    }
+  }
 module.exports = { insertModelsToDB };
