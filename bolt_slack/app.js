@@ -266,6 +266,40 @@ app.command('/channel-info', async ({ command, ack, respond }) => {
   }
 });
 
+// /members-info - Get information about all members in the channel
+app.command('/members-info', async ({ command, ack, respond }) => {
+  await ack();
+  try {
+    const channelInfo = await getConversationInfo(command.channel_id);
+    const channelName = channelInfo.name;
+    const collectionName = await buildChannelKey(channelName);
+
+    const membersData = await apiClient.get(`/api/users/${collectionName}`);
+
+
+    if (membersData && membersData.data && membersData.data.length > 0) {
+      const memberText = membersData.data.map((member, idx) => 
+        `${idx + 1}. *${member.name}* (${member.real_name}) - ${member.is_admin ? 'Admin' : 'Member'}`
+      ).join('\n');
+      await respond({
+        response_type: 'in_channel',
+        text: `👥 *Members in ${channelName}*:\n\n${memberText}\n\n_Use \`/store-members\` to update member data._`
+      });
+    } else {
+      await respond({
+        response_type: 'ephemeral',
+        text: `No member data found in database for channel *${channelName}*. Use \`/store-members\` first.`
+      });
+    }
+  } catch (error) {
+    console.error('Error in /members-info command:', error);
+    await respond({
+      response_type: 'ephemeral',
+      text: `❌ Error: ${error.message}`
+    });
+  }
+});
+
 // ====================
 // Message Listeners
 // ====================
