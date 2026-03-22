@@ -69,6 +69,7 @@ async function getConversationInfo(channelId) {
   try {  
     const result = await app.client.conversations.info({
       channel: channelId,
+      include_num_members: true
     });
 
     console.log(`✅ Success! Found data for conversation ${result.channel.name}`);

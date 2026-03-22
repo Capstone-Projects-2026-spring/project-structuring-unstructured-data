@@ -3,12 +3,12 @@ const getUserModel = require('../models/User').getUserModel;
 
 const router = express.Router();
 
-// GET /api/users/:collectionName - Retrieve information about members of a conversation from its designated collection
-router.get('/api/users/:collectionName', async (req, res) => {
+// GET /api/users/:channelName - Retrieve information about members of a conversation from its designated collection
+router.get('/api/users/:channelName', async (req, res) => {
   try {
     // Get the model for the specified collection
-    const { collectionName } = req.params;
-    const User = getUserModel(collectionName);
+    const { channelName } = req.params;
+    const User = getUserModel(channelName);
 
     const result = await User.find();
     res.send(result);
