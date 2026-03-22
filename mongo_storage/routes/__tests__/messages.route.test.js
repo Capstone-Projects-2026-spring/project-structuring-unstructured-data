@@ -15,9 +15,18 @@ jest.mock('mongoose', () => {
 });
 
 // Mock the Message model module before requiring the router
-jest.mock('../../models/Message', () => jest.fn());
+jest.mock('../../models/Message', () => ({
+  getMessageModel: jest.fn()
+}));
 
-const getMessageModel = require('../../models/Message');
+const { getMessageModel } = require('../../models/Message');
+const { insertModelsToDB } = require('../../../bolt_slack/slack_to_DB');
+
+// Mock the insertModelsToDB function after importing it
+jest.mock('../../../bolt_slack/slack_to_DB', () => ({
+  insertModelsToDB: jest.fn()
+}));
+
 const messagesRouter = require('../messages');
 
 describe('GET /api/messages/:collectionName - Unit Tests', () => {
@@ -115,5 +124,50 @@ describe('GET /api/messages/:collectionName - Unit Tests', () => {
     expect(res.body[0]).toHaveProperty('extraField1', 'value1');
     expect(res.body[0]).toHaveProperty('metadata');
     expect(res.body[0].metadata).toEqual({ foo: 'bar' });
+  });
+});
+
+describe('POST /api/messages/:channelName - Unit Tests',() => {
+    let app;
+
+    beforeEach(() => {
+        app = express();
+    app.use(express.json());
+    app.use(messagesRouter);
+    jest.clearAllMocks();
+    });
+
+    test('should return 200 and success message on successful insertion', async () => {
+        const channelName = 'test-channel';
+        const mockMessage = {
+            user: 'U12345678',
+            type: 'message',
+            text: 'Hello, world!',
+            ts: '1234567890.123456'
+        };
+    const mockInsertMany = jest.fn().mockResolvedValue();
+    getMessageModel.mockReturnValue({ insertMany: mockInsertMany });
+
+    const response = await request(app)
+      .post(`/api/messages/${channelName}`)
+      .send([mockMessage]);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe(`Messages from channel ${channelName} inserted into the database successfully.`);
+    expect(mockInsertMany).toHaveBeenCalledWith([mockMessage]);
+  });
+
+    test('should return 400 and error message on insertion failure', async () => {
+        const channelName = 'test-channel';
+        const errorMessage = 'Database insertion failed';
+    const mockInsertMany = jest.fn().mockRejectedValue(new Error(errorMessage));
+    getMessageModel.mockReturnValue({ insertMany: mockInsertMany });
+
+    const response = await request(app)
+      .post(`/api/messages/${channelName}`)
+      .send([{}]);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe(errorMessage);
   });
 });

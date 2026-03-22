@@ -48,3 +48,126 @@ This project requires significant backround research on existing LLMs that devel
 
 [Fares Hagos](https://github.com/FaresHagostu)
 </div>
+
+## Quick Start (Slack Bot + Mongo API)
+
+Follow these steps to install dependencies, configure environment variables, and run both services locally. Commands are PowerShell-friendly for Windows.
+
+### 1) Prerequisites
+
+- Node.js 18+ installed
+- MongoDB Atlas credentials (user/password) with your IP whitelisted
+- A Slack App with the **Socket Mode** and **Bots** features enabled, and the following tokens/secrets:
+	- Bot Token (xoxb-*)
+	- Signing Secret
+	- App Token (xapp-*, required for Socket Mode)
+
+### 2) Environment variables
+
+Create a `.env` file in the repo root (same level as `bolt_slack/` and `mongo_storage/`).
+
+```
+# Slack Bot
+SLACK_BOT_TOKEN=your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
+SLACK_APP_TOKEN=your-app-level-token
+SLACK_BOT_USER_ID=your-bot-user-id
+SLACK_SOCKET_MODE=true
+SLACK_BOT_PORT=3000
+
+# Mongo Storage API
+API_URL=http://localhost:5000
+DB_PORT=5000
+MONGODB_USER=your_mongodb_user
+MONGODB_PASSWORD=your_mongodb_password
+```
+
+> Keep secrets out of version control. The services now read from this shared root `.env`.
+
+### 3) Install dependencies
+
+```powershell
+cd c:\project-structuring-unstructured-data\bolt_slack
+npm install
+
+cd ..\mongo_storage
+npm install
+```
+
+### 4) Run the services (two terminals)
+
+**Terminal A – Mongo storage API**
+
+```powershell
+cd c:\project-structuring-unstructured-data\mongo_storage
+node server.js
+```
+
+Expected log: `App is listening on port 5000`
+
+Health check: <http://localhost:5000/health>
+
+**Terminal B – Slack bot (Socket Mode)**
+
+```powershell
+cd c:\project-structuring-unstructured-data\bolt_slack
+npm start
+```
+
+Expected log: `⚡️ Slack Bot is running!` and DB API URL printed.
+
+### 5) Install the bot into your Slack workspace
+
+1. In Slack API settings for your app, enable **Socket Mode** and copy the App Token (xapp-*).
+2. Add required OAuth scopes for the bot (typical: `app_mentions:read`, `chat:write`, `commands`, `channels:history`, `groups:history`, `im:history`, `mpim:history` as needed).
+3. Install the app to your workspace to generate the **Bot Token (xoxb-*)**.
+4. Invite the bot to channels you want monitored: in Slack, run `/invite @YourBotName` in each channel.
+5. Slash commands to configure in Slack (point to Socket Mode):
+	 - `/messages`
+	 - `/store-messages`
+	 - `/channel-info`
+
+### 6) Usage checklist
+
+- Bot replies to channel messages with ephemeral “Save to DB?” buttons (Socket Mode events).
+- `/store-messages` bulk-saves the channel to Mongo via API.
+- `/messages` reads back the most recent saved messages.
+- `/channel-info` returns channel metadata.
+
+### 7) Tests
+
+**Run all tests (root, both projects):**
+
+```powershell
+cd c:\project-structuring-unstructured-data
+npm test
+```
+
+What it does:
+- Runs `bolt_slack` tests with `--passWithNoTests` (ok if none present).
+- Runs `mongo_storage` tests with `--passWithNoTests` (unit tests pass without MongoDB).
+
+**Mongo API unit tests only (no DB required):**
+
+```powershell
+cd c:\project-structuring-unstructured-data
+npm test -- --testPathPatterns=mongo_storage/routes/__tests__/messages.route.test.js --runInBand
+```
+
+**Mongo API integration tests** (requires Atlas creds + IP whitelist):
+
+```powershell
+cd c:\project-structuring-unstructured-data
+npm test -- --testPathPatterns=mongo_storage/routes/__tests__/messages.integration.test.js --runInBand
+```
+
+Notes:
+- Integration tests auto-skip with a warning if MongoDB is unreachable (e.g., IP not whitelisted).
+- Ensure `.env` contains `MONGODB_USER` and `MONGODB_PASSWORD` before running integration tests.
+
+### 8) Troubleshooting
+
+- **Cannot find module / missing deps:** Run `npm install` in both `bolt_slack` and `mongo_storage`.
+- **MongoDB auth/connection errors:** Verify `MONGODB_USER/PASSWORD`, IP whitelist, and `DB_PORT` in `.env`.
+- **Bot not responding:** Confirm the bot is invited to the channel and Socket Mode tokens are correct; restart `npm start`.
+- **API health:** Check <http://localhost:5000/health>.
