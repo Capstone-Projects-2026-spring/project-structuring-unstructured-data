@@ -60,7 +60,7 @@ function startExpirationListener(io, pubClient) {
         })
         io.to(teamIds[0]).emit('roleSwap', { teamId: teamIds[0] });
         io.to(teamIds[1]).emit('roleSwap', { teamId: teamIds[1] });
-      }, 2500)
+      }, 2500) // too fast it happens almost instantaneously on the frontend (so while work it out later)
     }
 
     if (expiredKey.endsWith(':expires')) {

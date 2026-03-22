@@ -138,7 +138,7 @@ export default function PlayGameRoom() {
 
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !role) return;
     socket.emit('requestCodeSync', { teamId: teamSelected });
     socket.emit('requestTestCaseSync', { teamId: teamSelected });
 
@@ -167,6 +167,13 @@ export default function PlayGameRoom() {
       setActiveTab(newId);
     }
   };
+
+  const handleTestBoxChange = (val: string | undefined) => {
+    if (role !== Role.TESTER || !val || !socket) return;
+    const updated = testCases.map(t => t.id === activeTab ? { ...t, content: val } : t);
+    setTestCases(updated);
+    socket.emit('updateTestCases', { teamId: teamSelected, testCases: updated });
+  }
 
   // --- RENDERING LOGIC ---
   if (!teamSelected && role !== Role.SPECTATOR) {
@@ -202,7 +209,14 @@ export default function PlayGameRoom() {
   }
 
   if (gameState == GameStatus.STARTING) {
-    return <Center>Starting...3...2...1...!</Center>;
+    return (
+      <Center h="100vh">
+        <Group align="center">
+          <Text size="xl" c="dimmed" data-testid="waiting-for-second">Starting in 3...2...1...Battle!</Text>
+          <Text size="md" fw={600}>Room ID: {gameId}</Text>
+        </Group>
+      </Center>
+    );
   }
 
   if (gameState === GameStatus.WAITING) {
@@ -408,12 +422,7 @@ export default function PlayGameRoom() {
                     theme="vs-dark"
                     defaultLanguage="javascript"
                     value={role == Role.TESTER ? (testCases.find(test => test.id === activeTab)?.content ?? "") : ""}
-                    onChange={(val) => {
-                      if (role !== Role.TESTER || !val) return;
-                      const updated = testCases.map(t => t.id === activeTab ? { ...t, content: val } : t);
-                      setTestCases(updated);
-                      socket.emit('updateTestCases', { teamId: teamSelected, testCases: updated });
-                    }}
+                    onChange={handleTestBoxChange}
                     options={{
                       readOnly: role !== Role.TESTER,
                       minimap: { enabled: false }
