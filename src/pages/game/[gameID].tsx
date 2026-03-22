@@ -228,7 +228,8 @@ export default function PlayGameRoom() {
             >
               {gameState === "In Progress" && (
                 <Box p="1rem" pb={isProblemVisible ? "md" : "1rem"}>
-                  <GameTimer _timeRemaining={timeRemaining} duration={duration} />
+                  <GameTimer _timeRemaining={timeRemaining} duration={duration}
+                  onExpire={()=> socket.emit("submitCode", { roomId: gameId, code: liveCode })} />
                 </Box>
               )}
               {/* Conditionally render either the ProblemBox or the "Show" icon */}
