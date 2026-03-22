@@ -42,6 +42,7 @@ else second player
   H -> GS : startGameIfNeeded(gameId)
   activate GS
   GS -> R : SET game:{id}:expires '1' PX GAME_DURATION_MS NX
+  GS -> R : SET game:{id}:flipped '1' PX (GAME_DURATION_MS * randomFlipTime) NX
   R --> GS : OK | null (already set)
   GS -> R : PTTL game:{id}:expires
   R --> GS : remaining ms

@@ -6,17 +6,17 @@ import type { Socket } from 'socket.io-client';
 export interface Message {
   id: string;
   text: string;
-  role: string;
+  userName: string;
   timestamp: number;
 }
 interface ChatBoxProps {
   socket: Socket;
   roomId: string;
-  role: string;
+  userName: string;
   isSpectator?: boolean;
 }
 
-export default function ChatBox({ socket, roomId, role, isSpectator = false }: ChatBoxProps) {
+export default function ChatBox({ socket, roomId, userName, isSpectator = false }: ChatBoxProps) {
   const [messages, setMessages] = useState<Message[]>([]);
 
   // State for the text currently being typed in the input box
@@ -49,7 +49,7 @@ export default function ChatBox({ socket, roomId, role, isSpectator = false }: C
     const newMessage: Message = {
       id: Math.random().toString(36).substring(7), // Quick random ID
       text: currentText,
-      role,
+      userName,
       timestamp: Date.now(),
     };
 
@@ -72,7 +72,7 @@ export default function ChatBox({ socket, roomId, role, isSpectator = false }: C
           {messages.map((msg) => (
             <Box key={msg.id}>
               <Text size="xs" c="black" fw={500} tt="capitalize">
-                {msg.role}
+                {msg.userName}
               </Text>
               <Paper withBorder p="xs" radius="sm">
                 <Text size="sm">

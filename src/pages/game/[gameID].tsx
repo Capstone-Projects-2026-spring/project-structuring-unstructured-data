@@ -224,19 +224,19 @@ export default function PlayGameRoom() {
     <Box style={{ position: 'relative', height: '100vh' }}>
       {/* Spectator view switcher buttons */}
       {isSpectator && (
-      <Box data-testid="spectating-box" style={{ position: 'absolute', top: 12, left: 12, zIndex: 20 }}>
-        {teams.map((team, i) => (
-          <Group key={team.teamId} gap="xs">
-            <Button data-testid={`team-${i+1}-coder`} size="sm" onClick={() => { setSpectatorView(Role.CODER); setViewTeamId(team.teamId); }}>
-              Team {i + 1} Coder
-            </Button>
-            <Button data-testid={`team-${i+1}-tester`} size="sm" onClick={() => { setSpectatorView(Role.TESTER); setViewTeamId(team.teamId); }}>
-              Team {i + 1} Tester
-            </Button>
-          </Group>
-        ))}
-        <Button data-testid="exit-spectator" size="sm" onClick={() => setSpectatorView(Role.SPECTATOR)}>Exit View</Button>
-      </Box>
+        <Box data-testid="spectating-box" style={{ position: 'absolute', top: 12, left: 12, zIndex: 20 }}>
+          {teams.map((team, i) => (
+            <Group key={team.teamId} gap="xs">
+              <Button data-testid={`team-${i + 1}-coder`} size="sm" onClick={() => { setSpectatorView(Role.CODER); setViewTeamId(team.teamId); }}>
+                Team {i + 1} Coder
+              </Button>
+              <Button data-testid={`team-${i + 1}-tester`} size="sm" onClick={() => { setSpectatorView(Role.TESTER); setViewTeamId(team.teamId); }}>
+                Team {i + 1} Tester
+              </Button>
+            </Group>
+          ))}
+          <Button data-testid="exit-spectator" size="sm" onClick={() => setSpectatorView(Role.SPECTATOR)}>Exit View</Button>
+        </Box>
       )}
 
       {/* Spectator waiting message */}
@@ -357,7 +357,7 @@ export default function PlayGameRoom() {
                   <ChatBox
                     socket={socket}
                     roomId={gameId}
-                    role={role === Role.CODER ? "Coder" : role === Role.TESTER ? "Tester" : "Spectator"}
+                    userName={session?.user.name as string}
                     isSpectator={isSpectator}
                   />
                 </Box>
@@ -427,30 +427,4 @@ export default function PlayGameRoom() {
       )}
     </Box>
   );
-
-  // State C: Successfully joined as a player! Render the correct layout.
-  // return (
-  //   <>
-  //     {role === 'coder' && (
-  //       <CoderPOV
-  //         socket={socket}
-  //         roomId={gameId}
-  //         timeRemaining={timeRemaining}
-  //         duration={duration}
-  //         gameState={gameState}
-  //         problem={problem}
-  //       />
-  //     )}
-  //     {role === 'tester' && (
-  //       <TesterPOV
-  //         socket={socket}
-  //         roomId={gameId}
-  //         timeRemaining={timeRemaining}
-  //         duration={duration}
-  //         gameState={gameState}
-  //         problem={problem}
-  //       />
-  //     )}
-  //   </>
-  // );
 }
