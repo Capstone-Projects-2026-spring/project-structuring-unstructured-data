@@ -7,6 +7,33 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
+const normalizeChannelName = (channelName) => {
+  const sanitized = String(channelName || '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (!sanitized) {
+    throw new Error('A valid channel name is required');
+  }
+
+  return sanitized;
+};
+
+async function buildChannelKey(channelName) {
+  const normalizedName = normalizeChannelName(channelName);
+  const channelId = await channelNameToID(channelName);
+
+  if (!channelId) {
+    throw new Error(`Channel ID not found for channel name: ${channelName}`);
+  }
+
+  return `${normalizedName}_${channelId}`;
+}
+
+
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
 async function getConversationHistory(channelName) {
   try {
@@ -43,19 +70,20 @@ async function getConversationHistory(channelName) {
 }
 
 
-async function insertModelsToDB(channelName) {
+async function insertMessageModels(channelName) {
     try {
         if (!channelName) {
           throw new Error('channelName is required to insert messages');
         }
 
+        const channelKey = await buildChannelKey(channelName);
         const history = await getConversationHistory(channelName);
         console.log(`History: ${history.length}.`);
         if (!history || history.length === 0) {
           return;
         }
 
-        const response = await apiClient.post(`/api/messages/${channelName}`, history);
+        const response = await apiClient.post(`/api/messages/${encodeURIComponent(channelKey)}`, history);
         console.log(response.data.message || `Messages from channel ${channelName} successfully posted to API.`);
     } catch (error) {
         console.error("API connection error:", error);
@@ -74,10 +102,58 @@ async function insertSingleMessageToDB(channelName, messageData) {
           throw new Error('messageData must be a non-null object');
         }
 
-        const response = await apiClient.post(`/api/messages/${channelName}`, messageData);
+        const channelKey = await buildChannelKey(channelName);
+        const response = await apiClient.post(`/api/messages/${encodeURIComponent(channelKey)}`, messageData);
         return response.data;
     } catch (error) {
         console.error("API insertion error:", error.response?.data || error.message);
+        throw error;
+    }
+}
+
+// Retrieves list of member ids from a specified channel
+async function getMembersData(channelId) {
+  try {
+    const resolvedChannelId = await channelNameToID(channelId);
+    console.log(`Searching for messages at channel id: ${resolvedChannelId}.`);
+    if (!resolvedChannelId) {
+      throw new Error(`Channel ID not found for channel name: ${channelId}`);
+    }
+
+    const membersResult = await app.client.conversations.members({
+      channel: resolvedChannelId,
+    });
+
+    const fullMemberData = [];
+
+    for (const memberId of membersResult.members) {
+      const userInfoResult = await app.client.users.info({
+        user: memberId,
+      });
+      fullMemberData.push(userInfoResult.user);
+    }
+
+    return fullMemberData;
+    
+  } catch (error) {
+    console.error("Member ID Retrieval Error:", error.data ? error.data.error : error.message);
+    throw error;
+  }
+}
+
+async function insertUserModels(channelName) {
+    try {
+        const members = await getMembersData(channelName);
+        if (!members || members.length === 0) {
+          return;
+        }
+
+        const channelKey = await buildChannelKey(channelName);
+
+        const response = await apiClient.post(`/api/users/${encodeURIComponent(channelKey)}`, members);
+        console.log(response.data.message || `Member data from channel ${channelName} successfully posted to API.`);
+    } catch (error) {
+        console.error("Database connection error:", error);
         throw error;
     }
 }
@@ -96,4 +172,4 @@ async function channelNameToID(channelName) {
     }
   }
 
-module.exports = { insertModelsToDB, insertSingleMessageToDB };
+module.exports = { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, channelNameToID };
