@@ -1,8 +1,16 @@
+const config = require('./config');
 const { App } = require('@slack/bolt');
 const axios = require('axios');
-const config = require('./config');
+
+console.log('DEBUG ENV:', {
+    SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN ? 'SET' : 'NOT SET',
+    SLACK_SIGNING_SECRET: process.env.SLACK_SIGNING_SECRET ? 'SET' : 'NOT SET',
+    SLACK_APP_TOKEN: process.env.SLACK_APP_TOKEN ? 'SET' : 'NOT SET',
+});
 
 const { insertModelsToDB, insertSingleMessageToDB } = require('./slack_to_DB');
+const { runModel, postSummaries } = require('../mongo_storage/python');
+const { run } = require('jest');
 
 // Shared API client for Mongo storage
 const apiClient = axios.create({
@@ -236,6 +244,76 @@ app.command('/channel-info', async ({ command, ack, respond }) => {
       text: `❌ Error: ${error.message}`
     });
   }
+});
+
+// summary - Get channel summary
+app.command('/summary', async ({ command, ack, respond, client }) => {
+    await ack();
+
+    try {
+        const channel_id = command.channel_id;
+        const channel_name = command.channel_name;
+
+        await respond({
+            response_type: 'ephemeral',
+            text: 'Fetching summaries...'
+        });
+
+        // Fetch all summaries from the API
+        const response = await apiClient.get('/api/summary/all');
+        const allSummaries = response.data;
+
+        const weeks = [
+            { suffix: 'cw', label: 'Current Week' },
+            { suffix: 'pw', label: 'Past Week' }
+        ];
+
+        for (const week of weeks) {
+            const db_name = `${channel_name}_${week.suffix}`;
+            const weekData = allSummaries[db_name];
+
+            if (!weekData || Object.keys(weekData).length === 0) {
+                await client.chat.postMessage({
+                    channel: channel_id,
+                    text: `No summaries found for *${week.label}* in *#${channel_name}*.`
+                });
+                continue;
+            }
+
+            // Post week header
+            await client.chat.postMessage({
+                channel: channel_id,
+                text: `*${week.label} Summaries for #${channel_name}*`
+            });
+
+            // Each key is a day
+            for (const day in weekData) {
+                const docs = weekData[day];
+                if (!docs || docs.length === 0) continue;
+
+                await client.chat.postMessage({
+                    channel: channel_id,
+                    text: `*${day}*`
+                });
+
+                for (const doc of docs) {
+                    if (!doc.sum_text || doc.sum_text === '()') continue;
+
+                    await client.chat.postMessage({
+                        channel: channel_id,
+                        text: `*User:* ${doc.user}\n*Summary:* ${doc.sum_text}`
+                    });
+                }
+            }
+        }
+
+    } catch(err) {
+        console.error('Error in /summary command:', err);
+        await respond({
+            response_type: 'ephemeral',
+            text: `Error fetching summaries: ${err.message}`
+        });
+    }
 });
 
 // ====================

@@ -18,23 +18,38 @@ ext_db = 'slack'
 inst = MongoConnect(mongo_user,mongo_password)
 inst.extract(ext_db)
 
-summ_inst = Summarizer()
-
 dp_inst = DataProcess()
 
 
 coll_dict = {}
 
 # Main message dictionary
-coll_list = [file.replace('.json','') for file in os.listdir('collections')]
+base_dir = os.path.dirname(os.path.abspath(__file__))
+collections_path = os.path.join(base_dir, 'collections')
 
 
 # Load data into dataframes
 cols = ['user', 'type', 'text', 'ts']
-for file in os.listdir('collections'):
-    #print(file)
-    coll_dict[file.replace('.json','')] = pd.read_json(f'collections\{file}',lines=True)[cols]
+
+# File loading
+for file in os.listdir(collections_path):
+    filepath = os.path.join(collections_path, file)
     
+    df = pd.read_json(filepath, lines=True)
+
+    # Filter out bot messages before selecting cols
+    if 'subtype' in df.columns:
+        df = df[df['subtype'] != 'bot_message']
+
+    # Skip if any required column is missing
+    if not all(c in df.columns for c in cols):
+        print(f'Skipping {file} - missing required columns')
+        continue
+
+    df = df[cols]
+    df = df[df['user'].notna()]  # drop rows without a user
+
+    coll_dict[file.replace('.json', '')] = df
 
 #------Preprocessing---------
 coll_dict = dp_inst.normal_preprocess(coll_dict)

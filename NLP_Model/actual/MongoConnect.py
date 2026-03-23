@@ -6,6 +6,8 @@ import os
 import json
 
 class MongoConnect:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    collections_path = os.path.join(base_dir, 'collections')
 
     def __init__(self,user, password):
         self.user = user
@@ -30,6 +32,7 @@ class MongoConnect:
         Maps a collection name to all of the messages 
         within the corresponding channel
         '''
+
         # Establishes connection
         client = self.connect(self.user,self.password)
 
@@ -45,7 +48,7 @@ class MongoConnect:
             if temp.count_documents({}) == 0:
                 
                 continue
-            file = open(f'collections\{collection}.json','w')
+            file = open(os.path.join(self.collections_path, f'{collection}.json'), 'w')
             with temp.find() as cursor:
                 for doc in cursor:
                     doc.pop('_id')
@@ -57,7 +60,16 @@ class MongoConnect:
 
      for db in dic:
         df = dic[db]
-        db_inst = Database(client, f'{db}_{time}')
+        db_name = f'{db}_{time}'
+
+        # Gets rid of the database if it exists
+
+        client.drop_database(db_name)
+
+        db_inst = Database(client, db_name)
+
+
+        client
 
         for day in df['day'].unique():
             filt_df = df[df['day'] == day].drop('day', axis=1, errors='ignore')
@@ -74,8 +86,8 @@ class MongoConnect:
         '''
         Clears collections folder
         '''
-        for file in os.listdir('collections'):
-            os.remove(f'collections\{file}')
+        for collection in os.listdir(self.collections_path):
+            os.remove(os.path.join(self.collections_path, f'{collection}'))
         return 1
         
 '''

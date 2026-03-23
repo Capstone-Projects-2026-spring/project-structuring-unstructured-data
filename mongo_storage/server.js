@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // Load from root directory
 
+console.log('Looking for .env at:', path.resolve(__dirname, '../.env'));
+console.log('MONGODB_USER:', process.env.MONGODB_USER);
+
 // Import routers
 const messagesRouter = require('./routes/messages');
 
