@@ -461,7 +461,9 @@ def most_frequent(nums: list[int]) -> int:
         counts[num] = counts.get(num, 0) + 1
 
     # Return the element that has the highest count
-    return max(counts, key=counts.get)`
+    return max(counts, key=counts.get)
+
+most_frequent([1,3,2,3,1,3])`
   );
 
   // Step 2 - Only Python for demo
