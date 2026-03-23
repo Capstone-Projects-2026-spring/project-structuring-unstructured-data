@@ -5,6 +5,21 @@
 [![Deploy Docs](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml)
 [![Documentation Website Link](https://img.shields.io/badge/-Documentation%20Website-brightgreen)](https://applebaumian.github.io/tu-cis-4398-docs-template/)
 
+## How to Run (Milestone Demo 1)
+
+### 1) Create .env
+cp .env.example .env
+# fill in values (do not commit secrets)
+
+### 2) Start Mongo API
+cd mongo_storage
+npm install
+npm start
+
+### 3) Start Slack Bot
+cd bolt_slack
+npm install
+node app.js
 
 </div>
 
