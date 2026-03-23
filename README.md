@@ -1,6 +1,6 @@
 <div align="center">
 
-# Project Name
+# Autosuggestion Quiz
 [![Report Issue on Jira](https://img.shields.io/badge/Report%20Issues-Jira-0052CC?style=flat&logo=jira-software)](https://temple-cis-projects-in-cs.atlassian.net/jira/software/c/projects/DT/issues)
 [![Deploy Docs](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml)
 [![Documentation Website Link](https://img.shields.io/badge/-Documentation%20Website-brightgreen)](https://applebaumian.github.io/tu-cis-4398-docs-template/)
@@ -45,6 +45,16 @@ Technology: Programming languages, frameworks, API.
 
 Python
 Use of Gemini API key for AI coding assistant and functionality.
+
+## First Release
+
+Use this link to access the current version of Autosuggestion Quiz: https://autosuggestions.onrender.com/
+
+Features
+  - Teachers can access their dashboard and create problems by providing a problem prompt and boilerplate code for the student to start with
+  - Students can access their problems by using the OTP for the assignment (OTP provided by the teacher). NOTE FOR TEACHER: SAVE THE OTP AS SOON AS YOU SEE IT OR YOU WILL HAVE TO RECREATE THE PROBLEM
+  - Students can attempt a problem and will be prompted with AI suggestions whenever they are inactive for a short period of time.
+  - Python is the only language available currently
 
 ## Collaborators
 Bwosley
