@@ -72,11 +72,10 @@ def execute(req: ExecutionRequest):
             "-p", f"{host_port}:8000",
             "--cap-add=SYS_ADMIN",
             "--security-opt", "seccomp=unconfined",
-            "--security-opt", "apparmor=unconfined"
+            "--security-opt", "apparmor=unconfined",
             "--name", container_name,
             "runner:latest",
         ]
-        print(cmd)
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": "Failed to start executor container", "details": result.stderr.strip()})
