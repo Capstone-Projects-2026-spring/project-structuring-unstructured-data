@@ -105,7 +105,7 @@ node server.js
 
 Expected log: `App is listening on port 5000`
 
-Health check: <http://localhost:5000/health>
+Health check: http://localhost:5000/health
 
 **Terminal B – Slack bot (Socket Mode)**
 
@@ -303,4 +303,4 @@ npm run test:coverage
 - **Cannot find module / missing deps:** Run `npm install` in both `bolt_slack` and `mongo_storage`.
 - **MongoDB auth/connection errors:** Verify `MONGODB_USER/PASSWORD`, IP whitelist, and `DB_PORT` in `.env`.
 - **Bot not responding:** Confirm the bot is invited to the channel and Socket Mode tokens are correct; restart `npm start`.
-- **API health:** Check <http://localhost:5000/health>.
+- **API health:** Check http://localhost:5000/health.
