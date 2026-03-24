@@ -78,8 +78,8 @@ SLACK_BOT_PORT=3000
 # Mongo Storage API
 API_URL=http://localhost:5000
 DB_PORT=5000
-MONGODB_USER=your_mongodb_user
-MONGODB_PASSWORD=your_mongodb_password
+MONGODB_USER=sudbud_test_user
+MONGODB_PASSWORD=8zAk8e6DRunJk9kF
 ```
 
 > Keep secrets out of version control. The services now read from this shared root `.env`.
@@ -133,9 +133,12 @@ The manifest file (`bolt_slack/slack-app-manifest.json`) automatically configure
 5. Paste it into the manifest editor
 6. Click "Create" → "Install to Workspace"
 7. Review permissions and click "Allow"
-8. Copy your **Bot User OAuth Token** (starts with `xoxb-`) and **Signing Secret**
-9. Add these to your `.env` file (should already be there from step 2)
-10. Invite the bot to channels: in Slack, run `/invite @YourBotName` in each channel
+8. Copy your **Bot User OAuth Token** (starts with `xoxb-` found in the "OAuth & Permissions" tab) and **Signing Secret** (found in the "Basic Information" tab)
+9. Add these to your `.env` file under `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` respectively (should already be there from step 2)
+10. If necessary, create an app-level token for your bot under the general app credentials section. Name the token however you choose and select the `connections:write` scope
+11. Copy the app-level token to your `.env` file under `SLACK_APP_TOKEN`
+12. Find your bot's member ID directly in your Slack workspace by right-clicking the app from the "Apps" tab and selecting "view app details". Copy the value named "Member ID" into `SLACK_BOT_USER_ID`
+13. Invite the bot to channels: in Slack, run `/invite @YourBotName` in each channel
 
 #### Option B: Manual Setup
 
