@@ -37,12 +37,20 @@ app.get('/health', (_req, res) => {
 
 mongoose.set('strictQuery', true); // Suppress deprecation warning for strictQuery
 
-// Fill in .env file with your database username and password. 
-// Also ensure your IP address is whitelisted in your Atlas settings.
-const uri = `mongodb+srv://${encodeURIComponent(DB_USER || '')}:${encodeURIComponent(DB_PASSWORD || '')}@suds-cluster.poxtvnp.mongodb.net/?appName=SUDs-Cluster`;
+// Use local MongoDB URI if available, otherwise fall back to Atlas
+const MONGODB_LOCAL = process.env.MONGODB_LOCAL === 'true';
+let uri;
 
+if (MONGODB_LOCAL) {
+  // For local MongoDB, use the MONGODB_URI directly or construct it with properly encoded credentials
+  uri = process.env.MONGODB_URI || `mongodb://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASSWORD)}@${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}/test`;
+} else {
+  uri = `mongodb+srv://${encodeURIComponent(DB_USER || '')}:${encodeURIComponent(DB_PASSWORD || '')}@suds-cluster.poxtvnp.mongodb.net/?appName=SUDs-Cluster`;
+}
 
-// Connect to MongoDB Atlas using Mongoose
+console.log(`Connecting to MongoDB (Local: ${MONGODB_LOCAL}) at host: ${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}`);
+
+// Connect to MongoDB using Mongoose
 const start = async () => {
   try {
     if (!DB_USER || !DB_PASSWORD) {
@@ -50,7 +58,9 @@ const start = async () => {
     }
 
     // Connect once to the Mongo cluster; channel-specific databases are selected later via useDb.
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, {
+      authSource: 'admin'  // Specify the auth database for local MongoDB
+    });
 
     mongoose.connection.on('error', (err) => {
       console.error('Mongo connection error:', err);

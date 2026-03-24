@@ -116,16 +116,43 @@ npm start
 
 Expected log: `⚡️ Slack Bot is running!` and DB API URL printed.
 
-### 5) Install the bot into your Slack workspace
+### 5) Set up the Slack Bot
+
+There are two ways to configure your Slack bot: using a manifest file (recommended) or manual setup.
+
+#### Option A: Quick Setup Using Manifest File (Recommended) ⭐
+
+The manifest file (`bolt_slack/slack-app-manifest.json`) automatically configures all permissions, scopes, and event subscriptions.
+
+**Steps:**
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click "Create New App" → "From an app manifest"
+3. Choose your workspace
+4. Copy the contents of `bolt_slack/slack-app-manifest.json` from this repository
+5. Paste it into the manifest editor
+6. Click "Create" → "Install to Workspace"
+7. Review permissions and click "Allow"
+8. Copy your **Bot User OAuth Token** (starts with `xoxb-`) and **Signing Secret**
+9. Add these to your `.env` file (should already be there from step 2)
+10. Invite the bot to channels: in Slack, run `/invite @YourBotName` in each channel
+
+#### Option B: Manual Setup
+
+If you prefer to manually configure the bot:
 
 1. In Slack API settings for your app, enable **Socket Mode** and copy the App Token (xapp-*).
-2. Add required OAuth scopes for the bot (typical: `app_mentions:read`, `chat:write`, `commands`, `channels:history`, `groups:history`, `im:history`, `mpim:history` as needed).
-3. Install the app to your workspace to generate the **Bot Token (xoxb-*)**.
-4. Invite the bot to channels you want monitored: in Slack, run `/invite @YourBotName` in each channel.
-5. Slash commands to configure in Slack (point to Socket Mode):
-	 - `/messages`
-	 - `/store-messages`
-	 - `/channel-info`
+2. Add required OAuth scopes for the bot:
+   - `app_mentions:read`, `chat:write`, `commands`, `channels:history`, `groups:history`, `im:history`, `mpim:history`
+   - Plus for interactive features: `reactions:read`, `reactions:write`, `users:read`
+3. Install the app to your workspace to generate the **Bot Token (xoxb-*)**
+4. Configure event subscriptions:
+   - `app_mention`, `member_joined_channel`, `message.channels`, `message.im`, `reaction_added`
+5. Create slash commands in Slack:
+   - `/messages` - Retrieve recent messages from this channel
+   - `/store-messages` - Store channel messages to database
+   - `/channel-info` - Get channel information
+6. Invite the bot to channels: in Slack, run `/invite @YourBotName` in each channel
 
 ### 6) Usage checklist
 
@@ -134,7 +161,89 @@ Expected log: `⚡️ Slack Bot is running!` and DB API URL printed.
 - `/messages` reads back the most recent saved messages.
 - `/channel-info` returns channel metadata.
 
-### 7) Tests
+### 7) Local MongoDB Setup for Testing
+
+Testers can easily set up a local MongoDB database for development and testing without needing MongoDB Atlas. Two methods are supported: **Docker** (recommended) or **local MongoDB installation**.
+
+#### Quick Start
+
+```powershell
+cd c:\project-structuring-unstructured-data\mongo_storage
+npm run db:setup
+```
+
+This interactive script will:
+1. Ask you to choose between Docker (recommended) or Local MongoDB
+2. Validate prerequisites
+3. Automatically configure `.env` with connection details
+4. Start MongoDB and prepare it for testing
+
+#### Setup Methods
+
+**Option A: Docker (Recommended) ⭐**
+
+Prerequisites: Docker Desktop installed and running
+
+```powershell
+npm run db:setup:docker
+```
+
+What it does:
+- Creates a MongoDB 7.0 container named `suds-local-mongodb`
+- Automatically sets up credentials (testuser/testpass)
+- Configures `.env` with local connection details
+- Container persists data in a Docker volume
+
+**Option B: Local MongoDB Installation**
+
+Prerequisites: MongoDB Community Edition installed and in PATH
+
+```powershell
+npm run db:setup:local
+```
+
+You'll be prompted to enter:
+- MongoDB host (default: `localhost`)
+- MongoDB port (default: `27017`)
+- Username (default: `testuser`)
+- Password (default: `testpass`)
+
+Then ensure MongoDB is running:
+- **Windows:** Run `mongod` in a separate terminal
+- **macOS:** `brew services start mongodb-community`
+- **Linux:** `sudo systemctl start mongod`
+
+#### Database Management Commands
+
+```powershell
+# Start MongoDB container (Docker only)
+npm run db:start
+
+# Stop MongoDB container (Docker only)
+npm run db:stop
+
+# View MongoDB logs
+npm run db:logs
+```
+
+#### Default Connection Details
+
+After setup, MongoDB is accessible at:
+- **Host:** localhost
+- **Port:** 27017
+- **Username:** testuser
+- **Password:** testpass
+
+These are automatically added to your `.env` file as:
+```
+MONGODB_USER=testuser
+MONGODB_PASSWORD=testpass
+MONGODB_LOCAL=true
+MONGODB_HOST=localhost
+MONGODB_PORT=27017
+```
+
+### 8) Tests
 
 **Run all tests (root, both projects):**
 
@@ -165,7 +274,28 @@ Notes:
 - Integration tests auto-skip with a warning if MongoDB is unreachable (e.g., IP not whitelisted).
 - Ensure `.env` contains `MONGODB_USER` and `MONGODB_PASSWORD` before running integration tests.
 
-### 8) Troubleshooting
+#### Running Tests with Local MongoDB
+
+After setup, run tests from the `mongo_storage` directory:
+
+```powershell
+# All tests
+npm test
+
+# Unit tests only (no database required)
+npm run test:unit
+
+# Integration tests (requires MongoDB running)
+npm run test:integration
+
+# Watch mode (re-run on file changes)
+npm run test:watch
+
+# With coverage report
+npm run test:coverage
+```
+
+### 9) Troubleshooting
 
 - **Cannot find module / missing deps:** Run `npm install` in both `bolt_slack` and `mongo_storage`.
 - **MongoDB auth/connection errors:** Verify `MONGODB_USER/PASSWORD`, IP whitelist, and `DB_PORT` in `.env`.
