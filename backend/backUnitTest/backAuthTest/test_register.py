@@ -13,7 +13,7 @@ client = TestClient(app)
 
 def test_register_success():
     """
-    Mock a successful registration of a new student.
+    Mock a successful registration of a new teacher.
     """
     mock_cursor = MagicMock()
     mock_conn = MagicMock()
@@ -23,15 +23,15 @@ def test_register_success():
 
     with patch("routes_auth.get_connection", return_value=mock_conn):
         response = client.post("/auth/register", json={
-            "name": "John Student",
+            "name": "John Teacher",
             "email": "john@test.com",
             "password": "password123",
-            "role": "student"
+            "role": "teacher"
         })
 
         assert response.status_code == 200
         assert response.json()["user"]["email"] == "john@test.com"
-        assert response.json()["user"]["role"] == "student"
+        assert response.json()["user"]["role"] == "teacher"
         assert "token" in response.json()
 
 def test_register_email_already_exists():
@@ -45,10 +45,10 @@ def test_register_email_already_exists():
 
     with patch("routes_auth.get_connection", return_value=mock_conn):
         response = client.post("/auth/register", json={
-            "name": "John Student",
+            "name": "John Teacher",
             "email": "john@test.com",
             "password": "password123",
-            "role": "student"
+            "role": "teacher"
         })
 
         """
@@ -62,7 +62,7 @@ def test_register_invalid_role():
     Mock a failed registration where role is invalid.
     """
     response = client.post("/auth/register", json={
-        "name": "John Student",
+        "name": "John Teacher",
         "email": "john@test.com",
         "password": "password123",
         "role": "superuser" 

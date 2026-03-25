@@ -1,10 +1,24 @@
+## Running Backend Tests
 
-when testing, type 'pytest test_back.py' in temrinal to initiate test
-I've made an example down there in test_back.py that is just 1 + 1, which is true.
+### Prerequisites
+Make sure you are in the root directory:
+```
+'cd ..' all the way back to the root directory.
+```
 
-If you plan to for some reason make more .pys to test methods in the backend, always start the file with "test_"
+Install all dependencies:
+```
+pip3 install -r backend/requirements.txt
+```
 
-I've made a basic example to check if it's true: 1 + 1 == 2 (yes)
+> Note: This should install everything required to run the backend, including unit tests
 
-Also create the coverage report with: 
-'pytest --cov=. --cov-report=html test_back.py'
+### Environment Setup
+Set up the '.env', there is an .env example that can be used as a template.
+```
+
+
+### Running Tests
+```bash
+PYTHONPATH=. python3 -m pytest backend/backUnitTest/ -v
+```

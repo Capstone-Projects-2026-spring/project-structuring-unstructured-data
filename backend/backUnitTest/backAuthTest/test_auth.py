@@ -1,7 +1,10 @@
+import sys
+import os
 import pytest
 import jwt
 
-from backend.auth import hash_password, verify_password, create_token, decode_token
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from auth import hash_password, verify_password, create_token, decode_token
 
 def test_hash_password_returns_string():
     password = "mypassword123"
