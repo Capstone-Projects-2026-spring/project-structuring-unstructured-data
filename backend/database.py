@@ -85,6 +85,27 @@ def init_db():
             is_correct      INTEGER NOT NULL CHECK (is_correct IN (0, 1))
         );
 
+        -- Quiz attempts by authenticated users (teachers testing problems, etc.)
+        CREATE TABLE IF NOT EXISTS quiz_attempts (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            problem_id          INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
+            language            TEXT NOT NULL,
+            score               INTEGER NOT NULL DEFAULT 0,
+            total               INTEGER NOT NULL DEFAULT 0,
+            time_taken_seconds  INTEGER,
+            submitted_at        TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        -- Individual answers within a quiz attempt.
+        CREATE TABLE IF NOT EXISTS quiz_answers (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            attempt_id      INTEGER NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+            question_index  INTEGER NOT NULL,
+            selected_option TEXT NOT NULL,
+            is_correct      INTEGER NOT NULL CHECK (is_correct IN (0, 1))
+        );
+
         -- Logs for auditable events: tab switches, copy/paste attempts, session
         -- start/end. Keyed to a session so they're always tied to a student+problem.
         CREATE TABLE IF NOT EXISTS logs (
