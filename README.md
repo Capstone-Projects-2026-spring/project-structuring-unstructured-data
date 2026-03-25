@@ -1,6 +1,6 @@
 <div align="center">
 
-# Project Name
+# Autosuggestion Quiz
 [![Report Issue on Jira](https://img.shields.io/badge/Report%20Issues-Jira-0052CC?style=flat&logo=jira-software)](https://temple-cis-projects-in-cs.atlassian.net/jira/software/c/projects/DT/issues)
 [![Deploy Docs](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml)
 [![Documentation Website Link](https://img.shields.io/badge/-Documentation%20Website-brightgreen)](https://applebaumian.github.io/tu-cis-4398-docs-template/)
@@ -44,7 +44,40 @@ Internet Access
 Technology: Programming languages, frameworks, API.
 
 Python
-Use of Gemini API key for AI coding assistant and functionality.
+Use of the OpenAI API key for the AI coding assistant and functionality.
+
+## First Release
+
+Use this link to access the current version of Autosuggestion Quiz: https://autosuggestions.onrender.com/
+
+To run the project locally, run the following commands:
+```
+cd frontend
+npm install
+npm run start
+```
+
+To test the backend, run the following command in your terminal:
+```
+cd backend
+pip install pytest
+python pytest test_back.py
+```
+To test the frontend, run the following command in your terminal:
+```
+cd frontend
+npm test
+a
+```
+a will run all of the tests
+
+Features
+  - Teachers can create an account by entering their email and receiving a one-time password.
+  - Teachers can access their dashboard and create problems by providing a problem prompt and boilerplate code for the student to start with.
+  - Teachers will receive a one-time password after creating a problem. Save this password to distribute to students.
+  - Students can access their problems by using the one-time password for the assignment (one-time password provided by the teacher).
+  - Students can attempt a problem and will be prompted with AI suggestions whenever they are inactive for a short period of time.
+  - Python is the only language available currently.
 
 ## Collaborators
 Bwosley
