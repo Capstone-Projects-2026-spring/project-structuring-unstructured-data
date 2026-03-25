@@ -5,7 +5,7 @@ gotta use this to point to the right testing folder
 """""
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from unittest.mock import patch, MagicMock
-from aiSuggestion import ai_suggestion
+from aiSuggestion import aiSuggestion
 
 
 def test_ai_suggestion_returns_response():
@@ -22,7 +22,7 @@ def test_ai_suggestion_returns_response():
         """""
         Two suggestions can be possibly given to the user
         """""
-        result = ai_suggestion(
+        result = aiSuggestion(
             "def add_numbers(a,b):",
             "create a function that adds 2 numbers together"
         )

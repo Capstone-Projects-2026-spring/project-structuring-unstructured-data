@@ -3,7 +3,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from unittest.mock import patch, MagicMock
-from aiSuggestion import ai_suggestion
+from aiSuggestion import aiSuggestion
 
 def test_ai_retokens_syntax_error():
     """
@@ -35,12 +35,12 @@ def test_ai_retokens_syntax_error():
             good_completion
         ]
 
-        bad = ai_suggestion(
+        bad = aiSuggestion(
             "def add_numbers(a, b):",
             "create a function that adds 2 numbers together"
         )
 
-        good = ai_suggestion(
+        good = aiSuggestion(
             "def add_numbers(a, b):",
             "create a function that adds 2 numbers together"
         )
