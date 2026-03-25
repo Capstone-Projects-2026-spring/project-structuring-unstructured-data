@@ -24,4 +24,11 @@ From the root directory, run:
 PYTHONPATH=. python3 -m pytest backend/backUnitTest/ -v
 ```
 
-xs
+
+## Creating coverage
+From the root directory, run:
+```
+PYTHONPATH=. python3 -m pytest backend/backUnitTest/ -v --cov=backend --cov-report=html
+
+```
+
