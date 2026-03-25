@@ -2,7 +2,7 @@ const { App } = require('@slack/bolt');
 const axios = require('axios');
 const config = require('./config');
 
-const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey } = require('./slack_to_DB');
+const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, userIDToName } = require('./slack_to_DB');
 
 // Shared API client for Mongo storage
 const apiClient = axios.create({
@@ -168,9 +168,26 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
       const messages = await fetchMessagesFromAPI(channelKey);
       
       if (messages && messages.length > 0) {
-        const messageText = messages.slice(0, 5).map((msg, idx) => 
-          `${idx + 1}. *${msg.user}*: ${msg.text || '(no text)'} _at ${new Date(parseFloat(msg.ts) * 1000).toLocaleString()}_`
-        ).join('\n');
+        const messageLines = await Promise.all(
+          messages.slice(0, 5).map(async (msg, idx) => {
+            let displayName = msg.user || 'unknown-user';
+
+            if (msg.user) {
+              try {
+                const resolvedName = await userIDToName(msg.user);
+                if (resolvedName) {
+                  displayName = resolvedName;
+                }
+              } catch (_error) {
+                // Fall back to the user ID if Slack user lookup fails.
+              }
+            }
+
+            return `${idx + 1}. *${displayName}*: ${msg.text || '(no text)'} _at ${new Date(parseFloat(msg.ts) * 1000).toLocaleString()}_`;
+          })
+        );
+
+        const messageText = messageLines.join('\n');
         
         await respond({
           response_type: 'in_channel',

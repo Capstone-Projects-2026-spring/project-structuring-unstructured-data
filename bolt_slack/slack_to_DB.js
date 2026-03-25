@@ -188,7 +188,7 @@ async function userIDToName(userId) {
         const userInfo = await app.client.users.info({
             user: userId
         });
-        return userInfo?.user?.name || null;
+        return userInfo?.user?.real_name || null;
     } catch (error) {
         console.error("User Info Retrieval Error:", error.data ? error.data.error : error.message);
         throw error;
