@@ -134,6 +134,36 @@ Composed element/section of a message block
 - value: string - string representation of the item type associated with the text
 - block_id: string - foreign key (Block: id), contains relation to block that the element belongs to
 
+## Structured Message Schema
+
+## Raw Data Schema
+```mermaid
+erDiagram
+    SUMMARY }o--|| USER : contains
+
+    SUMMARY {
+        string id PK
+        int week_of
+        string day
+        string ts
+        string user FK
+    }
+
+    USER {
+        string id PK
+        string name
+        string real_name
+    }
+```
+
+### Summary
+Collection of structuring model's outputs of daily message summaries
+- id: string - primary key
+- week_of: int - notates incremented week count since the creation of the channel
+- day: string - string representation of the day of the week which the message summary is for (`mon`, `tue`, etc.)
+- ts: string - string UNIX representation of date and time when message sent
+- user: string - foreign key (User: id), contains relation to all messages at specified time range sent by the target user ID
+
 ## Application workflow
 ```mermaid
 graph LR
