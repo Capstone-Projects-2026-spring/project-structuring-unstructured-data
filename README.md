@@ -50,11 +50,18 @@ Use of the OpenAI API key for the AI coding assistant and functionality.
 
 Use this link to access the current version of Autosuggestion Quiz: https://autosuggestions.onrender.com/
 
+To run the project locally, run the following commands:
+```
+cd frontend
+npm install
+npm run start
+```
+
 To test the backend, run the following command in your terminal:
 ```
 cd backend
 pip install pytest
-pytest test_back.py
+python pytest test_back.py
 ```
 To test the frontend, run the following command in your terminal:
 ```
