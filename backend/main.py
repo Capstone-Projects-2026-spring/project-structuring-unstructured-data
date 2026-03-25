@@ -19,7 +19,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://autosuggestions.onrender.com", 
+        "https://autosuggestions.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -40,6 +40,8 @@ def startup():
     then seeds the database with a default teacher and sample problem if
     the users table is empty.
     """
+    import os
+    print(f"[startup] DEBUG={os.getenv('DEBUG')} | OPENAI_KEY={'set' if os.getenv('OPENAI_API_KEY') else 'NOT SET'}")
     init_db()
 
     from database import get_connection

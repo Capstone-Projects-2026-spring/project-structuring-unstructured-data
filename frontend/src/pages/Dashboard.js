@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { DIFFICULTY_COLORS } from '../constants';
+import { editProblem, gradeSubmission } from '../api';
 
-// ─── Access Code Modal ────────────────────────────────────────────────────────
+// ─── Share Modal ──────────────────────────────────────────────────────────────
 
 function AccessCodeModal({ problem, onClose }) {
     const [copied, setCopied] = useState(false);
@@ -37,7 +38,7 @@ function AccessCodeModal({ problem, onClose }) {
     );
 }
 
-// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+// ─── Delete Modal ─────────────────────────────────────────────────────────────
 
 function DeleteModal({ problem, onConfirm, onClose }) {
     return (
@@ -65,10 +66,145 @@ function DeleteModal({ problem, onConfirm, onClose }) {
     );
 }
 
-// ─── Submissions Modal ────────────────────────────────────────────────────────
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
 
-function SubmissionsModal({ problem, onClose }) {
+function EditModal({ problem, token, onSaved, onClose }) {
+    const [title, setTitle] = useState(problem.title);
+    const [description, setDescription] = useState(problem.description);
+    const [timeLimitMinutes, setTimeLimitMinutes] = useState(problem.time_limit_minutes ?? '');
+    const [maxSubmissions, setMaxSubmissions] = useState(problem.max_attempts ?? '');
+    const [allowCopyPaste, setAllowCopyPaste] = useState(problem.allow_copy_paste);
+    const [trackTabSwitching, setTrackTabSwitching] = useState(problem.track_tab_switching);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSave = async () => {
+        if (!title.trim()) { setError('Title is required.'); return; }
+        setSaving(true);
+        setError('');
+        try {
+            const updated = await editProblem(problem.id, {
+                title: title.trim(),
+                description: description.trim(),
+                timeLimitMinutes: timeLimitMinutes !== '' ? Number(timeLimitMinutes) : null,
+                maxSubmissions: maxSubmissions !== '' ? Number(maxSubmissions) : null,
+                allowCopyPaste,
+                trackTabSwitching,
+            }, token);
+            onSaved(updated);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-card modal-card-wide" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <span className="modal-title">Edit Problem</span>
+                    <button className="modal-close-btn" onClick={onClose}>×</button>
+                </div>
+                <div className="modal-body">
+                    <div className="form-field">
+                        <label className="form-label">Title</label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
+                    </div>
+                    <div className="form-field">
+                        <label className="form-label">Description</label>
+                        <textarea
+                            className="form-input form-textarea"
+                            rows={5}
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <div className="form-field" style={{ flex: 1 }}>
+                            <label className="form-label">Time Limit (minutes)</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                placeholder="None"
+                                value={timeLimitMinutes}
+                                min={1}
+                                onChange={(e) => setTimeLimitMinutes(e.target.value)}
+                            />
+                        </div>
+                        <div className="form-field" style={{ flex: 1 }}>
+                            <label className="form-label">Max Submissions</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                placeholder="Unlimited"
+                                value={maxSubmissions}
+                                min={1}
+                                onChange={(e) => setMaxSubmissions(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ccc', cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={allowCopyPaste}
+                                onChange={(e) => setAllowCopyPaste(e.target.checked)}
+                            />
+                            Allow Copy &amp; Paste
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ccc', cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={trackTabSwitching}
+                                onChange={(e) => setTrackTabSwitching(e.target.checked)}
+                            />
+                            Track Tab Switching
+                        </label>
+                    </div>
+                    {error && <p className="form-error">{error}</p>}
+                    <div className="modal-actions">
+                        <button className="btn btn-outline" onClick={onClose}>Cancel</button>
+                        <button className="btn btn-run" onClick={handleSave} disabled={saving}>
+                            {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Submissions / Grade Modal ────────────────────────────────────────────────
+
+function SubmissionsModal({ problem, token, onGraded, onClose }) {
     const submissions = problem.submissions || [];
+    const [gradingId, setGradingId] = useState(null);
+    const [gradeInput, setGradeInput] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleGradeSave = async (sessionId) => {
+        const g = Number(gradeInput);
+        if (isNaN(g) || g < 0 || g > 100) { setError('Grade must be 0–100.'); return; }
+        setSaving(true);
+        setError('');
+        try {
+            await gradeSubmission(problem.id, sessionId, g, token);
+            onGraded(problem.id, sessionId, g);
+            setGradingId(null);
+            setGradeInput('');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -81,34 +217,87 @@ function SubmissionsModal({ problem, onClose }) {
                     {submissions.length === 0 ? (
                         <p className="modal-empty">No submissions yet for this problem.</p>
                     ) : (
-                        <table className="submissions-table">
-                            <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Submitted</th>
-                                <th>Grade</th>
-                                <th>Status</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {submissions.map((s, i) => (
-                                <tr key={i}>
-                                    <td>{s.student_name || 'Unknown'}</td>
-                                    <td>{s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</td>
-                                    <td>
-                                        {s.grade != null
-                                            ? <span className="grade-badge">{s.grade}%</span>
-                                            : '—'}
-                                    </td>
-                                    <td>
-                      <span style={{ color: s.grade != null ? '#16825d' : '#569cd6', fontSize: '12px', fontWeight: 500 }}>
-                        {s.grade != null ? 'Graded' : 'Submitted'}
-                      </span>
-                                    </td>
+                        <>
+                            {error && <p className="form-error">{error}</p>}
+                            <table className="submissions-table">
+                                <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Submitted</th>
+                                    <th>Score</th>
+                                    <th>Grade</th>
+                                    <th>Action</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                {submissions.map((s, i) => (
+                                    <tr key={i}>
+                                        <td>{s.student_name || 'Unknown'}</td>
+                                        <td>{s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</td>
+                                        <td>
+                                            {s.score != null && s.total != null
+                                                ? `${s.score} / ${s.total}`
+                                                : '—'}
+                                        </td>
+                                        <td>
+                                            {s.grade != null
+                                                ? <span className="grade-badge">{s.grade}%</span>
+                                                : <span style={{ color: '#666', fontSize: '12px' }}>Ungraded</span>}
+                                        </td>
+                                        <td>
+                                            {gradingId === s.session_id ? (
+                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={100}
+                                                        value={gradeInput}
+                                                        onChange={(e) => setGradeInput(e.target.value)}
+                                                        style={{
+                                                            width: '60px',
+                                                            background: '#1e1e1e',
+                                                            border: '1px solid #3c3c3c',
+                                                            borderRadius: '4px',
+                                                            color: '#ccc',
+                                                            padding: '2px 6px',
+                                                            fontSize: '12px',
+                                                        }}
+                                                    />
+                                                    <button
+                                                        className="btn btn-run"
+                                                        style={{ fontSize: '11px', padding: '3px 8px' }}
+                                                        onClick={() => handleGradeSave(s.session_id)}
+                                                        disabled={saving}
+                                                    >
+                                                        {saving ? '...' : 'Save'}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-outline"
+                                                        style={{ fontSize: '11px', padding: '3px 8px' }}
+                                                        onClick={() => { setGradingId(null); setGradeInput(''); setError(''); }}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    className="btn btn-outline"
+                                                    style={{ fontSize: '11px', padding: '3px 8px' }}
+                                                    onClick={() => {
+                                                        setGradingId(s.session_id);
+                                                        setGradeInput(s.grade ?? '');
+                                                        setError('');
+                                                    }}
+                                                >
+                                                    {s.grade != null ? 'Edit Grade' : 'Grade'}
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </>
                     )}
                 </div>
             </div>
@@ -118,24 +307,29 @@ function SubmissionsModal({ problem, onClose }) {
 
 // ─── Problem Card ─────────────────────────────────────────────────────────────
 
-function ProblemCard({ problem, onShare, onDelete, onViewSubmissions }) {
+function ProblemCard({ problem, onShare, onDelete, onEdit, onViewSubmissions }) {
     const submissionCount = (problem.submissions || []).length;
+    const gradedCount = (problem.submissions || []).filter(s => s.grade != null).length;
 
     return (
         <div className="problem-card" style={{ cursor: 'default' }}>
             <div className="card-top">
-        <span
-            className="difficulty-badge"
-            style={{ color: DIFFICULTY_COLORS[problem.difficulty] || '#888' }}
-        >
-          {problem.difficulty || 'N/A'}
-        </span>
+                <span
+                    className="difficulty-badge"
+                    style={{ color: DIFFICULTY_COLORS[problem.difficulty] || '#888' }}
+                >
+                    {problem.difficulty || 'N/A'}
+                </span>
                 <span style={{ fontSize: '11px', color: '#569cd6', fontWeight: 500 }}>
-          {submissionCount} {submissionCount === 1 ? 'submission' : 'submissions'}
-        </span>
+                    {submissionCount} {submissionCount === 1 ? 'submission' : 'submissions'}
+                </span>
             </div>
 
             <h3 className="card-title">{problem.title}</h3>
+
+            <p style={{ fontSize: '12px', color: '#666', lineHeight: 1.5, flex: 1 }}>
+                {problem.description?.slice(0, 80)}{problem.description?.length > 80 ? '...' : ''}
+            </p>
 
             {problem.access_code && (
                 <div style={{
@@ -147,12 +341,17 @@ function ProblemCard({ problem, onShare, onDelete, onViewSubmissions }) {
                     border: '1px solid #333',
                     borderRadius: '5px',
                 }}>
-          <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#666' }}>
-            Code
-          </span>
+                    <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#666' }}>
+                        Code
+                    </span>
                     <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: 700, color: '#9cdcfe', letterSpacing: '3px', flex: 1 }}>
-            {problem.access_code}
-          </span>
+                        {problem.access_code}
+                    </span>
+                    {submissionCount > 0 && (
+                        <span style={{ fontSize: '10px', color: gradedCount === submissionCount ? '#16825d' : '#c08b30' }}>
+                            {gradedCount}/{submissionCount} graded
+                        </span>
+                    )}
                 </div>
             )}
 
@@ -167,9 +366,16 @@ function ProblemCard({ problem, onShare, onDelete, onViewSubmissions }) {
                 <button
                     className="btn btn-outline"
                     style={{ flex: 1, fontSize: '11px', padding: '4px 8px' }}
+                    onClick={() => onEdit(problem)}
+                >
+                    Edit
+                </button>
+                <button
+                    className="btn btn-outline"
+                    style={{ flex: 1, fontSize: '11px', padding: '4px 8px' }}
                     onClick={() => onShare(problem)}
                 >
-                    Share Code
+                    Share
                 </button>
                 <button
                     className="btn btn-outline"
@@ -187,14 +393,18 @@ function ProblemCard({ problem, onShare, onDelete, onViewSubmissions }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, user }) {
+function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, user, onProblemsUpdate }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [shareModal, setShareModal] = useState(null);
     const [deleteModal, setDeleteModal] = useState(null);
+    const [editModal, setEditModal] = useState(null);
     const [submissionsModal, setSubmissionsModal] = useState(null);
 
     const totalSubmissions = problems.reduce((acc, p) => acc + (p.submissions?.length || 0), 0);
     const activeCount = problems.filter((p) => (p.submissions?.length || 0) > 0).length;
+    const ungradedCount = problems.reduce((acc, p) =>
+        acc + (p.submissions || []).filter(s => s.grade == null).length, 0
+    );
 
     const filtered = problems.filter((p) => {
         const q = searchQuery.toLowerCase();
@@ -210,6 +420,38 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
         setDeleteModal(null);
     };
 
+    const handleProblemSaved = (updatedProblem) => {
+        if (onProblemsUpdate) {
+            onProblemsUpdate((prev) =>
+                prev.map((p) => p.id === updatedProblem.id ? updatedProblem : p)
+            );
+        }
+        setEditModal(null);
+    };
+
+    const handleGraded = (problemId, sessionId, grade) => {
+        if (onProblemsUpdate) {
+            onProblemsUpdate((prev) =>
+                prev.map((p) => {
+                    if (p.id !== problemId) return p;
+                    return {
+                        ...p,
+                        submissions: p.submissions.map((s) =>
+                            s.session_id === sessionId ? { ...s, grade } : s
+                        ),
+                    };
+                })
+            );
+        }
+        // Keep modal open so teacher can continue grading other students
+        setSubmissionsModal((prev) => ({
+            ...prev,
+            submissions: prev.submissions.map((s) =>
+                s.session_id === sessionId ? { ...s, grade } : s
+            ),
+        }));
+    };
+
     return (
         <div className="app">
             <header className="app-header">
@@ -217,9 +459,9 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                     <h1 className="logo">AutoSuggestion Quiz</h1>
                 </div>
                 <div className="header-right">
-          <span className="dashboard-greeting">
-            Welcome back, {user?.name || user?.email || 'Teacher'}
-          </span>
+                    <span className="dashboard-greeting">
+                        Welcome back, {user?.name || user?.email || 'Teacher'}
+                    </span>
                     <button className="btn btn-outline" onClick={onCreateProblem}>
                         + New Problem
                     </button>
@@ -246,8 +488,10 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                         <span className="stat-label">Active Problems</span>
                     </div>
                     <div className="stat-card">
-                        <span className="stat-value" style={{ color: '#888' }}>{problems.length - activeCount}</span>
-                        <span className="stat-label">No Submissions Yet</span>
+                        <span className="stat-value" style={{ color: ungradedCount > 0 ? '#c08b30' : '#888' }}>
+                            {ungradedCount}
+                        </span>
+                        <span className="stat-label">Needs Grading</span>
                     </div>
                 </div>
 
@@ -281,6 +525,7 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                                 problem={problem}
                                 onShare={(p) => setShareModal(p)}
                                 onDelete={(p) => setDeleteModal(p)}
+                                onEdit={(p) => setEditModal(p)}
                                 onViewSubmissions={(p) => setSubmissionsModal(p)}
                             />
                         ))}
@@ -299,9 +544,19 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                     onClose={() => setDeleteModal(null)}
                 />
             )}
+            {editModal && (
+                <EditModal
+                    problem={editModal}
+                    token={user?.token}
+                    onSaved={handleProblemSaved}
+                    onClose={() => setEditModal(null)}
+                />
+            )}
             {submissionsModal && (
                 <SubmissionsModal
                     problem={submissionsModal}
+                    token={user?.token}
+                    onGraded={handleGraded}
                     onClose={() => setSubmissionsModal(null)}
                 />
             )}

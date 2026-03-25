@@ -108,6 +108,7 @@ function App() {
             problems={problems}
             onCreateProblem={handleCreateProblem}
             onDeleteProblem={handleDeleteProblem}
+            onProblemsUpdate={setProblems}
             onLogout={handleLogout}
             user={user}
         />
