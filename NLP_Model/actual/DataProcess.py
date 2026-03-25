@@ -109,16 +109,29 @@ class DataProcess:
 
         user_text = '.'.join(df['text'])
 
-        #t5_summary = summarize.t5_summarize(user_text)
-        lsa_summary = summarize.lsa_summarize(user_text)
-        #luhn_summary =summarize.luhn_summarize(user_text)
+        #Uncomment one for the type of summary to use
+
+        #T5 Summarizer
+        #summary = summarize.t5_summarize(user_text)
+
+        #LSA Summarizer
+        #summary = summarize.lsa_summarize(user_text)
+
+        #Luhn Summarizer
+        #summary = summarize.luhn_summarize(user_text)
+
+        #Hugging Face Summarizer
+        #summary = summarize.hugging_face_summarize(user_text) 
+
+        #Gemini LLM
+        summary = summarize.gemini_summarize(user_text)
 
         #print(user_text)
         #print(t5_summary)
         #print(lsa_summary)
         #print(luhn_summary)
 
-        return str(lsa_summary)
+        return str(summary)
         
 
 

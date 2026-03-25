@@ -269,7 +269,7 @@ app.command('/summary', async ({ command, ack, respond, client }) => {
         ];
 
         for (const week of weeks) {
-            const db_name = `${channel_name}_${week.suffix}`;
+            const db_name = `${channel_name}_S_${week.suffix}`;
             const weekData = allSummaries[db_name];
 
             if (!weekData || Object.keys(weekData).length === 0) {

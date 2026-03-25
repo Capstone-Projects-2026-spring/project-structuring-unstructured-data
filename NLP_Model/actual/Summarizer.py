@@ -5,7 +5,10 @@ from sumy.summarizers.luhn import LuhnSummarizer
 from sumy.summarizers.edmundson import EdmundsonSummarizer
 from sumy.summarizers.lsa import LsaSummarizer
 from sumy.utils import get_stop_words
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from dotenv import load_dotenv
+from google import genai
+#import google.generativeai as genai
+import os
 import pandas as pd
 import nltk
 import torch
@@ -59,23 +62,19 @@ class Summarizer:
         summary = summarizer(parser.document, sentence_count)
         return summary
 
-    def t5_summarize(self,text):
-        tokenizer = AutoTokenizer.from_pretrained('t5-base')                        
-        model = AutoModelForSeq2SeqLM.from_pretrained('t5-base', return_dict=True) 
+        
 
-        inputs = tokenizer.encode("summarize: " + text,                  
-        return_tensors='pt',              
-        max_length=512,             
-        truncation=True)
+    def gemini_summarize(self,text):
+        # Load in gemini api key
+        load_dotenv()
+        gemini_api = os.getenv('GEMINI_API_KEY')
+        print("ENV KEY:", os.getenv("GEMINI_API_KEY"))
 
-        summary_ids = model.generate(inputs, max_length=150, min_length=80, length_penalty=5., num_beams=2)
+        client = genai.Client(api_key=gemini_api)
 
-        summary = tokenizer.decode(summary_ids[0])
-
-        return summary                                         
-
-
-
-
-
-
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview", 
+            contents=f"Summarize the main points through bullet points and only return the bullet points. If there is nothing to summarize, just put Nothing to summarize: \n{text}"
+        )
+        print(response.text)
+        return response.text
