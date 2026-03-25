@@ -21,7 +21,12 @@ pip3 install -r backend/requirements.txt
 
 From the root directory, run:
 ```
+For Mac OS:
 PYTHONPATH=. python3 -m pytest backend/backUnitTest/ -v
+
+For Windows:
+$env:PYTHONPATH="."
+python -m pytest backend/backUnitTest/ -v
 ```
 
 
