@@ -145,7 +145,7 @@ describe('POST /api/messages/:channelName - Unit Tests',() => {
             text: 'Hello, world!',
             ts: '1234567890.123456'
         };
-    const mockInsertMany = jest.fn().mockResolvedValue();
+    const mockInsertMany = jest.fn().mockResolvedValue([mockMessage]);
     getMessageModel.mockReturnValue({ insertMany: mockInsertMany });
 
     const response = await request(app)
@@ -154,7 +154,7 @@ describe('POST /api/messages/:channelName - Unit Tests',() => {
 
     expect(response.status).toBe(200);
     expect(response.body.message).toBe(`Messages from channel ${channelName} inserted into the database successfully.`);
-    expect(mockInsertMany).toHaveBeenCalledWith([mockMessage]);
+    expect(mockInsertMany).toHaveBeenCalledWith([mockMessage], { ordered: false });
   });
 
     test('should return 400 and error message on insertion failure', async () => {

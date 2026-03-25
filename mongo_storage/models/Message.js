@@ -11,6 +11,20 @@ const msgSchema = new Schema(
   { strict: false } // Ensures all raw fields are logged
 );
 
+// Enforce message identity: same user + same timestamp cannot be inserted twice.
+// Partial filter avoids unique collisions for docs that don't include both fields.
+msgSchema.index(
+  { user: 1, ts: 1 },
+  {
+    unique: true,
+    name: 'uniq_user_ts',
+    partialFilterExpression: {
+      user: { $exists: true, $type: 'string' },
+      ts: { $exists: true, $type: 'string' },
+    },
+  }
+);
+
 const toChannelDbName = (channelKey) => {
   const sanitized = String(channelKey || '')
     .trim()
@@ -36,7 +50,14 @@ const getMessageModel = (channelKey) => {
     return channelDb.models[modelName];
   }
 
-  return channelDb.model(modelName, msgSchema, 'raw_messages');
+  const model = channelDb.model(modelName, msgSchema, 'raw_messages');
+
+  // Ensure indexes exist as each channel-specific collection is initialized.
+  model.createIndexes().catch((error) => {
+    console.error(`Failed creating indexes for ${dbName}.raw_messages:`, error.message);
+  });
+
+  return model;
 };
 
 module.exports = { getMessageModel };
