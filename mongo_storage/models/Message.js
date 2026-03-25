@@ -36,7 +36,7 @@ const getMessageModel = (channelKey) => {
     return channelDb.models[modelName];
   }
 
-  return channelDb.model(modelName, msgSchema, 'messages');
+  return channelDb.model(modelName, msgSchema, 'raw_messages');
 };
 
 module.exports = { getMessageModel };
