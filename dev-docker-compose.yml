@@ -17,5 +17,11 @@ services:
     ports:
       - "${REDIS_PORT}:6379"
 
+  executor:
+    container_name: "battlegrounds-executor"
+    image: us-central1-docker.pkg.dev/code-battlegrounds/app/rootjail:latest
+    ports:
+      - "${EXECUTOR_PORT}:8080"
+
 volumes:
   postgres_data:
