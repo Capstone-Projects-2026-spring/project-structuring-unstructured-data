@@ -14,7 +14,7 @@ participant "Handlers" as H
 participant "GameService" as GS
 database "Redis (state + adapter)" as R
 participant "ExpirationListener" as EL
-database "Prisma ORM" as Pr
+database "Prisma ORM" as PR
 
 == Startup ==
 Client -> Http : HTTP request / WebSocket upgrade
