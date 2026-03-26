@@ -1,8 +1,24 @@
 #!/usr/bin/env bun
 
+import { Parameter } from "@/lib/ProblemInputOutput";
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, Problem } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import * as fs from "node:fs";
+import * as z from "zod";
+
+const ParameterArray = z.array(Parameter);
+const TestCaseResponse = z.object({
+  problemID: z.string(),
+  functionInput: ParameterArray,
+  expectedOutput: ParameterArray,
+  language: z.literal("javascript"),
+  optimalTimeMs: z.number()
+});
+const ClaudeResponse = z.array(TestCaseResponse);
+
+const writable = fs.createWriteStream("test-cases.json");
+writable.write("[\n");
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -29,6 +45,7 @@ for (const problem of problems.slice(0, 3)) {
   // Replace placeholders like {{problemText}} with real values,
   // because the SDK does not support variables.
   const msg = await anthropic.messages.create({
+    // stream: true,
     model: "claude-haiku-4-5-20251001",
     max_tokens: 20000,
     temperature: 1,
@@ -53,10 +70,22 @@ for (const problem of problems.slice(0, 3)) {
     }
   });
   // console.log(msg);
-  for(const content of msg.content) {
-    if(content.type !== "text") continue;
+  for (const content of msg.content) {
+    if (content.type !== "text") continue;
     const parsed = JSON.parse(content.text);
-    console.log(content.text);
-    console.log(parsed);
+    const { data } = ClaudeResponse.safeParse(parsed);
+    console.log(data);
+    if (!data) {
+      console.warn("No data output. continuing.");
+      continue;
+    }
+
+    for (const test of data) {
+      writable.write(JSON.stringify(test, null, 2));
+      writable.write(",");
+    }
+
   }
 }
+
+writable.write("\n]");
