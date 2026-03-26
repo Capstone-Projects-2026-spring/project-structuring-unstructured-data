@@ -1,6 +1,11 @@
 const { App } = require('@slack/bolt');
 const axios = require('axios');
 const config = require('./config');
+const {
+  publishHomeTab,
+  HOME_CHANNEL_SELECT_ACTION_ID,
+  HOME_REFRESH_ACTION_ID
+} = require('./homeDashboard');
 
 const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey } = require('./slack_to_DB');
 
@@ -137,6 +142,17 @@ app.event('app_mention', async ({ event, client, logger }) => {
   } catch (error) {
     logger.error('Error handling app_mention:', error);
   }
+});
+
+// Publish Home tab when a user opens the app's Home.
+app.event('app_home_opened', async ({ event, client, logger }) => {
+  await publishHomeTab({
+    client,
+    userId: event.user,
+    logger,
+    apiClient,
+    buildChannelKey
+  });
 });
 
 // ====================
@@ -297,6 +313,76 @@ app.command('/members-info', async ({ command, ack, respond }) => {
       response_type: 'ephemeral',
       text: `❌ Error: ${error.message}`
     });
+  }
+});
+
+// /refresh-home - Refresh the Home dashboard for the current user
+app.command('/refresh-home', async ({ command, ack, respond, client, logger }) => {
+  await ack();
+
+  try {
+    await publishHomeTab({
+      client,
+      userId: command.user_id,
+      logger,
+      apiClient,
+      buildChannelKey
+    });
+
+    await respond({
+      response_type: 'ephemeral',
+      text: '✅ Home dashboard refreshed. Open the app Home tab to view the latest content.'
+    });
+  } catch (error) {
+    console.error('Error in /refresh-home command:', error);
+    await respond({
+      response_type: 'ephemeral',
+      text: `❌ Error refreshing Home dashboard: ${error.message}`
+    });
+  }
+});
+
+// Home tab channel dropdown: republish with selected channel data.
+app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
+      ? body.actions[0].selected_option.value
+      : '';
+
+    await publishHomeTab({
+      client,
+      userId: body.user.id,
+      logger,
+      apiClient,
+      buildChannelKey,
+      selectedChannelName
+    });
+  } catch (error) {
+    logger.error('Error handling Home channel selection:', error);
+  }
+});
+
+// Home tab refresh button: republish the dashboard on click.
+app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const selectedChannelName = body.actions && body.actions[0] && body.actions[0].value
+      ? body.actions[0].value
+      : '';
+
+    await publishHomeTab({
+      client,
+      userId: body.user.id,
+      logger,
+      apiClient,
+      buildChannelKey,
+      selectedChannelName
+    });
+  } catch (error) {
+    logger.error('Error handling Home refresh action:', error);
   }
 });
 
