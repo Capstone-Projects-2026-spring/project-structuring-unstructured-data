@@ -437,76 +437,24 @@ function CreateProblemPage({ onBack }) {
   const [accessCode, setAccessCode] = useState('');
   const [submitError, setSubmitError] = useState('');
 
-  // Step 1 - Pre-populated with problem 123456 data for demo
-  const [title, setTitle] = useState('Most Frequent Element');
-  const [description, setDescription] = useState(
-    `Given a list of integers, return the element that appears most frequently.
+  // Step 1
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
 
-You may assume there is always a single element with the highest frequency.
-
-Example:
-  most_frequent([1, 3, 2, 3, 1, 3]) -> 3
-  most_frequent([4, 4, 1, 2])       -> 4
-
-SOLUTION (for demo purposes - copy and paste into the code editor):
-
-def most_frequent(nums: list[int]) -> int:
-    # Initialize a data structure to keep track of how many
-    # times each number appears in the list
-    counts = {}
-
-    # Loop over the list and populate your data structure
-    # with the count of each element
-    for num in nums:
-        counts[num] = counts.get(num, 0) + 1
-
-    # Return the element that has the highest count
-    return max(counts, key=counts.get)
-
-most_frequent([1,3,2,3,1,3])`
+  // Step 2
+  const [selectedLanguages, setSelectedLanguages] = useState(
+    AVAILABLE_LANGUAGES.map(({ key }) => key)
   );
 
-  // Step 2 - Only Python for demo
-  const [selectedLanguages, setSelectedLanguages] = useState(['python']);
-
-  // Step 3 — Pre-populated sections from seed.py
-  const initDemoSections = () => {
-    return [
-      {
-        id: Date.now() + Math.random(),
-        label: 'Choose a Data Structure',
-        code: {
-          python: `def most_frequent(nums: list[int]) -> int:
-    # Initialize a data structure to keep track of how many
-    # times each number appears in the list
-    `,
-        },
-        suggestions: [makeSuggestion()],
-      },
-      {
-        id: Date.now() + Math.random() + 1,
-        label: 'Write a Loop',
-        code: {
-          python: `    # Loop over the list and populate your data structure
-    # with the count of each element
-    `,
-        },
-        suggestions: [makeSuggestion()],
-      },
-      {
-        id: Date.now() + Math.random() + 2,
-        label: 'Return the Result',
-        code: {
-          python: `    # Return the element that has the highest count
-    `,
-        },
-        suggestions: [makeSuggestion()],
-      },
-    ];
+  // Step 3 — start with one blank section
+  const initSection = () => {
+    const s = makeSection();
+    s.code = Object.fromEntries(AVAILABLE_LANGUAGES.map(({ key }) => [key, '']));
+    return s;
   };
-  const [sections, setSections] = useState(initDemoSections());
+  const [sections, setSections] = useState([initSection()]);
 
-  // Step 4 - Demo settings
+  // Step 4
   const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
   const [maxSubmissions, setMaxSubmissions] = useState('');
   const [allowCopyPaste, setAllowCopyPaste] = useState(true);
