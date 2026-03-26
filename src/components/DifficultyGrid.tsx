@@ -7,16 +7,21 @@ import {
   Box,
   Flex,
   Button,
+  SegmentedControl
 } from "@mantine/core";
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { authClient } from "@/lib/auth-client";
+import { useToggle } from "@mantine/hooks";
+import { GameType } from "@prisma/client";
 
 type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
 export default function Subgrid() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gameType, toggleGameType] = useToggle<GameType>([GameType.TWOPLAYER, GameType.FOURPLAYER]);
+  
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const handleCreateRoom = async (difficulty: Difficulty) => {
@@ -33,11 +38,11 @@ export default function Subgrid() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ difficulty }),
+        body: JSON.stringify({ difficulty, gameType }),
       });
       const data = await response.json();
       if (response.ok) {
-        router.push(`/game/${data.gameId}`); // Redirect to the new game room page using the returned gameId
+        router.push(`/game/${gameType}/${data.gameId}`); // Redirect to the new game room page using the returned gameId
       } else {
         alert(data.message || "Failed to create game room"); // Show error message from the server if available, otherwise show a generic error message
       }
@@ -176,6 +181,16 @@ export default function Subgrid() {
           )}
         </Grid.Col>
       </Grid>
+      <SegmentedControl
+        data-testid="gameType-toggle"
+        value={gameType}
+        onChange={() => toggleGameType()}
+        data={[
+          { label: "2 Player", value: GameType.TWOPLAYER },
+          { label: "4 Player", value: GameType.FOURPLAYER },
+        ]}
+        mt="md"
+      />
     </Container>
   );
 }

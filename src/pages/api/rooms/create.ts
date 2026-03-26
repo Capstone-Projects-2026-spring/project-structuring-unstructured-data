@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProblemDifficulty } from "@prisma/client";
+import { ProblemDifficulty, GameType } from "@prisma/client";
 import { nanoid } from "nanoid";
 /**
  * API route handler for creating a new game room.
@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ message: 'Method not allowed' });
     }
 //Defensive validation for difficulty parameter. It should be one of "EASY", "MEDIUM", "HARD" if provided.
-const { difficulty } = req.body as { difficulty?: ProblemDifficulty };
+const { difficulty, gameType } = req.body as { difficulty?: ProblemDifficulty, gameType?: GameType };
 
 if (!difficulty || !Object.values(ProblemDifficulty).includes(difficulty)) {
     return res.status(400).json({ message: "Invalid difficulty" });
@@ -53,20 +53,38 @@ if (!difficulty || !Object.values(ProblemDifficulty).includes(difficulty)) {
         }
 
         // Need to make a database call to Problem table but there are no Problems in the table right now
-        const gameRoom = await prisma.gameRoom.create({
-            data: {
-                id: roomID,
-                problemId: problem.id,
-                teams: {
-                    create: [{}, {}]
+        if (gameType === GameType.TWOPLAYER) {
+            const gameRoom = await prisma.gameRoom.create({
+                data: {
+                    id: roomID,
+                    problemId: problem.id,
+                    gameType: GameType.TWOPLAYER,
+                    teams: {
+                        create: [{}]
+                    }
                 }
-            }
-        });
+            });
+            // return generated code
+            return res.status(201).json({ gameId: gameRoom.id });
+        } else if (gameType === GameType.FOURPLAYER) {
+            const gameRoom = await prisma.gameRoom.create({
+                data: {
+                    id: roomID,
+                    problemId: problem.id,
+                    gameType: GameType.FOURPLAYER,
+                    teams: {
+                        create: [{}, {}]
+                    }
+                }
+            });
+            // return generated code
+            return res.status(201).json({ gameId: gameRoom.id });
+        }
+
+        return res.status(500).json({message: "Didn't select gametype somehow"});
 
         // TODO: here, store in redis pubsub channel called "matchmaking" or such so that other players can find it. then, before generating a new room, try to join any existing rooms. if room is joined and becomes full, mark it as in progress in postgres. See CODEBAT-14 and CODEBAT-56
 
-        // return generated code
-        return res.status(201).json({ gameId: gameRoom.id });
     } catch (error: unknown) {
         if (error instanceof Error) {
             // Return error message with status 500 (internal server error) if something goes wrong during game room creation

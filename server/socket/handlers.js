@@ -1,3 +1,5 @@
+const { GameType } = require("@prisma/client");
+
 // Socket event handlers isolated here
 // Expects io (Server), socket (Socket), and services to manage game state
 function registerSocketHandlers(io, socket, services) {
@@ -11,7 +13,7 @@ function registerSocketHandlers(io, socket, services) {
   })
 
   // 1. Handle joining a specific game room
-  socket.on('joinGame', async ({ gameId, teamId }) => {
+  socket.on('joinGame', async ({ gameId, teamId, gameType }) => {
     await socket.join(gameId);
     await socket.join(teamId);
     socket.gameId = gameId;
@@ -29,9 +31,8 @@ function registerSocketHandlers(io, socket, services) {
         start: time.remaining,
         _duration: gameService.GAME_DURATION_MS
       })
-    }
-
-    else if (numPlayers === 4) {
+    } else if ((numPlayers === 4 && gameType === GameType.FOURPLAYER) || (numPlayers === 2 && gameType === GameType.TWOPLAYER)) {
+      console.log('gameType received:', gameType, 'expected:', GameType.TWOPLAYER, 'match:', gameType === GameType.TWOPLAYER);
       try {
         io.to(gameId).emit('gameStarting');
         setTimeout(async () => {

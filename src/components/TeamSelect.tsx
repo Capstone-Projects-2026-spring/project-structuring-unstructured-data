@@ -27,7 +27,7 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
             }
         }
         checkExisting();
-    }, [gameRoomId, userId]);
+    }, [gameRoomId, userId, onJoined]);
 
     const handleJoin = async (teamId: string) => {
         setLoading(teamId);

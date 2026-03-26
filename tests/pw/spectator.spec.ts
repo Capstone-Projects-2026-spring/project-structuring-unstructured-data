@@ -1,5 +1,5 @@
 import { test, expect, chromium, Browser, Page } from '@playwright/test';
-import { loginAs, setupGame, createGame } from './helpers'
+import { loginAs, setupGame4, createGame4 } from './helpers'
 
 test.describe('Spectator flow', () => {
     let browsers: Browser[] = [];
@@ -24,7 +24,7 @@ test.describe('Spectator flow', () => {
     });
 
     test('5th player is shown spectator mode', async () => {
-        await setupGame(pages, 'easy'); // navigates all 5 pages, joins 4 players
+        await setupGame4(pages, 'easy'); // navigates all 5 pages, joins 4 players
 
         // player 5 should see both teams full
         await expect(pages[4].locator('[data-testid="team-1-full"]')).toBeVisible({ timeout: 10000 });
@@ -40,7 +40,7 @@ test.describe('Spectator flow', () => {
     });
 
     test('spectator can switch between team views', async () => {
-        await setupGame(pages, 'medium');
+        await setupGame4(pages, 'medium');
 
         // player 5 should see both teams full
         await expect(pages[4].locator('[data-testid="team-1-full"]')).toBeVisible({ timeout: 10000 });
@@ -67,7 +67,7 @@ test.describe('Spectator flow', () => {
 
     test('spectator sees real time player count updates', async () => {
         // this test needs its own game so we can control when players join
-        const gameUrl = await createGame(pages[0], 'hard');
+        const gameUrl = await createGame4(pages[0], 'hard');
 
         // all players navigate to the room but don't join yet
         for (const page of pages.slice(1)) {

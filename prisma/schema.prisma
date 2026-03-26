@@ -92,12 +92,18 @@ enum GameStatus {
   CANCELLED
 }
 
+enum GameType {
+  TWOPLAYER
+  FOURPLAYER
+}
+
 model GameRoom {
   id         String      @id @default(uuid())
   status     GameStatus  @default(STARTING)
   createdAt  DateTime    @default(now()) @map("created_at")
   endedAt    DateTime?
   problemId  String
+  gameType   GameType
   problem    Problem     @relation(fields: [problemId], references: [id])
   teams      Team[]
   gameResult GameResult?

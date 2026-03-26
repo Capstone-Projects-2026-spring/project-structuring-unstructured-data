@@ -1,5 +1,5 @@
 import { test, expect, chromium, Browser, Page } from '@playwright/test';
-import { loginAs, setupGame, createGame } from './helpers';
+import { loginAs, setupGame4, createGame4, setupGame2, createGame2 } from './helpers';
 
 test.describe('Game flow', () => {
     let browsers: Browser[] = [];
@@ -17,14 +17,26 @@ test.describe('Game flow', () => {
         }
     });
 
+    test.beforeEach(async () => {
+        await Promise.all(pages.map(page => page.goto('/')));
+    });
+
     test.afterAll(async () => {
         await Promise.all(browsers.map(b => b.close().catch(() => { })));
         browsers = [];
         pages = [];
     });
 
+    test('2 Player mode', async () => {
+        await setupGame2(pages, 'easy');
+
+        await Promise.all([pages[0], pages[1]].map(page =>
+            expect(page.locator('[data-testid="coder-pov"], [data-testid="tester-pov"]')).toBeVisible({ timeout: 25000 })
+        ));
+    })
+
     test('Need 4 players to be joined to a team for the game to start', async () => {
-        await createGame(pages[0], 'easy');
+        await createGame4(pages[0], 'easy');
 
         await pages[0].locator('[data-testid="team-1-button"]').waitFor({ state: 'visible' });
         await pages[0].click('[data-testid="team-1-button"]');
@@ -33,7 +45,7 @@ test.describe('Game flow', () => {
     });
 
     test('4 players join and game starts', async () => {
-        await setupGame(pages, 'medium');
+        await setupGame4(pages, 'medium');
 
         await Promise.all(pages.map(page =>
             expect(page.locator('[data-testid="coder-pov"], [data-testid="tester-pov"]')).toBeVisible({ timeout: 15000 })
@@ -41,7 +53,7 @@ test.describe('Game flow', () => {
     });
 
     test('player is restored to their team on reload', async () => {
-        await setupGame(pages, 'hard');
+        await setupGame4(pages, 'hard');
 
         // wait for game to start for player 1
         await expect(pages[0].locator('[data-testid="coder-pov"]')).toBeVisible({ timeout: 15000 });

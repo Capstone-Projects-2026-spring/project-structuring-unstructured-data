@@ -1,4 +1,4 @@
-import { PrismaClient, GameStatus, ProblemDifficulty, Role } from "@prisma/client";
+import { PrismaClient, GameStatus, ProblemDifficulty, Role, GameType } from "@prisma/client";
 import { auth } from "../src/lib/auth";
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as csv from "csv";
@@ -110,6 +110,7 @@ async function main() {
       status: GameStatus.FINISHED,
       problemId: easyProblem.id,
       endedAt: new Date(),
+      gameType: GameType.FOURPLAYER
     },
   });
 

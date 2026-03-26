@@ -71,7 +71,7 @@ export default function ChatBox({ socket, roomId, userName, isSpectator = false 
         <Stack gap="xs">
           {messages.map((msg) => (
             <Box key={msg.id}>
-              <Text size="xs" c="black" fw={500} tt="capitalize">
+              <Text size="xs" fw={500} tt="capitalize">
                 {msg.userName}
               </Text>
               <Paper withBorder p="xs" radius="sm">
