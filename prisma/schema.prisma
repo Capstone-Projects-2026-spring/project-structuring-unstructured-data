@@ -178,7 +178,7 @@ model ProblemTest {
   language       String
   optimalTimeMs  Int
 
-  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [slug], onDelete: Cascade)
 }
 
 model GameResult {
