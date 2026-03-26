@@ -52,24 +52,26 @@ def dev_login():
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, role FROM users WHERE email = ?", ("seed@autoquiz.dev",))
+    cursor.execute(
+        "SELECT id, name, email, role FROM users WHERE email = %s",
+        ("seed@autoquiz.dev",),
+    )
     row = cursor.fetchone()
     conn.close()
 
     if not row:
-        raise HTTPException(status_code=500, detail="Seed teacher not found — run seed.py first")
+        raise HTTPException(status_code=500, detail="Seed teacher not found — run seed data first")
 
     token = create_token(row["id"], row["email"], row["role"])
-    return {"token": token, "user": {"id": row["id"], "name": row["name"], "email": row["email"], "role": row["role"]}}
+    return {
+        "token": token,
+        "user": {"id": row["id"], "name": row["name"], "email": row["email"], "role": row["role"]},
+    }
 
 
 @router.post("/otp/request", status_code=200)
 async def request_otp(req: OtpRequestRequest):
-    """
-    Send a one-time password to a teacher's email via Supabase.
-
-    - **email**: The teacher's email address
-    """
+    """Send a one-time password to a teacher's email via Supabase."""
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
 
@@ -79,10 +81,7 @@ async def request_otp(req: OtpRequestRequest):
     async with httpx.AsyncClient() as client:
         response = await client.post(
             f"{supabase_url}/auth/v1/otp",
-            headers={
-                "apikey": supabase_key,
-                "Content-Type": "application/json",
-            },
+            headers={"apikey": supabase_key, "Content-Type": "application/json"},
             json={"email": req.email, "create_user": True},
         )
 
@@ -94,12 +93,7 @@ async def request_otp(req: OtpRequestRequest):
 
 @router.post("/otp/verify", response_model=AuthResponse)
 async def verify_otp(req: OtpVerifyRequest):
-    """
-    Verify a Supabase OTP and return a local JWT for the teacher.
-
-    - **email**: The teacher's email address
-    - **token**: The 6-digit OTP from the email
-    """
+    """Verify a Supabase OTP and return a local JWT for the teacher."""
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
 
@@ -109,10 +103,7 @@ async def verify_otp(req: OtpVerifyRequest):
     async with httpx.AsyncClient() as client:
         response = await client.post(
             f"{supabase_url}/auth/v1/verify",
-            headers={
-                "apikey": supabase_key,
-                "Content-Type": "application/json",
-            },
+            headers={"apikey": supabase_key, "Content-Type": "application/json"},
             json={"email": req.email, "token": req.token, "type": "email"},
         )
 
@@ -122,21 +113,23 @@ async def verify_otp(req: OtpVerifyRequest):
     data = response.json()
     supabase_email = data.get("user", {}).get("email", req.email)
 
-    # Look up or create the teacher in our local DB
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, role FROM users WHERE email = ?", (supabase_email,))
+    cursor.execute(
+        "SELECT id, name, email, role FROM users WHERE email = %s",
+        (supabase_email,),
+    )
     row = cursor.fetchone()
 
     if row:
         user_id, name, email, role = row["id"], row["name"], row["email"], row["role"]
     else:
         cursor.execute(
-            "INSERT INTO users (name, email, role) VALUES (?, ?, ?)",
+            "INSERT INTO users (name, email, role) VALUES (%s, %s, %s) RETURNING id",
             (supabase_email, supabase_email, "teacher"),
         )
+        user_id = cursor.fetchone()["id"]
         conn.commit()
-        user_id = cursor.lastrowid
         name, email, role = supabase_email, supabase_email, "teacher"
 
     conn.close()
@@ -147,32 +140,25 @@ async def verify_otp(req: OtpVerifyRequest):
 
 @router.post("/register", response_model=AuthResponse)
 def register(req: RegisterRequest):
-    """
-    Register a new user.
-
-    - **name**: Full name of the user
-    - **email**: Must be unique
-    - **password**: Will be hashed before storage
-    - **role**: Must be one of `student`, `teacher`, `admin`
-    """
+    """Register a new teacher or admin account."""
     if req.role not in ("teacher", "admin"):
         raise HTTPException(status_code=400, detail="Invalid role")
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id FROM users WHERE email = ?", (req.email,))
+    cursor.execute("SELECT id FROM users WHERE email = %s", (req.email,))
     if cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed = hash_password(req.password)
     cursor.execute(
-        "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+        "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s) RETURNING id",
         (req.name, req.email, hashed, req.role),
     )
+    user_id = cursor.fetchone()["id"]
     conn.commit()
-    user_id = cursor.lastrowid
     conn.close()
 
     token = create_token(user_id, req.email, req.role)
@@ -181,16 +167,14 @@ def register(req: RegisterRequest):
 
 @router.post("/login", response_model=AuthResponse)
 def login(req: LoginRequest):
-    """
-    Authenticate a user and return a JWT token.
-
-    - **email**: Registered email address
-    - **password**: Plain text password to verify against stored hash
-    """
+    """Authenticate with email and password and return a JWT."""
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, name, email, password, role FROM users WHERE email = ?", (req.email,))
+    cursor.execute(
+        "SELECT id, name, email, password, role FROM users WHERE email = %s",
+        (req.email,),
+    )
     row = cursor.fetchone()
     conn.close()
 

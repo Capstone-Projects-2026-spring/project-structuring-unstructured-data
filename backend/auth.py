@@ -5,6 +5,7 @@ import os
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 ALGORITHM = "HS256"
+TOKEN_LIFETIME_DAYS = 30
 
 
 def hash_password(password: str) -> str:
@@ -30,18 +31,18 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_token(user_id: int, email: str, role: str) -> str:
     """
-    Create a signed JWT token valid for 24 hours.
+    Create a signed JWT token valid for 30 days.
 
     :param user_id: The user's database ID.
     :param email: The user's email address.
-    :param role: The user's role (e.g. `student`, `teacher`, `admin`).
+    :param role: The user's role (e.g. 'teacher', 'admin').
     :return: A signed JWT token string.
     """
     payload = {
         "user_id": user_id,
         "email": email,
         "role": role,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=TOKEN_LIFETIME_DAYS),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 

@@ -1,22 +1,33 @@
 """
-seed.py — seeds the database with a placeholder teacher and one sample problem.
-Run from the backend directory: python3 seed.py
+seed.py — re-seeds the Supabase database with the placeholder teacher and
+sample problem. Wipes existing seed data first.
+
+Run from the backend directory:
+    python3 seed.py
+
+Requires DATABASE_URL to be set in .env.
 """
 import json
-import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+import sys
+from dotenv import load_dotenv
 
-from database import init_db, get_connection
+load_dotenv()
 
-init_db()
+import psycopg2
+import psycopg2.extras
 
-conn = get_connection()
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    sys.exit("ERROR: DATABASE_URL is not set in your environment / .env file.")
+
+conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
 cursor = conn.cursor()
 
 # ── Wipe existing seed data ────────────────────────────────────────────────────
 cursor.execute("DELETE FROM suggestions")
 cursor.execute("DELETE FROM sections")
+cursor.execute("DELETE FROM test_cases")
 cursor.execute("DELETE FROM problems")
 cursor.execute("DELETE FROM users")
 conn.commit()
@@ -24,23 +35,22 @@ print("Cleared existing data.")
 
 # ── Seed teacher ───────────────────────────────────────────────────────────────
 cursor.execute(
-    "INSERT INTO users (name, email, role) VALUES (?, ?, ?)",
+    "INSERT INTO users (name, email, role) VALUES (%s, %s, %s) RETURNING id",
     ("Seed Teacher", "seed@autoquiz.dev", "teacher"),
 )
-teacher_id = cursor.lastrowid
+teacher_id = cursor.fetchone()["id"]
 print(f"Created seed teacher (id={teacher_id})")
 
 # ── Seed problem ───────────────────────────────────────────────────────────────
-ACCESS_CODE = "123456"
-
 cursor.execute(
     """INSERT INTO problems
        (teacher_id, access_code, title, description, language, languages,
         time_limit_minutes, max_attempts, allow_copy_paste, track_tab_switching)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+       RETURNING id""",
     (
         teacher_id,
-        ACCESS_CODE,
+        "123456",
         "Most Frequent Element",
         (
             "Given a list of integers, return the element that appears most frequently.\n\n"
@@ -51,69 +61,63 @@ cursor.execute(
         ),
         "python",
         json.dumps(["python"]),
-        None,
-        None,
-        1,
-        0,
+        None, None, True, False,
     ),
 )
-problem_id = cursor.lastrowid
-print(f"Created problem '{ACCESS_CODE}' (id={problem_id})")
+problem_id = cursor.fetchone()["id"]
+print(f"Created problem '123456' (id={problem_id})")
 
 # ── Sections ───────────────────────────────────────────────────────────────────
 SECTIONS = [
     {
         "order_index": 0,
         "label": "Choose a Data Structure",
-        "code": (
-            "def most_frequent(nums: list[int]) -> int:\n"
-            "    # Initialize a data structure to keep track of how many\n"
-            "    # times each number appears in the list\n"
-            "    "
-        ),
-        "suggestions": [
-            {"content": "", "is_correct": True, "source": "ai"},
-        ],
+        "code": {
+            "python": (
+                "def most_frequent(nums: list[int]) -> int:\n"
+                "    # Initialize a data structure to keep track of how many\n"
+                "    # times each number appears in the list\n"
+                "    "
+            )
+        },
     },
     {
         "order_index": 1,
         "label": "Write a Loop",
-        "code": (
-            "    # Loop over the list and populate your data structure\n"
-            "    # with the count of each element\n"
-            "    "
-        ),
-        "suggestions": [
-            {"content": "", "is_correct": True, "source": "ai"},
-        ],
+        "code": {
+            "python": (
+                "    # Loop over the list and populate your data structure\n"
+                "    # with the count of each element\n"
+                "    "
+            )
+        },
     },
     {
         "order_index": 2,
         "label": "Return the Result",
-        "code": (
-            "    # Return the element that has the highest count\n"
-            "    "
-        ),
-        "suggestions": [
-            {"content": "", "is_correct": True, "source": "ai"},
-        ],
+        "code": {
+            "python": (
+                "    # Return the element that has the highest count\n"
+                "    "
+            )
+        },
     },
 ]
 
 for section in SECTIONS:
     cursor.execute(
-        "INSERT INTO sections (problem_id, order_index, label, code) VALUES (?, ?, ?, ?)",
-        (problem_id, section["order_index"], section["label"], json.dumps({"python": section["code"]})),
+        """INSERT INTO sections (problem_id, order_index, label, code)
+           VALUES (%s, %s, %s, %s)
+           RETURNING id""",
+        (problem_id, section["order_index"], section["label"], json.dumps(section["code"])),
     )
-    section_id = cursor.lastrowid
+    section_id = cursor.fetchone()["id"]
     print(f"  Created section '{section['label']}' (id={section_id})")
 
-    for sg in section["suggestions"]:
-        cursor.execute(
-            "INSERT INTO suggestions (section_id, content, is_correct, source) "
-            "VALUES (?, ?, ?, ?)",
-            (section_id, sg["content"], 1 if sg["is_correct"] else 0, sg["source"]),
-        )
+    cursor.execute(
+        "INSERT INTO suggestions (section_id, content, is_correct, source) VALUES (%s, %s, %s, %s)",
+        (section_id, "", True, "ai"),
+    )
 
 conn.commit()
 conn.close()
