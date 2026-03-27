@@ -13,7 +13,8 @@ const apiClient = axios.create({
 const BOT_USER_ID = config.slackBotUserId;
 
 // Initialize the Slack App with your secrets
-// Socket Mode = true means no need for ngrok or public URL!
+// When socketMode is true: uses WebSocket (no public URL needed)
+// When socketMode is false: uses HTTP webhooks (needs public URL)
 const app = new App({
   token: config.slackBotToken,
   signingSecret: config.slackSigningSecret,
@@ -616,10 +617,39 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
   const port = config.botPort;
 
   try {
-    await app.start(port);
+    if (config.socketMode) {
+      // Socket Mode: WebSocket connection (for local development)
+      await app.start(port);
+      console.log('⚡️ Slack Bot is running in Socket Mode!');
+    } else {
+      // HTTP Mode: Requires Express server (for production/Render)
+      const express = require('express');
+      const expressApp = express();
+      
+      // Middleware
+      expressApp.use(express.urlencoded({ extended: true }));
+      expressApp.use(express.json());
+      
+      // Health check endpoint
+      expressApp.get('/health', (req, res) => {
+        res.status(200).json({ status: 'ok', mode: 'HTTP' });
+      });
+      
+      // Slack events endpoint - use Slack Bolt receiver
+      expressApp.post('/slack/events', await app.receiver.router);
+      
+      // OAuth redirect endpoint (if needed)
+      expressApp.get('/slack/oauth_redirect', (req, res) => {
+        res.status(200).send('OAuth redirect placeholder');
+      });
+      
+      expressApp.listen(port, () => {
+        console.log('⚡️ Slack Bot is running in HTTP Mode!');
+        console.log(`📡 Listening on http://localhost:${port}`);
+        console.log(`📨 Events endpoint: /slack/events`);
+      });
+    }
 
-    console.log('⚡️ Slack Bot is running!');
-    console.log(`📡 Listening on port ${port}`);
     console.log(`🔗 Database API: ${API_BASE_URL}`);
     console.log('\n✅ Bot is ready to receive commands and events!');
   } catch (error) {
