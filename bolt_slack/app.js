@@ -15,11 +15,25 @@ const BOT_USER_ID = config.slackBotUserId;
 // Initialize the Slack App with your secrets
 // When socketMode is true: uses WebSocket (no public URL needed)
 // When socketMode is false: uses HTTP webhooks (needs public URL)
+// For HTTP mode, we need to provide a receiver (ExpressReceiver)
+let receiver;
+if (!config.socketMode) {
+  const { ExpressReceiver } = require('@slack/bolt');
+  const express = require('express');
+  const expressApp = express();
+  
+  receiver = new ExpressReceiver({
+    signingSecret: config.slackSigningSecret,
+    app: expressApp,
+  });
+}
+
 const app = new App({
   token: config.slackBotToken,
   signingSecret: config.slackSigningSecret,
   socketMode: config.socketMode,
   appToken: config.socketMode ? config.slackAppToken : undefined,
+  receiver: !config.socketMode ? receiver : undefined,
 });
 
 // API endpoint configuration
@@ -621,22 +635,19 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
       // Socket Mode: WebSocket connection (for local development)
       await app.start(port);
       console.log('⚡️ Slack Bot is running in Socket Mode!');
+      console.log(`📡 Listening on port ${port}`);
     } else {
-      // HTTP Mode: Requires Express server (for production/Render)
-      const express = require('express');
-      const expressApp = express();
+      // HTTP Mode: ExpressReceiver already set up above
+      const expressApp = receiver.app;
       
-      // Middleware
-      expressApp.use(express.urlencoded({ extended: true }));
-      expressApp.use(express.json());
+      // Add additional middleware and routes
+      expressApp.use(require('express').json());
+      expressApp.use(require('express').urlencoded({ extended: true }));
       
       // Health check endpoint
       expressApp.get('/health', (req, res) => {
         res.status(200).json({ status: 'ok', mode: 'HTTP' });
       });
-      
-      // Slack events endpoint - use Slack Bolt receiver
-      expressApp.post('/slack/events', await app.receiver.router);
       
       // OAuth redirect endpoint (if needed)
       expressApp.get('/slack/oauth_redirect', (req, res) => {
@@ -654,6 +665,7 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
     console.log('\n✅ Bot is ready to receive commands and events!');
   } catch (error) {
     console.error('❌ Failed to start Slack Bot:', error.message);
+    console.error('Stack:', error.stack);
     process.exit(1);
   }
 })();
