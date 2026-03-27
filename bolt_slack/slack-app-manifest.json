@@ -67,6 +67,7 @@
     },
     "settings": {
         "event_subscriptions": {
+            "request_url": "https://project-structuring-unstructured-data-wc26.onrender.com/slack/events",
             "bot_events": [
                 "app_mention",
                 "member_joined_channel",
