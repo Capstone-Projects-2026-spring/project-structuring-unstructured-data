@@ -1,4 +1,4 @@
-const { App } = require('@slack/bolt');
+const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
 const config = require('./config');
 
@@ -15,16 +15,16 @@ const BOT_USER_ID = config.slackBotUserId;
 // Initialize the Slack App with your secrets
 // When socketMode is true: uses WebSocket (no public URL needed)
 // When socketMode is false: uses HTTP webhooks (needs public URL)
-// For HTTP mode, we need to provide a receiver (ExpressReceiver)
 let receiver;
+let expressApp;
+
 if (!config.socketMode) {
-  const { ExpressReceiver } = require('@slack/bolt');
+  // HTTP Mode: Use ExpressReceiver for webhook-based events
   const express = require('express');
-  const expressApp = express();
+  expressApp = express();
   
   receiver = new ExpressReceiver({
     signingSecret: config.slackSigningSecret,
-    app: expressApp,
   });
 }
 
@@ -637,27 +637,31 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
       console.log('⚡️ Slack Bot is running in Socket Mode!');
       console.log(`📡 Listening on port ${port}`);
     } else {
-      // HTTP Mode: ExpressReceiver already set up above
-      const expressApp = receiver.app;
+      // HTTP Mode: Use Express with receiver middleware
+      const express = require('express');
+      const finalApp = express();
       
-      // Add additional middleware and routes
-      expressApp.use(require('express').json());
-      expressApp.use(require('express').urlencoded({ extended: true }));
+      // Middleware
+      finalApp.use(express.json());
+      finalApp.use(express.urlencoded({ extended: true }));
       
       // Health check endpoint
-      expressApp.get('/health', (req, res) => {
+      finalApp.get('/health', (req, res) => {
         res.status(200).json({ status: 'ok', mode: 'HTTP' });
       });
       
       // OAuth redirect endpoint (if needed)
-      expressApp.get('/slack/oauth_redirect', (req, res) => {
+      finalApp.get('/slack/oauth_redirect', (req, res) => {
         res.status(200).send('OAuth redirect placeholder');
       });
       
-      expressApp.listen(port, () => {
+      // Mount the receiver - this adds the /slack/events endpoint
+      finalApp.use(receiver.router);
+      
+      finalApp.listen(port, () => {
         console.log('⚡️ Slack Bot is running in HTTP Mode!');
         console.log(`📡 Listening on http://localhost:${port}`);
-        console.log(`📨 Events endpoint: /slack/events`);
+        console.log(`📨 Events endpoint: POST /slack/events`);
       });
     }
 
