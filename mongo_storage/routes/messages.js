@@ -1,16 +1,14 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const getMessageModel = require('../models/Message').getMessageModel;
 const { runModel } = require('../python')
 
 const router = express.Router();
 
-// GET /api/messages/:collectionName - Retrieve all messages in a conversation from its designated collection
-router.get('/api/messages/:collectionName', async (req, res) => {
+// GET /api/messages/:channelName - Retrieve all messages for a Slack channel database.
+router.get('/api/messages/:channelName', async (req, res) => {
   try {
-    // Get the model for the specified collection
-    const { collectionName } = req.params;
-    const Message = getMessageModel(collectionName);
+    const { channelName } = req.params;
+    const Message = getMessageModel(channelName);
 
     const result = await Message.find();
     res.send(result);
@@ -20,13 +18,17 @@ router.get('/api/messages/:collectionName', async (req, res) => {
   } 
 });
 
-// POST - insert messages (single or array) from a channel into MongoDB
+// POST /api/messages/:channelName - insert all messages from a channel into MongoDB
 router.post('/api/messages/:channelName', async (req, res) => {
   try {
     const { channelName } = req.params;
     const bodyData = req.body;
+
+    if (!channelName || !String(channelName).trim()) {
+      return res.status(400).json({ error: 'channelName path parameter is required' });
+    }
     
-    // Get the model for the given channel collection
+    // Get a model bound to the database resolved from channelName.
     const MessageModel = getMessageModel(channelName);
     
     if (Array.isArray(bodyData)) {
@@ -51,7 +53,7 @@ router.post('/api/messages/:channelName', async (req, res) => {
       });
       
       await newMessage.save();
-      console.log(`Single message stored to ${channelName} collection`);
+      console.log(`Single message stored to ${channelName} database`);
       return res.status(200).json({ message: 'Message stored successfully', duplicate: false });
     }
   } catch (err) {

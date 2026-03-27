@@ -1,12 +1,14 @@
 const mongoose = require('mongoose');
 const { Schema } = require("mongoose");
 
-const msgSchema = new Schema(
+const userSchema = new Schema(
   {
-    user: String,
-    type: String,
-    text: String,
-    ts: String
+    team_id: String,
+    name: String,
+    real_name: String,
+    is_admin: Boolean,
+    is_owner: Boolean,
+    is_bot: Boolean
   },
   { strict: false } // Ensures all raw fields are logged
 );
@@ -26,17 +28,17 @@ const toChannelDbName = (channelKey) => {
   return sanitized;
 };
 
-// Returns a message model scoped to a database named from the channel key.
-const getMessageModel = (channelKey) => {
+// Returns a user model scoped to a database named from the channel key.
+const getUserModel = (channelKey) => {
   const dbName = toChannelDbName(channelKey);
-  const modelName = 'Message';
+  const modelName = 'Member';
   const channelDb = mongoose.connection.useDb(dbName, { useCache: true });
 
   if (channelDb.models[modelName]) {
     return channelDb.models[modelName];
   }
 
-  return channelDb.model(modelName, msgSchema, 'messages');
+  return channelDb.model(modelName, userSchema, 'members');
 };
 
-module.exports = { getMessageModel };
+module.exports = { getUserModel };
