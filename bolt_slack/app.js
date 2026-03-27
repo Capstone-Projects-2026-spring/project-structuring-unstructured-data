@@ -16,25 +16,32 @@ const BOT_USER_ID = config.slackBotUserId;
 // When socketMode is true: uses WebSocket (no public URL needed)
 // When socketMode is false: uses HTTP webhooks (needs public URL)
 let receiver;
-let expressApp;
+let app;
 
 if (!config.socketMode) {
   // HTTP Mode: Use ExpressReceiver for webhook-based events
-  const express = require('express');
-  expressApp = express();
-  
   receiver = new ExpressReceiver({
     signingSecret: config.slackSigningSecret,
   });
+  
+  app = new App({
+    token: config.slackBotToken,
+    signingSecret: config.slackSigningSecret,
+    socketMode: false,
+    receiver: receiver,
+  });
+} else {
+  // Socket Mode: No receiver needed
+  app = new App({
+    token: config.slackBotToken,
+    signingSecret: config.slackSigningSecret,
+    socketMode: true,
+    appToken: config.slackAppToken,
+  });
 }
 
-const app = new App({
-  token: config.slackBotToken,
-  signingSecret: config.slackSigningSecret,
-  socketMode: config.socketMode,
-  appToken: config.socketMode ? config.slackAppToken : undefined,
-  receiver: !config.socketMode ? receiver : undefined,
-});
+// Make receiver available at module level for Express mounting
+module.exports.receiver = receiver;
 
 // API endpoint configuration
 const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
@@ -637,52 +644,53 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
       console.log('⚡️ Slack Bot is running in Socket Mode!');
       console.log(`📡 Listening on port ${port}`);
     } else {
-      // HTTP Mode: Use Express with receiver middleware
+      // HTTP Mode: Create Express server and mount receiver
       const express = require('express');
-      const finalApp = express();
+      const expressApp = express();
       
-      // Middleware
-      finalApp.use(express.json());
-      finalApp.use(express.urlencoded({ extended: true }));
+      // Body parser middleware
+      expressApp.use(express.json());
+      expressApp.use(express.urlencoded({ extended: true }));
       
-      // Add request logging middleware
-      finalApp.use((req, res, next) => {
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+      // Request logging
+      expressApp.use((req, res, next) => {
+        if (req.path !== '/slack/events') {
+          console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+        }
         next();
       });
       
-      // Root endpoint
-      finalApp.get('/', (req, res) => {
-        console.log('✅ Root route accessed');
-        res.status(200).json({ 
-          status: 'ok', 
-          mode: 'HTTP',
-          service: 'Slack Bot',
-          endpoints: ['/health', '/slack/events', '/slack/oauth_redirect']
-        });
+      // Health endpoints
+      expressApp.get('/', (req, res) => {
+        res.status(200).json({ status: 'ok', service: 'Slack Bot', mode: 'HTTP' });
       });
       
-      // Health check endpoint
-      finalApp.get('/health', (req, res) => {
-        console.log('✅ Health check received');
-        res.status(200).json({ status: 'ok', mode: 'HTTP' });
+      expressApp.get('/health', (req, res) => {
+        res.status(200).json({ status: 'ok' });
       });
       
-      // OAuth redirect endpoint (if needed)
-      finalApp.get('/slack/oauth_redirect', (req, res) => {
-        console.log('✅ OAuth redirect received');
-        res.status(200).send('OAuth redirect placeholder');
-      });
+      // Mount the Slack receiver - this handles /slack/events automatically
+      console.log('📡 Mounting Slack Bolt receiver...');
+      if (receiver && receiver.router) {
+        expressApp.use(receiver.router);
+        console.log('✅ Receiver router mounted successfully');
+      } else {
+        console.error('❌ ERROR: Receiver router not available!');
+        throw new Error('Receiver router not properly initialized');
+      }
       
-      // Mount the receiver - this adds the /slack/events endpoint
-      console.log('📡 Mounting Slack receiver router...');
-      finalApp.use(receiver.router);
-      
-      finalApp.listen(port, '0.0.0.0', () => {
+      // Start server
+      const server = expressApp.listen(port, '0.0.0.0', () => {
         console.log('⚡️ Slack Bot is running in HTTP Mode!');
         console.log(`📡 Listening on 0.0.0.0:${port}`);
-        console.log(`📨 Events endpoint: POST /slack/events`);
-        console.log(`🔗 Health check: GET /health`);
+        console.log(`📨 Slack events endpoint: POST /slack/events`);
+        console.log(`🔗 Health: GET /health`);
+      });
+      
+      // Handle server errors
+      server.on('error', (err) => {
+        console.error('❌ Server error:', err);
+        process.exit(1);
       });
     }
 
