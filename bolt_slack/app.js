@@ -36,7 +36,7 @@ const app = new App({
   receiver: !config.socketMode ? receiver : undefined,
 });
 
-// API endpoint configuration
+// API endpoint configuration 
 const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
 
 // ====================
