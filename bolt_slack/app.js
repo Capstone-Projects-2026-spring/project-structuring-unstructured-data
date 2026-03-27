@@ -645,23 +645,44 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
       finalApp.use(express.json());
       finalApp.use(express.urlencoded({ extended: true }));
       
+      // Add request logging middleware
+      finalApp.use((req, res, next) => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+        next();
+      });
+      
+      // Root endpoint
+      finalApp.get('/', (req, res) => {
+        console.log('✅ Root route accessed');
+        res.status(200).json({ 
+          status: 'ok', 
+          mode: 'HTTP',
+          service: 'Slack Bot',
+          endpoints: ['/health', '/slack/events', '/slack/oauth_redirect']
+        });
+      });
+      
       // Health check endpoint
       finalApp.get('/health', (req, res) => {
+        console.log('✅ Health check received');
         res.status(200).json({ status: 'ok', mode: 'HTTP' });
       });
       
       // OAuth redirect endpoint (if needed)
       finalApp.get('/slack/oauth_redirect', (req, res) => {
+        console.log('✅ OAuth redirect received');
         res.status(200).send('OAuth redirect placeholder');
       });
       
       // Mount the receiver - this adds the /slack/events endpoint
+      console.log('📡 Mounting Slack receiver router...');
       finalApp.use(receiver.router);
       
-      finalApp.listen(port, () => {
+      finalApp.listen(port, '0.0.0.0', () => {
         console.log('⚡️ Slack Bot is running in HTTP Mode!');
-        console.log(`📡 Listening on http://localhost:${port}`);
+        console.log(`📡 Listening on 0.0.0.0:${port}`);
         console.log(`📨 Events endpoint: POST /slack/events`);
+        console.log(`🔗 Health check: GET /health`);
       });
     }
 
