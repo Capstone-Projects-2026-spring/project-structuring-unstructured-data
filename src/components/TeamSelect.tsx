@@ -11,7 +11,7 @@ interface TeamSelectProps {
     userId: string;
     teams: TeamCount[];
     gameRoomId: string;
-    onJoined: (teamId: string | null, role: Role) => void;
+    onJoined: (teamId: string | null, role: Role, playerCount: number | null) => void;
 }
 
 export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: TeamSelectProps) {
@@ -23,7 +23,7 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
             const res = await fetch(`/api/team/existing?gameRoomId=${gameRoomId}&userId=${userId}`);
             const data = await res.json();
             if (data.teamId) {
-                onJoined(data.teamId, data.role); // skip TeamSelect entirely on reconnect
+                onJoined(data.teamId, data.role, null); // skip TeamSelect entirely on reconnect
             }
         }
         checkExisting();
@@ -39,7 +39,7 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
 
         if (res.ok) {
             const data = await res.json();
-            onJoined(teamId, data.role);
+            onJoined(teamId, data.role, data.playerCount);;
         }
         setLoading(null);
     };
@@ -70,7 +70,7 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
                     })}
                     <Button
                         data-testid="spectator-button"
-                        onClick={() => { onJoined(null, Role.SPECTATOR) }}
+                        onClick={() => { onJoined(null, Role.SPECTATOR, null) }}
                     >
                         Spectator Mode
                     </Button>

@@ -24,13 +24,9 @@ app.prepare().then(async () => {
   // Initialize Redis (pub/sub for adapter + app state)
   const redis = initRedis();
 
-  httpServer._redis = redis; // redis attached to httpServer so that it can be referenced in api routes in the next.js pages router
-
   // Initialize Socket.IO, wire adapter + handlers + game timer
   const io = initSocket(httpServer, redis);
   
-  httpServer._io = io; // io attached to httpServer so that it can be referenced in api routes in the next.js pages router
-
   // set redis to notify us of events and start listening. note that in production, this line will stop the deploy as it will not return correctly. instead, this config needs to be set in memorystore config.
   if (process.env.NODE_ENV === "development") {
     console.log("In dev mode. Setting Redis NOTIFY_KEYSPACE_EVENTS to Ex.")

@@ -1,8 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Role } from '@prisma/client';
-import { getIO, getRedis } from '@/lib/server-context'
 
 /**
  * Allows user to create and join a team or join an existing team
@@ -12,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ message: 'Method not allowed' });
     }
 
-    const session = await auth.api.getSession({ headers: req.headers as any });
+    const session = await auth.api.getSession({ headers: req.headers as Record<string, string> });
     if (!session) {
         return res.status(401).json({ ok: false, error: "Unauthorized" });
     }

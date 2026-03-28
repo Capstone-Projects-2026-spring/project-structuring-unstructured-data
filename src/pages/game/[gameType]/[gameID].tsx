@@ -230,12 +230,13 @@ export default function PlayGameRoom() {
         userId={session?.user.id as string}
         teams={teams}
         gameRoomId={gameId}
-        onJoined={(teamId, role) => {
+        onJoined={(teamId, role, playerCount: number | null) => {
           setTeamSelected(teamId);
           setRole(role); // TODO: add localStorage persistence
           if (role === Role.SPECTATOR) {
             setGameState(GameStatus.ACTIVE);
           }
+          socket.emit("requestTeamUpdate", { teamId, playerCount });
         }}
       />
     );

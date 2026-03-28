@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
-import { getIO } from '@/lib/server-context'
 
 /**
  * Allows user to create and join a team or join an existing team
@@ -12,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ message: 'Method not allowed' });
     }
 
-    const session = await auth.api.getSession({ headers: req.headers as any });
+    const session = await auth.api.getSession({ headers: req.headers as Record<string, string> });
     if (!session) {
         return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
@@ -51,12 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
         playerCount++;
 
-        const io = getIO(req);
-        if (io) {
-            io.emit('teamUpdated', { teamId, playerCount })
-        }
-
-        return res.status(201).json({ role })
+        return res.status(201).json({ role, playerCount })
     } catch (error) {
         if (error instanceof Error) {
             // Return error message with status 500 (internal server error) if something goes wrong during team join

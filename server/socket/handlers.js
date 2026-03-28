@@ -122,6 +122,11 @@ function registerSocketHandlers(io, socket, services) {
     io.to(roomId).emit('redirectToResults');
   });
 
+  socket.on('requestTeamUpdate', async ({ teamId, playerCount }) => {
+    if (!playerCount) return;
+    io.emit('teamUpdated', { teamId, playerCount });
+  });
+
   // 3. Handle graceful disconnection
   socket.on('disconnect', async () => {
     console.log(`Disconnected: ${socket.id}`);
