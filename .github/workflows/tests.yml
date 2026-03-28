@@ -64,7 +64,7 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Seed database
-        run: npx prisma db seed
+        run: npx tsx prisma/seed.ts
 
       - name: Cache Next.js build
         uses: actions/cache@v4
