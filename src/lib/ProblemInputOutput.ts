@@ -16,3 +16,17 @@ export const Parameter = z.object({
   value: z.string() // Will be coerced into the correct primitive based on type.
 });
 export type ParameterType = z.infer<typeof Parameter>
+
+export const Language = z.union([
+  z.literal("javascript")
+]);
+
+export const TestCase = z.object({
+  id: z.uuid().optional(),
+  problemId: z.string(),
+  functionInput: z.array(Parameter),
+  expectedOutput: z.array(Parameter),
+  language: Language,
+  optimalTimeMs: z.number(),
+  hidden: z.boolean()
+});
