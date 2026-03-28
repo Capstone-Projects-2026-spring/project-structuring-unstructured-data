@@ -5,6 +5,8 @@ export const ParameterPrimitive = z.union([
   z.literal("number"),
   z.literal("array_string"),
   z.literal("array_number"),
+  z.literal("array_array_string"),
+  z.literal("array_array_number"),
   z.literal("boolean")
 ]);
 export type ParameterPrimitiveType = z.infer<typeof ParameterPrimitive>
