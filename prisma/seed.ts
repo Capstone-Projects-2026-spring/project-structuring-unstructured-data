@@ -107,13 +107,16 @@ async function main() {
   console.log("Loading test cases...");
   const testCasesRaw = JSON.parse(fs.readFileSync(testCasesPath, "utf-8"));
 
-  console.log(`Loaded ${testCasesRaw.length} test cases, inserting in batches...`);
+  console.log(`Loaded ${testCasesRaw.length} test cases...`);
+  console.log("Sample case:", testCasesRaw[0]);
 
   const TestCaseArray = z.array(TestCase);
   const { data: testCases, success, error } = TestCaseArray.safeParse(testCasesRaw);
   if (!success) {
     console.error("Error parsing test cases:", error);
-    return;
+    process.exit(1);
+  } else {
+    console.log("Successfully parsed test cases");
   }
 
   const mapped = testCases.map((tc) => ({
