@@ -2,12 +2,6 @@ const config = require('./config');
 const { App } = require('@slack/bolt');
 const axios = require('axios');
 
-console.log('DEBUG ENV:', {
-    SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN ? 'SET' : 'NOT SET',
-    SLACK_SIGNING_SECRET: process.env.SLACK_SIGNING_SECRET ? 'SET' : 'NOT SET',
-    SLACK_APP_TOKEN: process.env.SLACK_APP_TOKEN ? 'SET' : 'NOT SET',
-});
-
 const { insertModelsToDB, insertSingleMessageToDB } = require('./slack_to_DB');
 const { runModel, postSummaries } = require('../mongo_storage/python');
 const { run } = require('jest');
