@@ -19,6 +19,10 @@ import { authClient } from "@/lib/auth-client";
 
 interface RoomDetailsResponse {
   problem: ActiveProblem;
+  gameType: GameType;
+  teams: TeamCount[];
+  teamId: string | null;
+  role: Role | null;
 }
 
 interface TestCase {
@@ -30,7 +34,7 @@ export default function PlayGameRoom() {
   // 1. Grab the ID from the URL (e.g., "624")
   const router = useRouter();
   const gameId = router.query.gameID as string;
-  const { data: session, error, isPending } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
 
   // 2. Set up our state for the socket connection and the user's role
   const [role, setRole] = useState<Role | null>(null);
@@ -64,47 +68,45 @@ export default function PlayGameRoom() {
     }
   }, [isPending, session, router]);
 
-  useEffect(() => {
-  if (router.query.teamId && router.query.role) {
-    setTeamSelected(router.query.teamId as string);
-    setRole(router.query.role as Role);
-  }
-}, [router.query.teamId, router.query.role]);
-
   // ONLY HAPPENS ON PAGE LAUNCH
   useEffect(() => {
     if (!session?.user.id) return;
     if (!gameId) return;
     if (socketRef.current) return;
 
-    const fetchGameType = async () => {
-      const res = await fetch(`/api/rooms/type?gameId=${gameId}`);
-      const data = await res.json();
-      if (data.gameType) {
-        setGameType(data.gameType);
-      }
-    }
-    fetchGameType();
-
-    // fetch teams and their player counts
-    const fetchCounts = async () => {
-      const res = await fetch(`/api/team/count?gameId=${gameId}`);
-      const data = await res.json();
-      setTeams(data.teams);
-    };
-    fetchCounts();
-
-    const loadProblem = async () => {
+    const loadRoomDetails = async () => {
       try {
-        const response = await fetch(`/api/rooms/${gameId}`);
+        const response = await fetch(`/api/rooms/${gameId}/${session.user.id}`);
         if (!response.ok) return;
         const data = (await response.json()) as RoomDetailsResponse;
-        setProblem(data.problem);
+        setProblem(data.problem as ActiveProblem);
+        setGameType(data.gameType as GameType);
+        setTeams(data.teams as TeamCount[]);
+        if (data.teamId) setTeamSelected(data.teamId as string);
+        if (data.role) setRole(data.role as Role);
+        
+        if (data.gameType === GameType.TWOPLAYER && !data.teamId && !data.role) {
+          // Auto-join team if it's a 2 player game and the user isn't assigned to a team yet
+          const teamId = data.teams[0]?.teamId;
+          if (teamId) {
+            const res = await fetch(`/api/team/join`, {
+              method: "POST",
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: session.user.id, teamId, gameRoomId: gameId })
+            });
+            if (res.ok) {
+              const joined = await res.json();
+              setTeamSelected(teamId);
+              setRole(joined.role);
+            }
+          }
+        }
+
       } catch (error) {
         console.error('Failed to load room problem', error);
       }
     };
-    loadProblem();
+    loadRoomDetails();
 
     // 3. Initialize the connection to our custom server.js backend
     const socketInstance = io();
@@ -246,7 +248,6 @@ export default function PlayGameRoom() {
         userId={session?.user.id as string}
         teams={teams}
         gameRoomId={gameId}
-        gameType={gameType as GameType}
         onJoined={(teamId, role, playerCount) => {
           setTeamSelected(teamId);
           setRole(role); // TODO: add localStorage persistence

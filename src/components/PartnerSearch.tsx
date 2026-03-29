@@ -10,6 +10,7 @@ export default function PartnerSearch() {
   const handleRandom = () => {
     // replace with real random partner logic
     console.log("Pick a random partner");
+    router.push("/matchmaking");
   };
 
   const handleSearch = (e: React.FormEvent) => {

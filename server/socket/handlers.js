@@ -3,7 +3,7 @@ const { GameType } = require("@prisma/client");
 // Socket event handlers isolated here
 // Expects io (Server), socket (Socket), and services to manage game state
 function registerSocketHandlers(io, socket, services) {
-  const { gameService } = services;
+  const { gameService, matchmakingService } = services;
 
   console.log(`New connection: ${socket.id}`);
 
@@ -127,11 +127,25 @@ function registerSocketHandlers(io, socket, services) {
     io.emit('teamUpdated', { teamId, playerCount });
   });
 
+  socket.on('joinQueue', async ({ userId, gameType, difficulty, lobbyId }) => {
+    const result = await matchmakingService.joinQueue(userId, gameType, difficulty, lobbyId ?? null);
+    socket.emit('queueStatus', result);
+  });
+
+  socket.on('leaveQueue', async ({ gameType, difficulty }) => {
+      if (!socket.userId) return;
+      const result = await matchmakingService.leaveQueue(socket.userId, gameType, difficulty);
+      socket.emit('queueStatus', result);
+  });
+
   // 3. Handle graceful disconnection
   socket.on('disconnect', async () => {
     console.log(`Disconnected: ${socket.id}`);
-    if (socket.gameId & socket.userId) {
+    if (socket.gameId && socket.userId) {
       await gameService.cleanupGame(socket.gameId, socket.userId)
+    }
+    if (socket.userId) {
+        await matchmakingService.leaveAllQueues(socket.userId);
     }
   });
 }
