@@ -1,15 +1,40 @@
-import { ActionIcon, Box, Button, Group, NumberInput, Stack, Switch, Text, TextInput } from "@mantine/core";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { ActionIcon, Alert, Box, Button, Group, NumberInput, Stack, Switch, Text, TextInput } from "@mantine/core";
+import { IconAlertTriangle, IconPlus, IconTrash } from "@tabler/icons-react";
 import { ParameterType } from "@/lib/ProblemInputOutput";
+import deepEqual from "@/util/deepEqual";
+import { useMemo } from "react";
 
 interface ParameterInputProps {
   parameter: ParameterType;
   value: string | null;
   onChange: (value: string | null) => void;
   disabled?: boolean;
+
+  /**
+   * The actual value of the test once it gets run.
+   * This should only be set for output parameters.
+   */
+  computedValue?: string | null
 }
 
-export default function ParameterInput({ parameter, value, onChange, disabled }: ParameterInputProps) {
+export default function ParameterInput(props: ParameterInputProps) {
+  const {
+    parameter,
+    value,
+    onChange,
+    disabled,
+    computedValue
+  } = props;
+
+  const isEqual = useMemo(() => {
+    if (!value || !computedValue) return null;
+
+    // dangerous 👀
+    const val1 = JSON.parse(value);
+    const val2 = JSON.parse(computedValue);
+    return deepEqual(val1, val2);
+  }, [value, computedValue]);
+
   const handleNumberChange = (val: string | number) => {
     onChange(val.toString());
   };
@@ -92,6 +117,7 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
           value={value ? parseFloat(value) : undefined}
           onChange={handleNumberChange}
           disabled={disabled}
+          error={isEqual === false ? `Computed: ${JSON.stringify(computedValue)}` : undefined}
         />
       );
 
@@ -102,6 +128,7 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
           onChange={(event) => handleBooleanChange(event.currentTarget.checked)}
           disabled={disabled}
           label={value === "true" ? "true" : "false"}
+          error={isEqual === false ? `Computed: ${JSON.stringify(computedValue)}` : undefined}
         />
       );
 
@@ -120,7 +147,8 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
                 value={element?.toString() || ""}
                 onChange={(e) => stringHandlers.handleElementChange(idx, e.currentTarget.value)}
                 disabled={disabled}
-              // style={{ flex: 1 }}
+                // style={{ flex: 1 }}
+                error={isEqual === false}
               />
 
               <ActionIcon
@@ -153,6 +181,12 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
             </ActionIcon>
             <Text size="sm" c="dimmed">Add element</Text>
           </Group>
+
+          {isEqual === false && (
+            <Text c="red" size="sm">
+              Computed: {JSON.stringify(computedValue)}
+            </Text>
+          )}
         </Stack>
       );
     }
@@ -172,6 +206,7 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
                 value={typeof element === 'number' ? element : parseFloat(element) || 0}
                 onChange={(val) => numberHandlers.handleElementChange(idx, typeof val === 'number' ? val : parseFloat(val))}
                 disabled={disabled}
+                error={isEqual === false}
               />
 
               <ActionIcon
@@ -202,6 +237,12 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
           >
             Add element
           </Button>
+
+          {isEqual === false && (
+            <Text c="red" size="sm">
+              Computed: {JSON.stringify(computedValue)}
+            </Text>
+          )}
         </Stack>
       );
     }
@@ -281,6 +322,12 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
           >
             Add row
           </Button>
+
+          {isEqual === false && (
+            <Text c="red" size="sm">
+              Computed: {JSON.stringify(computedValue)}
+            </Text>
+          )}
         </Stack>
       );
     }
@@ -334,7 +381,7 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
                     </ActionIcon>
                   </Group>
                 )}
-                
+
                 <Button
                   variant="light"
                   size="compact-sm"
@@ -359,18 +406,34 @@ export default function ParameterInput({ parameter, value, onChange, disabled }:
           >
             Add row
           </Button>
+
+          {isEqual === false && (
+            <Text c="red" size="sm">
+              Computed: {JSON.stringify(computedValue)}
+            </Text>
+          )}
         </Stack>
       );
     }
 
-    case "string":
-    default:
+    case "string": {
       return (
         <TextInput
           value={value || ""}
           onChange={(event) => onChange(event.currentTarget.value)}
           disabled={disabled}
+          error={isEqual === false ? `Computed: ${JSON.stringify(computedValue)}` : undefined}
         />
       );
+    }
+
+    default: {
+      console.error("Unknown parameter:", props);
+      return (
+        <Alert variant="light" color="red" icon={<IconAlertTriangle />}>
+          Unknown parameter type: &quot;{parameter.type}&quot;. Please report this question.
+        </Alert>
+      );
+    }
   }
 }
