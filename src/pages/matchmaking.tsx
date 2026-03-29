@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { io, Socket } from 'socket.io-client';
-import { Box, Button, Center, Group, Loader, Select, SegmentedControl, Text } from '@mantine/core';
+import { Box, Button, Center, Group, Loader, Select, SegmentedControl, Text, Card } from '@mantine/core';
 import { GameType, ProblemDifficulty } from '@prisma/client';
 import { authClient } from '@/lib/auth-client';
 
@@ -95,7 +95,7 @@ export default function QueuePage() {
 
     return (
         <Center h="100vh">
-            <Box w={400}>
+            <Card w={400} withBorder shadow="md">
                 <Text size="xl" fw={700} mb="xl" ta="center">
                     Find a Match
                 </Text>
@@ -164,7 +164,7 @@ export default function QueuePage() {
                         Cancel
                     </Button>
                 )}
-            </Box>
+            </Card>
         </Center>
     );
 }
