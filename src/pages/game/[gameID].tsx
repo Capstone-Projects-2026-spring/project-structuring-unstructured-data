@@ -131,6 +131,10 @@ export default function PlayGameRoom() {
       router.push(`/results/${gameId}`);
     });
 
+    socketInstance.on("roleSwapWarning", () => {
+      setGameState(GameStatus.ROLE_SWAP_WARNING);
+    });
+
     socketInstance.on("roleSwapping", () => {
       setGameState(GameStatus.FLIPPING);
     });
