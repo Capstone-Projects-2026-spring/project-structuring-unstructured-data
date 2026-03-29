@@ -16,6 +16,10 @@ function registerSocketHandlers(io, socket, services) {
   socket.on('joinGame', async ({ gameId, teamId, gameType }) => {
     await socket.join(teamId);
     await socket.join(gameId);
+
+    // OK to bind to socket object because there are individual
+    // sockets being created for every request. This is **not**
+    // a global socket.
     socket.teamId = teamId;
     socket.gameId = gameId;
 
