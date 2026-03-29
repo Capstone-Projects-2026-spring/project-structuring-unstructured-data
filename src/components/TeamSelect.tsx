@@ -11,11 +11,10 @@ interface TeamSelectProps {
     userId: string;
     teams: TeamCount[];
     gameRoomId: string;
-    gameType: GameType;
     onJoined: (teamId: string | null, role: Role, playerCount: number | null) => void;
 }
 
-export default function TeamSelect({ userId, teams, gameType, gameRoomId, onJoined }: TeamSelectProps) {
+export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: TeamSelectProps) {
     const [loading, setLoading] = useState<string | null>(null);
 
     useEffect(() => {

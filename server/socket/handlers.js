@@ -71,7 +71,7 @@ const submitCodeSchema = z.object({
 // Socket event handlers isolated here
 // Expects io (Server), socket (Socket), and services to manage game state
 function registerSocketHandlers(io, socket, services) {
-  const { gameService } = services;
+  const { gameService, matchmakingService } = services;
   const prisma = getPrisma();
 
   console.log(`New connection: ${socket.id}`);
@@ -413,6 +413,28 @@ function registerSocketHandlers(io, socket, services) {
     if (!playerCount) return;
     io.emit('teamUpdated', { teamId, playerCount }); // TODO: fix - this emits to everyone, scope it to game room except users don't join game room until after TeamSelect, 
     // so need to figure out a way to emit to all users in the game room including those in team select but not in the game room yet thinking another id to join off of that can be left after teamselect is done
+  });
+
+  socket.on('joinQueue', async ({ userId, gameType, difficulty, lobbyId }) => {
+    const result = await matchmakingService.joinQueue(userId, gameType, difficulty, lobbyId ?? null);
+    socket.emit('queueStatus', result);
+  });
+
+  socket.on('leaveQueue', async ({ gameType, difficulty }) => {
+      if (!socket.userId) return;
+      const result = await matchmakingService.leaveQueue(socket.userId, gameType, difficulty);
+      socket.emit('queueStatus', result);
+  });
+
+  socket.on('joinQueue', async ({ userId, gameType, difficulty, lobbyId }) => {
+    const result = await matchmakingService.joinQueue(userId, gameType, difficulty, lobbyId ?? null);
+    socket.emit('queueStatus', result);
+  });
+
+  socket.on('leaveQueue', async ({ gameType, difficulty }) => {
+      if (!socket.userId) return;
+      const result = await matchmakingService.leaveQueue(socket.userId, gameType, difficulty);
+      socket.emit('queueStatus', result);
   });
 
   // 3. Handle graceful disconnection need to do more to this so will just leave it to this right now

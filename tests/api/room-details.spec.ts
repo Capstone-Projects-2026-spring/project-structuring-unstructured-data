@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { NextApiRequest, NextApiResponse } from "next";
-import handler from "../../src/pages/api/rooms/[gameId]";
+import handler from "../../src/pages/api/rooms/[gameId]/[gameId]";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
