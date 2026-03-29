@@ -3,7 +3,7 @@ import { Editor } from '@monaco-editor/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { IconEye, IconPlayerPlay, IconPlayerTrackNextFilled, IconPlus } from '@tabler/icons-react';
+import { IconEye, IconPlayerPlay, IconPlayerTrackNextFilled, IconPlus, IconTrash } from '@tabler/icons-react';
 
 import ChatBox from '@/components/ChatBox';
 import GameTimer from '@/components/GameTimer';
@@ -65,7 +65,7 @@ function PlayGameRoom() {
   const [teams, setTeams] = useState<TeamCount[]>([]);
   const [teamSelected, setTeamSelected] = useState<string | null>(null);
   const [liveCode, setLiveCode] = useState<string>("// Waiting for code...");
-  const [activeTestTab, setActiveTestTab] = useState<number>(0);
+  const [activeTestId, setActiveTestId] = useState<number>(0);
   const [gameType, setGameType] = useState<GameType | null>(null);
 
   // Context <3
@@ -230,7 +230,11 @@ function PlayGameRoom() {
   const addNewTest = () => {
     if (testCaseCtx.cases.length >= 5) return;
 
-    const newId = testCaseCtx.cases.length; // zero-based index
+    // const newId = testCaseCtx.cases.length; // zero-based index
+    const newId = testCaseCtx.cases
+      .map(c => c.id)
+      .reduce((prev, acc) => Math.max(prev, acc))
+      + 1;
     console.log("creating new test with id", newId);
     const newCase: TestableCase = {
       id: newId,
@@ -248,15 +252,29 @@ function PlayGameRoom() {
     };
     testCaseCtx.addCase(newCase);
 
-    setActiveTestTab(newId);
+    setActiveTestId(newId);
     console.log("emitting new test cases", [...testCaseCtx.cases, newCase]);
     socket?.emit("updateTestCases", { teamId: teamSelected, testCases: [...testCaseCtx.cases, newCase] });
+  };
+
+  const removeTest = (testId: TestableCase["id"]) => {
+    if (testCaseCtx.cases.length === 1) return;
+
+    const newId = testCaseCtx.cases
+      .map(c => c.id)
+      .reduce((prev, acc) => Math.min(prev, acc));
+    console.log(`removing test with id ${testId}`, `min id ${newId}`);
+    testCaseCtx.removeCase(testId);
+
+    setActiveTestId(newId);
+    console.log("emitting new test cases", [...testCaseCtx.cases.filter(c => c.id !== testId)]);
+    socket?.emit("updateTestCases", { teamId: teamSelected, testCases: [...testCaseCtx.cases.filter(c => c.id !== testId)] });
   };
 
   const handleTestBoxChange = (testCase: TestableCase) => {
     console.log("handling test box change");
     if (role !== Role.TESTER || !socket) return;
-    const updated = testCaseCtx.cases.map(t => t.id === activeTestTab ? testCase : t);
+    const updated = testCaseCtx.cases.map(t => t.id === activeTestId ? testCase : t);
     socket.emit('updateTestCases', { teamId: teamSelected, testCases: updated });
   };
 
@@ -487,32 +505,49 @@ function PlayGameRoom() {
                     <Stack style={{ minHeight: 0, flex: 1 }}>
                       <Group justify="space-between">
                         <Tabs
-                          value={String(activeTestTab)}
+                          value={String(activeTestId)}
                           onChange={val => {
-                            setActiveTestTab(+(val ?? 0));
+                            setActiveTestId(+(val ?? 0));
                           }}
                           variant="outline"
                         >
                           <Tabs.List>
-                            {testCaseCtx.cases.map((test) => (
+                            {testCaseCtx.cases.map((test, idx) => (
                               <Tabs.Tab
-                                key={test.id}
+                                key={idx}
                                 value={String(test.id)}
+                                rightSection={
+                                  idx !== 0 && activeTestId === test.id ? (
+                                    <Tooltip label="Delete Test">
+                                      <ActionIcon
+                                        size="xs"
+                                        color="red"
+                                        variant="light"
+                                        onClick={() => removeTest(test.id)}
+                                      >
+                                        <IconTrash />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                  ) : undefined
+                                }
                               >
-                                Test {test.id + 1}
+                                Test {idx + 1}
                               </Tabs.Tab>
                             ))}
+
                             {testCaseCtx.cases.length < 5 && !isSpectator && (
-                              <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={addNewTest}
-                                size="sm"
-                                style={{ alignSelf: "center" }}
-                                ml="xs"
-                              >
-                                <IconPlus />
-                              </ActionIcon>
+                              <Tooltip label="New Test">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="gray"
+                                  onClick={addNewTest}
+                                  size="sm"
+                                  style={{ alignSelf: "center" }}
+                                  ml="xs"
+                                >
+                                  <IconPlus />
+                                </ActionIcon>
+                              </Tooltip>
                             )}
                           </Tabs.List>
                         </Tabs>
@@ -533,7 +568,7 @@ function PlayGameRoom() {
                       </Group>
 
                       {(() => {
-                        const currentTestCase = testCaseCtx.cases.find(t => t.id === activeTestTab);
+                        const currentTestCase = testCaseCtx.cases.find(t => t.id === activeTestId);
                         return currentTestCase ? (
                           <GameTestCase
                             testableCase={currentTestCase}
