@@ -344,26 +344,28 @@ app.command('/members-info', async ({ command, ack, respond }) => {
 app.command('/refresh-home', async ({ command, ack, respond, client, logger }) => {
   await ack();
 
-  try {
-    await publishHomeTab({
-      client,
-      userId: command.user_id,
-      logger,
-      apiClient,
-      buildChannelKey
-    });
+  // Send immediate response to avoid timeout
+  // publishHomeTab() is slow due to paginated channel list and API calls
+  await respond({
+    response_type: 'ephemeral',
+    text: '⏳ Refreshing your home dashboard...'
+  });
 
-    await respond({
-      response_type: 'ephemeral',
-      text: '✅ Home dashboard refreshed. Open the app Home tab to view the latest content.'
+  // Do the actual refresh asynchronously in the background
+  // This prevents the 3-second timeout while still updating the user's Home tab
+  publishHomeTab({
+    client,
+    userId: command.user_id,
+    logger,
+    apiClient,
+    buildChannelKey
+  })
+    .then(() => {
+      console.log(`✅ Home dashboard refreshed for user ${command.user_id}`);
+    })
+    .catch((error) => {
+      console.error('Error refreshing Home dashboard:', error);
     });
-  } catch (error) {
-    console.error('Error in /refresh-home command:', error);
-    await respond({
-      response_type: 'ephemeral',
-      text: `❌ Error refreshing Home dashboard: ${error.message}`
-    });
-  }
 });
 
 // Home tab channel dropdown: republish with selected channel data.
