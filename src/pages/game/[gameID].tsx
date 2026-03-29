@@ -358,7 +358,6 @@ function PlayGameRoom() {
                 setTeamSelected(team.teamId);
                 setSpectatorView(Role.CODER); 
                 console.log("Effective role: ", effectiveRole);
-                // socket.emit("switchSpectatorView", { teamId: team.teamId });
               }}>
                 Team {i + 1} Coder
               </Button>
@@ -366,7 +365,6 @@ function PlayGameRoom() {
                 setTeamSelected(team.teamId);
                 setSpectatorView(Role.TESTER);
                 console.log("Effective role: ", effectiveRole); 
-                // socket.emit("switchSpectatorView", { teamId: team.teamId });
               }}>
                 Team {i + 1} Tester
               </Button>
