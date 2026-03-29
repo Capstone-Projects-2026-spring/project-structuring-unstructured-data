@@ -29,7 +29,7 @@ export default function GameTestCase(props: GameTestCaseProps) {
 
   return (
     <Stack gap="md" style={{ overflow: "auto", minHeight: 0, flex: 1 }}>
-      <Table>
+      <Table withRowBorders={false}>
         <Table.Tbody>
           {testableCase.functionInput?.map((input, idx) => (
             <Table.Tr key={idx}>
@@ -56,7 +56,9 @@ export default function GameTestCase(props: GameTestCaseProps) {
             </Table.Tr>
           ))}
 
-          <Table.Tr>
+          <Table.Tr style={{
+            borderTop: "calc(.120rem * var(--mantine-scale)) solid var(--table-border-color)",
+          }}>
             <Table.Td align="right">
               <Text c="dimmed">
                 Output :
