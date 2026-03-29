@@ -3,13 +3,24 @@ const getMessageModel = require('../models/Message').getMessageModel;
 
 const router = express.Router();
 
-// GET /api/messages/:channelName - Retrieve all messages for a Slack channel database.
+// GET /api/messages/:channelName - Retrieve messages for a Slack channel database.
 router.get('/api/messages/:channelName', async (req, res) => {
   try {
     const { channelName } = req.params;
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const hasValidLimit = Number.isInteger(requestedLimit) && requestedLimit > 0;
     const Message = getMessageModel(channelName);
 
-    const result = await Message.find();
+    let query = Message.find();
+
+    if (hasValidLimit) {
+      // Return newest-first when caller requests a bounded recent window.
+      query = query.sort({ ts: -1 }).limit(requestedLimit);
+      const totalCount = await Message.countDocuments();
+      res.set('X-Total-Count', String(totalCount));
+    }
+
+    const result = await query;
     res.send(result);
   } catch (err) {
     console.error(err);

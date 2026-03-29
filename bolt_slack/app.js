@@ -361,7 +361,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
     buildChannelKey
   })
     .then(() => {
-      console.log(`✅ Home dashboard refreshed for user ${command.user_id}`);
+      console.log(`✅ Home dashboard successfully refreshed for user ${command.user_id}`);
     })
     .catch((error) => {
       console.error('Error refreshing Home dashboard:', error);
@@ -377,14 +377,17 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       ? body.actions[0].selected_option.value
       : '';
 
-    await publishHomeTab({
+    publishHomeTab({
       client,
       userId: body.user.id,
       logger,
       apiClient,
       buildChannelKey,
       selectedChannelName
-    });
+    })
+      .catch((error) => {
+        logger.error('Error handling Home channel selection:', error);
+      });
   } catch (error) {
     logger.error('Error handling Home channel selection:', error);
   }
@@ -394,22 +397,22 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
 app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
 
-  try {
-    const selectedChannelName = body.actions && body.actions[0] && body.actions[0].value
-      ? body.actions[0].value
-      : '';
+  const selectedChannelName = body.actions && body.actions[0] && body.actions[0].value
+    ? body.actions[0].value
+    : '';
 
-    await publishHomeTab({
-      client,
-      userId: body.user.id,
-      logger,
-      apiClient,
-      buildChannelKey,
-      selectedChannelName
+  // Republish asynchronously so ack is never blocked by dashboard work.
+  publishHomeTab({
+    client,
+    userId: body.user.id,
+    logger,
+    apiClient,
+    buildChannelKey,
+    selectedChannelName
+  })
+    .catch((error) => {
+      logger.error('Error handling Home refresh action:', error);
     });
-  } catch (error) {
-    logger.error('Error handling Home refresh action:', error);
-  }
 });
 
 // ====================

@@ -1,6 +1,13 @@
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
-const DEFAULT_RECENT_MESSAGES_LIMIT = 5;
+const DEFAULT_RECENT_MESSAGES_LIMIT = 3;
+const CHANNEL_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_STATIC_SELECT_OPTIONS = 100;
+
+const channelCache = {
+  channels: null,
+  expiresAt: 0
+};
 
 function toTimestampMillis(ts) {
   const parsedTs = Number.parseFloat(ts);
@@ -17,7 +24,7 @@ function formatMessageTimestamp(ts) {
 }
 
 function buildChannelOptions(channels) {
-  return channels.map((channel) => ({
+  return channels.slice(0, MAX_STATIC_SELECT_OPTIONS).map((channel) => ({
     text: {
       type: 'plain_text',
       text: `#${channel.name}`
@@ -26,7 +33,24 @@ function buildChannelOptions(channels) {
   }));
 }
 
+function getCachedChannels() {
+  if (channelCache.channels && Date.now() < channelCache.expiresAt) {
+    return channelCache.channels;
+  }
+  return null;
+}
+
+function setCachedChannels(channels) {
+  channelCache.channels = channels;
+  channelCache.expiresAt = Date.now() + CHANNEL_CACHE_TTL_MS;
+}
+
 async function getBotChannels(client) {
+  const cachedChannels = getCachedChannels();
+  if (cachedChannels) {
+    return cachedChannels;
+  }
+
   const channels = [];
   let cursor;
 
@@ -49,6 +73,7 @@ async function getBotChannels(client) {
   } while (cursor);
 
   channels.sort((a, b) => a.name.localeCompare(b.name));
+  setCachedChannels(channels);
   return channels;
 }
 
@@ -64,8 +89,15 @@ async function fetchRecentMessagesForChannel({ apiClient, buildChannelKey, chann
 
   try {
     const collectionName = await buildChannelKey(channelName);
-    const response = await apiClient.get(`/api/messages/${collectionName}`);
+
+    const response = await apiClient.get(`/api/messages/${collectionName}`, {
+      params: {
+        limit: DEFAULT_RECENT_MESSAGES_LIMIT
+      }
+    });
+
     const messages = Array.isArray(response.data) ? response.data : [];
+    const totalMessagesHeader = Number.parseInt(response.headers['x-total-count'], 10);
     const sortedMessages = messages
       .slice()
       .sort((a, b) => toTimestampMillis(b.ts) - toTimestampMillis(a.ts));
@@ -73,12 +105,14 @@ async function fetchRecentMessagesForChannel({ apiClient, buildChannelKey, chann
     return {
       apiStatus: 'Online',
       recentMessages: sortedMessages.slice(0, DEFAULT_RECENT_MESSAGES_LIMIT),
-      messagesStored: messages.length,
+      messagesStored: Number.isFinite(totalMessagesHeader) ? totalMessagesHeader : messages.length,
       errorMessage: ''
     };
   } catch (error) {
     if (logger) {
-      logger.error(`Error fetching dashboard data for channel ${channelName}:`, error);
+      logger.error('Error fetching recent messages for Home tab:', error);
+    } else {
+      console.error('Error fetching recent messages for Home tab:', error);
     }
 
     return {
@@ -114,6 +148,7 @@ function buildSampleHomeView({
   channelOptions,
   selectedChannelName,
   activeChannels,
+  selectableChannels,
   messagesStored,
   apiStatus,
   recentMessages,
@@ -203,6 +238,18 @@ function buildSampleHomeView({
     }
   ];
 
+  if (activeChannels > selectableChannels) {
+    blocks.push({
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `Showing ${selectableChannels} of ${activeChannels} channels in selector for faster loading.`
+        }
+      ]
+    });
+  }
+
   if (errorMessage) {
     blocks.push({
       type: 'context',
@@ -226,6 +273,7 @@ async function publishHomeTab({ client, userId, logger, apiClient, buildChannelK
   try {
     const channels = await getBotChannels(client);
     const channelOptions = buildChannelOptions(channels);
+
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
 
     const {
@@ -240,18 +288,21 @@ async function publishHomeTab({ client, userId, logger, apiClient, buildChannelK
       logger
     });
 
+    const viewPayload = buildSampleHomeView({
+      userId,
+      channelOptions,
+      selectedChannelName: resolvedChannelName,
+      activeChannels: channels.length,
+      selectableChannels: channelOptions.length,
+      messagesStored,
+      apiStatus,
+      recentMessages,
+      errorMessage
+    });
+
     await client.views.publish({
       user_id: userId,
-      view: buildSampleHomeView({
-        userId,
-        channelOptions,
-        selectedChannelName: resolvedChannelName,
-        activeChannels: channels.length,
-        messagesStored,
-        apiStatus,
-        recentMessages,
-        errorMessage
-      })
+      view: viewPayload
     });
   } catch (error) {
     if (logger) {
