@@ -93,7 +93,6 @@ function registerSocketHandlers(io, socket, services) {
   });
 
   socket.on('requestChatSync', async ({ teamId }) => {
-    if (!teamId) return;
     try {
       const parsed = await gameService.getChatMessages(teamId);
       socket.emit('receiveChatHistory', parsed);
@@ -103,7 +102,6 @@ function registerSocketHandlers(io, socket, services) {
   });
 
   socket.on('updateTestCases', async ({ teamId, testCases }) => {
-    if (!teamId || !testCases) return;
     try {
       await gameService.saveTestCases(teamId, testCases);
     } catch (e) {
@@ -112,7 +110,6 @@ function registerSocketHandlers(io, socket, services) {
   });
 
   socket.on('requestTestCaseSync', async ({ teamId }) => {
-    if (!teamId) return;
     try {
       const testCases = await gameService.getTestCases(teamId);
       if (testCases) socket.emit('receiveTestCaseSync', testCases);
@@ -123,14 +120,14 @@ function registerSocketHandlers(io, socket, services) {
 
   socket.on('submitCode', async (data) => {
     const { roomId, code } = data || {};
-    if (!roomId || !code) return;
+    if (!roomId) return;
     //TODO Store submission and evaluate results on the backend
     //Broadcast to both players to redirect to results
     io.to(roomId).emit('gameEnded');
   });
 
   socket.on('requestTeamUpdate', async ({ gameId, teamId, playerCount }) => {
-    if (!playerCount || !teamId || !gameId) return;
+    if (!playerCount) return;
     io.emit('teamUpdated', { teamId, playerCount }); // TODO: fix - this emits to everyone, scope it to game room except users don't join game room until after TeamSelect, 
     // so need to figure out a way to emit to all users in the game room including those in team select but not in the game room yet thinking another id to join off of that can be left after teamselect is done
   });

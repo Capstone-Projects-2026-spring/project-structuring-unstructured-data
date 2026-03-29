@@ -47,7 +47,6 @@ function createGameService(stateRedis) {
     },
 
     async saveLatestCode(teamId, code) {
-      if (code == null) return stateRedis.set(`game:${teamId}:code`, ''); // avoid storing null, which can cause issues with get later, store empty string instead
       return stateRedis.set(`game:${teamId}:code`, code);
     },
 
