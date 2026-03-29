@@ -282,6 +282,7 @@ function PlayGameRoom() {
       ]
     }));
     console.log("emitting new test cases", newCases);
+    testCaseCtx.setParameters(prev => [...prev, parameter]);
     testCaseCtx.setCases(newCases);
     socket?.emit("updateTestCases", { teamId: teamSelected, testCases: newCases });
   };
