@@ -13,6 +13,7 @@ import { TeamCount } from "@/components/TeamSelect";
 import type { ActiveProblem } from '@/components/ProblemBox';
 import ProblemBox from '@/components/ProblemBox';
 import RoleFlipPopup from '@/components/RoleFlipPopup';
+import { showRoleSwapWarning } from '@/components/notifications';
 
 import { Role, GameStatus, GameType } from "@prisma/client";
 import { authClient } from "@/lib/auth-client";
@@ -132,7 +133,9 @@ export default function PlayGameRoom() {
     });
 
     socketInstance.on("roleSwapWarning", () => {
-      setGameState(GameStatus.ROLE_SWAP_WARNING);
+      if (role && role !== Role.SPECTATOR) {
+        showRoleSwapWarning(role);
+      }
     });
 
     socketInstance.on("roleSwapping", () => {

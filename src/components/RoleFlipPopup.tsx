@@ -6,12 +6,9 @@ interface RoleFlipPopupProps {
 }
 
 export default function RoleFlipPopup({ gameState }: RoleFlipPopupProps) {
-  const isWarning = gameState === GameStatus.ROLE_SWAP_WARNING;
-  const isFlipping = gameState === GameStatus.FLIPPING;
-
   return (
     <Modal
-      opened={isWarning || isFlipping}
+      opened={gameState === GameStatus.FLIPPING}
       onClose={() => {}}
       withCloseButton={false}
       closeOnClickOutside={false}
@@ -21,17 +18,8 @@ export default function RoleFlipPopup({ gameState }: RoleFlipPopupProps) {
       overlayProps={{ blur: 3 }}
     >
       <Stack align="center" py="md" gap="xs">
-        {isWarning ? (
-          <>
-            <Text size="xl" fw={600}>Role swap in 1 minute!</Text>
-            <Text size="sm" c="dimmed">Get ready to switch roles...</Text>
-          </>
-        ) : (
-          <>
-            <Text size="xl" fw={600}>Roles flipping!</Text>
-            <Text size="sm" c="dimmed">Ooh, switching things up...</Text>
-          </>
-        )}
+        <Text size="xl" fw={600}>Roles flipping!</Text>
+        <Text size="sm" c="dimmed">Ooh, switching things up...</Text>
       </Stack>
     </Modal>
   );
