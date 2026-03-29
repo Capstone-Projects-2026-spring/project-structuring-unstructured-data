@@ -127,6 +127,14 @@ async function main() {
     optimalTimeMs: tc.optimalTimeMs,
   }));
 
+  // for (const c of mapped) {
+  //   await prisma.problemTest.create({
+  //     data: c,
+  //   }).catch(e => {
+  //     console.error("cant insert:", c);
+  //     process.exit(1);
+  //   })
+  // }
   await prisma.problemTest.createMany({ data: mapped, skipDuplicates: true });
 
   console.log(`Test cases created: ${mapped.length}`);
