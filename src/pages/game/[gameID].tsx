@@ -19,6 +19,7 @@ import { authClient } from "@/lib/auth-client";
 import GameTestCase from '@/components/gameTests/GameTestCase';
 import { GameTestCasesProvider, TestableCase, useTestCases } from "@/components/gameTests/GameTestCasesContext";
 import { ParameterType } from '@/lib/ProblemInputOutput';
+import NewParameterButton from '@/components/gameTests/NewParameterButton';
 
 interface RoomDetailsResponse {
   problem: ActiveProblem;
@@ -544,20 +545,6 @@ function PlayGameRoom() {
                               <Tabs.Tab
                                 key={idx}
                                 value={String(test.id)}
-                                rightSection={
-                                  idx !== 0 && activeTestId === test.id ? (
-                                    <Tooltip label="Delete Test">
-                                      <ActionIcon
-                                        size="xs"
-                                        color="red"
-                                        variant="light"
-                                        onClick={() => removeTest(test.id)}
-                                      >
-                                        <IconTrash />
-                                      </ActionIcon>
-                                    </Tooltip>
-                                  ) : undefined
-                                }
                               >
                                 Test {idx + 1}
                               </Tabs.Tab>
@@ -580,19 +567,24 @@ function PlayGameRoom() {
                           </Tabs.List>
                         </Tabs>
 
-                        <Button
-                          size="compact-sm"
-                          variant="filled"
-                          color="blue"
-                          disabled={isSpectator}
-                          rightSection={
-                            <IconPlayerTrackNextFilled
-                              size="var(--mantine-font-size-lg)"
-                            />
-                          }
-                        >
-                          Run All Tests
-                        </Button>
+                        <Group gap="xs">
+                          <NewParameterButton
+                            onNewParameter={handleNewParameter}
+                          />
+                          <Button
+                            size="compact-sm"
+                            variant="filled"
+                            color="green"
+                            disabled={isSpectator}
+                            rightSection={
+                              <IconPlayerTrackNextFilled
+                                size="var(--mantine-font-size-lg)"
+                              />
+                            }
+                          >
+                            Run All
+                          </Button>
+                        </Group>
                       </Group>
 
                       {(() => {
@@ -603,6 +595,9 @@ function PlayGameRoom() {
                             onTestCaseChange={handleTestBoxChange}
                             onNewParameter={handleNewParameter}
                             onParameterDelete={handleParameterDelete}
+
+                            onTestCaseDelete={removeTest}
+                            showDelete={testCaseCtx.cases.length !== 1}
                           />
                         ) : null;
                       })()}
