@@ -287,10 +287,22 @@ function PlayGameRoom() {
     socket?.emit("updateTestCases", { teamId: teamSelected, testCases: newCases });
   };
 
+  const handleParameterDelete = (parameter: ParameterType) => {
+    const cases = testCaseCtx.cases;
+    const newCases = cases.map(c => ({
+      ...c,
+      functionInput: c.functionInput.filter(i => i.name !== parameter.name)
+    }));
+    console.log("emitting new test cases", newCases);
+    testCaseCtx.setParameters(prev => prev.filter(p => p.name !== parameter.name));
+    testCaseCtx.setCases(newCases);
+    socket?.emit("updateTestCases", { teamId: teamSelected, testCases: newCases });
+  };
+
   const handleTestBoxChange = (testCase: TestableCase) => {
-    console.log("handling test box change");
     if (role !== Role.TESTER || !socket) return;
     const updated = testCaseCtx.cases.map(t => t.id === activeTestId ? testCase : t);
+    testCaseCtx.setCases(updated);
     socket.emit('updateTestCases', { teamId: teamSelected, testCases: updated });
   };
 
@@ -590,6 +602,7 @@ function PlayGameRoom() {
                             testableCase={currentTestCase}
                             onTestCaseChange={handleTestBoxChange}
                             onNewParameter={handleNewParameter}
+                            onParameterDelete={handleParameterDelete}
                           />
                         ) : null;
                       })()}

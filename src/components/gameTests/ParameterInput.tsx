@@ -1,10 +1,10 @@
-import { ActionIcon, Alert, Box, Button, Group, NumberInput, Stack, Switch, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Alert, Box, Button, Group, MantineStyleProps, NumberInput, Stack, Switch, Text, TextInput } from "@mantine/core";
 import { IconAlertTriangle, IconPlus, IconTrash } from "@tabler/icons-react";
 import { ParameterType } from "@/lib/ProblemInputOutput";
 import deepEqual from "@/util/deepEqual";
 import { useMemo } from "react";
 
-interface ParameterInputProps {
+interface ParameterInputProps extends MantineStyleProps {
   parameter: ParameterType;
   value: string | null;
   onChange: (value: string | null) => void;
@@ -114,6 +114,7 @@ export default function ParameterInput(props: ParameterInputProps) {
     case "number":
       return (
         <NumberInput
+          {...props}
           value={value ? parseFloat(value) : undefined}
           onChange={handleNumberChange}
           disabled={disabled}
@@ -127,7 +128,6 @@ export default function ParameterInput(props: ParameterInputProps) {
           checked={value === "true"}
           onChange={(event) => handleBooleanChange(event.currentTarget.checked)}
           disabled={disabled}
-          label={value === "true" ? "true" : "false"}
           error={isEqual === false ? `Computed: ${JSON.stringify(computedValue)}` : undefined}
         />
       );
@@ -144,6 +144,7 @@ export default function ParameterInput(props: ParameterInputProps) {
               {idx > 0 && <Box w={20} />}
 
               <TextInput
+                {...props}
                 value={element?.toString() || ""}
                 onChange={(e) => stringHandlers.handleElementChange(idx, e.currentTarget.value)}
                 disabled={disabled}
@@ -203,6 +204,7 @@ export default function ParameterInput(props: ParameterInputProps) {
               {idx > 0 && <Box w={20} />}
 
               <NumberInput
+                {...props}
                 value={typeof element === 'number' ? element : parseFloat(element) || 0}
                 onChange={(val) => numberHandlers.handleElementChange(idx, typeof val === 'number' ? val : parseFloat(val))}
                 disabled={disabled}
@@ -265,6 +267,7 @@ export default function ParameterInput(props: ParameterInputProps) {
                     {colIdx > 0 && <Box w={20} />}
 
                     <TextInput
+                      {...props}
                       value={element?.toString() || ""}
                       onChange={(e) => stringHandlers.handleElementChange(rowIdx, colIdx, e.currentTarget.value)}
                       disabled={disabled}
@@ -350,6 +353,7 @@ export default function ParameterInput(props: ParameterInputProps) {
                     {colIdx > 0 && <Box w={20} />}
 
                     <NumberInput
+                      {...props}
                       value={typeof element === 'number' ? element : parseFloat(element) || 0}
                       onChange={(val) => numberHandlers.handleElementChange(rowIdx, colIdx, typeof val === 'number' ? val : parseFloat(val))}
                       disabled={disabled}
@@ -419,6 +423,7 @@ export default function ParameterInput(props: ParameterInputProps) {
     case "string": {
       return (
         <TextInput
+          {...props}
           value={value || ""}
           onChange={(event) => onChange(event.currentTarget.value)}
           disabled={disabled}

@@ -1,7 +1,7 @@
-import { Button, ComboboxData, Flex, Group, Popover, Select, SelectProps, Stack, Table, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Button, ComboboxData, Flex, Group, Popover, Select, SelectProps, Stack, Table, Text, TextInput, Tooltip } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
-import { IconCheck, IconCode, IconHash, IconList, IconListNumbers, IconMatrix, IconPlayerPlay, IconTable, IconTextSize, IconToggleRight } from "@tabler/icons-react";
+import { IconCheck, IconCode, IconHash, IconList, IconListNumbers, IconMatrix, IconPlayerPlay, IconTable, IconTextSize, IconToggleRight, IconTrash } from "@tabler/icons-react";
 import React from "react";
 import { type Socket } from "socket.io-client";
 
@@ -14,6 +14,7 @@ export interface GameTestCaseProps {
   onTestCaseChange: (test: TestableCase) => void;
 
   onNewParameter: (parameter: ParameterType) => void;
+  onParameterDelete: (parameter: ParameterType) => void;
 
   // because we might want to show these test cases
   // on the results screen
@@ -31,27 +32,41 @@ export default function GameTestCase(props: GameTestCaseProps) {
     <Stack gap="md" style={{ overflow: "auto", minHeight: 0, flex: 1 }}>
       <Table withRowBorders={false}>
         <Table.Tbody>
-          {testableCase.functionInput?.map((input, idx) => (
+          {testableCase.functionInput?.map((param, idx) => (
             <Table.Tr key={idx}>
               <Table.Td align="right">
                 <Text c="dimmed">
-                  {input.name} =
+                  {param.name} =
                 </Text>
               </Table.Td>
               <Table.Td>
-                <ParameterInput
-                  parameter={input}
-                  value={input.value}
-                  onChange={(value) => {
-                    const updatedInputs = [...testableCase.functionInput];
-                    updatedInputs[idx] = { ...input, value };
-                    props.onTestCaseChange({
-                      ...testableCase,
-                      functionInput: updatedInputs
-                    });
-                  }}
-                  disabled={props.disabled}
-                />
+                <Group gap="xs">
+                  <ParameterInput
+                    parameter={param}
+                    value={param.value}
+                    onChange={(value) => {
+                      const updatedInputs = [...testableCase.functionInput];
+                      updatedInputs[idx] = { ...param, value };
+                      props.onTestCaseChange({
+                        ...testableCase,
+                        functionInput: updatedInputs
+                      });
+                    }}
+                    disabled={props.disabled}
+                    flex={1}
+                  />
+
+                  {testableCase.functionInput.length !== 1 && <Tooltip label="Remove parameter">
+                    <ActionIcon
+                      color="red"
+                      variant="light"
+                      size="sm"
+                      onClick={() => props.onParameterDelete(param)}
+                    >
+                      <IconTrash />
+                    </ActionIcon>
+                  </Tooltip>}
+                </Group>
               </Table.Td>
             </Table.Tr>
           ))}
