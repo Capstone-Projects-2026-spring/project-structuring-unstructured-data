@@ -10,7 +10,8 @@ import {
 export interface TestableCase {
   id: number;
   functionInput: ParameterType[];
-  expectedOutput: ParameterType[];
+  expectedOutput: ParameterType;
+  computedOutput?: string | null;
 }
 
 export interface GameTestCasesContextAPI {
@@ -39,9 +40,8 @@ export const GameTestCasesProvider = ({ children }: { children: ReactNode }) => 
         { name: "a", type: "number", value: "2" },
         { name: "b", type: "number", value: "3" }
       ],
-      expectedOutput: [
+      expectedOutput: 
         { name: "result", type: "number", value: "5", isOutputParameter: true }
-      ]
     }
   ]);
 

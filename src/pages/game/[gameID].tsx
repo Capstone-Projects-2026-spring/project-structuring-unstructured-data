@@ -232,7 +232,7 @@ function PlayGameRoom() {
 
     const newId = testCaseCtx.cases.length; // zero-based index
     console.log("creating new test with id", newId);
-    const newCase = {
+    const newCase: TestableCase = {
       id: newId,
       functionInput: testCaseCtx.parameters
         .filter(p => !p.isOutputParameter)
@@ -240,12 +240,11 @@ function PlayGameRoom() {
           ...c,
           value: null
         })),
-      expectedOutput: testCaseCtx.parameters
-        .filter(p => p.isOutputParameter)
-        .map(c => ({
-          ...c,
-          value: null
-        })),
+      expectedOutput: {
+        ...testCaseCtx.parameters
+          .find(p => p.isOutputParameter)!,
+        value: null
+      },
     };
     testCaseCtx.addCase(newCase);
 
