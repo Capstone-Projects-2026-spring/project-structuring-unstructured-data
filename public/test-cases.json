@@ -14625,63 +14625,6 @@
     "optimalTimeMs": 8
   },
   {
-    "problemId": "duplicate-emails",
-    "functionInput": [
-      {
-        "name": "emails",
-        "type": "array_string",
-        "value": "[\"john@example.com\", \"jane@example.com\", \"john@example.com\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"john@example.com\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "duplicate-emails",
-    "functionInput": [
-      {
-        "name": "emails",
-        "type": "array_string",
-        "value": "[\"alice@test.com\", \"bob@test.com\", \"charlie@test.com\", \"alice@test.com\", \"bob@test.com\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"alice@test.com\", \"bob@test.com\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
-    "problemId": "duplicate-emails",
-    "functionInput": [
-      {
-        "name": "emails",
-        "type": "array_string",
-        "value": "[\"user1@domain.com\", \"user2@domain.com\", \"user3@domain.com\", \"user4@domain.com\", \"user1@domain.com\", \"user2@domain.com\", \"user5@domain.com\", \"user3@domain.com\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"user1@domain.com\", \"user2@domain.com\", \"user3@domain.com\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 25
-  },
-  {
     "problemId": "coin-change-2",
     "functionInput": [
       {
@@ -16590,63 +16533,6 @@
     "optimalTimeMs": 6
   },
   {
-    "problemId": "consecutive-numbers",
-    "functionInput": [
-      {
-        "name": "nums",
-        "type": "array_number",
-        "value": "[1, 2, 3]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "boolean",
-        "value": "true"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "consecutive-numbers",
-    "functionInput": [
-      {
-        "name": "nums",
-        "type": "array_number",
-        "value": "[1, 3, 5, 7]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "boolean",
-        "value": "false"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "consecutive-numbers",
-    "functionInput": [
-      {
-        "name": "nums",
-        "type": "array_number",
-        "value": "[5, 6, 7, 8, 9, 10]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "boolean",
-        "value": "true"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 8
-  },
-  {
     "problemId": "find-smallest-letter-greater-than-target",
     "functionInput": [
       {
@@ -17256,63 +17142,6 @@
         "name": "result",
         "type": "string",
         "value": "[36,51,15,58,54,null,20,60,57,55,53,null,null,null,null]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "rank-scores",
-    "functionInput": [
-      {
-        "name": "scores",
-        "type": "array_number",
-        "value": "[10, 3, 8, 9, 4]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "ranks",
-        "type": "array_number",
-        "value": "[1, 5, 3, 2, 4]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "rank-scores",
-    "functionInput": [
-      {
-        "name": "scores",
-        "type": "array_number",
-        "value": "[100, 90, 90, 80]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "ranks",
-        "type": "array_number",
-        "value": "[1, 2, 2, 4]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "rank-scores",
-    "functionInput": [
-      {
-        "name": "scores",
-        "type": "array_number",
-        "value": "[50, 50, 50, 50]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "ranks",
-        "type": "array_number",
-        "value": "[1, 1, 1, 1]"
       }
     ],
     "language": "javascript",
@@ -19767,78 +19596,6 @@
     "optimalTimeMs": 80
   },
   {
-    "problemId": "trips-and-users",
-    "functionInput": [
-      {
-        "name": "Trips",
-        "type": "array_string",
-        "value": "[['1','2020-01-01','1'],['2','2020-01-02','5'],['3','2020-01-03','1']]"
-      },
-      {
-        "name": "Users",
-        "type": "array_string",
-        "value": "[['1','Alice','1'],['2','Bob','0'],['3','Charlie','1']]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[['2020-01-01','1','1','1'],['2020-01-02','1','1','0'],['2020-01-03','1','1','1']]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 25
-  },
-  {
-    "problemId": "trips-and-users",
-    "functionInput": [
-      {
-        "name": "Trips",
-        "type": "array_string",
-        "value": "[['1','2020-03-15','2'],['2','2020-03-15','3'],['3','2020-03-16','1'],['4','2020-03-16','4']]"
-      },
-      {
-        "name": "Users",
-        "type": "array_string",
-        "value": "[['1','John','0'],['2','Jane','1'],['3','Jack','0'],['4','Jill','1']]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[['2020-03-15','2','1','1'],['2020-03-16','2','1','1']]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 30
-  },
-  {
-    "problemId": "trips-and-users",
-    "functionInput": [
-      {
-        "name": "Trips",
-        "type": "array_string",
-        "value": "[['1','2020-05-01','1'],['2','2020-05-01','5'],['3','2020-05-02','2'],['4','2020-05-02','3'],['5','2020-05-03','1'],['6','2020-05-03','4']]"
-      },
-      {
-        "name": "Users",
-        "type": "array_string",
-        "value": "[['1','Alex','1'],['2','Bob','0'],['3','Charlie','1'],['4','David','0'],['5','Eve','1']]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[['2020-05-01','2','1','0.5'],['2020-05-02','2','2','1'],['2020-05-03','2','1','0.5']]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 35
-  },
-  {
     "problemId": "number-of-steps-to-reduce-a-number-to-zero",
     "functionInput": [
       {
@@ -21687,63 +21444,6 @@
     "optimalTimeMs": 10
   },
   {
-    "problemId": "not-boring-movies",
-    "functionInput": [
-      {
-        "name": "movies",
-        "type": "array_string",
-        "value": "[\"Action\",\"Comedy\",\"Drama\",\"Thriller\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"Comedy\",\"Thriller\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "not-boring-movies",
-    "functionInput": [
-      {
-        "name": "movies",
-        "type": "array_string",
-        "value": "[\"Boring\",\"Boring\",\"NotBoring\",\"Boring\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"NotBoring\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "not-boring-movies",
-    "functionInput": [
-      {
-        "name": "movies",
-        "type": "array_string",
-        "value": "[\"Adventure\",\"Fantasy\",\"SciFi\",\"Horror\",\"Comedy\",\"Romance\",\"Thriller\",\"Animation\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"Adventure\",\"Fantasy\",\"SciFi\",\"Horror\",\"Comedy\",\"Romance\",\"Thriller\",\"Animation\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
     "problemId": "maximum-product-of-word-lengths",
     "functionInput": [
       {
@@ -22341,63 +22041,6 @@
         "name": "result",
         "type": "boolean",
         "value": "true"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "swap-salary",
-    "functionInput": [
-      {
-        "name": "employee",
-        "type": "array_string",
-        "value": "[\"m\", \"1000\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"f\", \"1000\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "swap-salary",
-    "functionInput": [
-      {
-        "name": "employee",
-        "type": "array_string",
-        "value": "[\"f\", \"2500\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"m\", \"2500\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "swap-salary",
-    "functionInput": [
-      {
-        "name": "employee",
-        "type": "array_string",
-        "value": "[\"m\", \"50000\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"f\", \"50000\"]"
       }
     ],
     "language": "javascript",
@@ -28552,63 +28195,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 40
-  },
-  {
-    "problemId": "exchange-seats",
-    "functionInput": [
-      {
-        "name": "seat",
-        "type": "number",
-        "value": "1"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "2"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "exchange-seats",
-    "functionInput": [
-      {
-        "name": "seat",
-        "type": "number",
-        "value": "2"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "1"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "exchange-seats",
-    "functionInput": [
-      {
-        "name": "seat",
-        "type": "number",
-        "value": "5"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "4"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
   },
   {
     "problemId": "minimum-time-visiting-all-points",
@@ -40917,83 +40503,6 @@
     "optimalTimeMs": 20
   },
   {
-    "problemId": "tree-node",
-    "functionInput": [
-      {
-        "name": "nodeValue",
-        "type": "number",
-        "value": "5"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "node",
-        "type": "string",
-        "value": "TreeNode(5)"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "tree-node",
-    "functionInput": [
-      {
-        "name": "nodeValue",
-        "type": "number",
-        "value": "10"
-      },
-      {
-        "name": "leftChild",
-        "type": "string",
-        "value": "TreeNode(5)"
-      },
-      {
-        "name": "rightChild",
-        "type": "string",
-        "value": "TreeNode(15)"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "node",
-        "type": "string",
-        "value": "TreeNode(10,TreeNode(5),TreeNode(15))"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "tree-node",
-    "functionInput": [
-      {
-        "name": "nodeValue",
-        "type": "number",
-        "value": "1"
-      },
-      {
-        "name": "leftChild",
-        "type": "string",
-        "value": "TreeNode(2,TreeNode(4),TreeNode(5))"
-      },
-      {
-        "name": "rightChild",
-        "type": "string",
-        "value": "TreeNode(3)"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "node",
-        "type": "string",
-        "value": "TreeNode(1,TreeNode(2,TreeNode(4),TreeNode(5)),TreeNode(3))"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
     "problemId": "replace-the-substring-for-balanced-string",
     "functionInput": [
       {
@@ -47124,63 +46633,6 @@
     "optimalTimeMs": 5
   },
   {
-    "problemId": "recyclable-and-low-fat-products",
-    "functionInput": [
-      {
-        "name": "products",
-        "type": "array_number",
-        "value": "[1, 0, 1]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "boolean",
-        "value": "true"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "recyclable-and-low-fat-products",
-    "functionInput": [
-      {
-        "name": "products",
-        "type": "array_number",
-        "value": "[0, 1, 0]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "boolean",
-        "value": "false"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "recyclable-and-low-fat-products",
-    "functionInput": [
-      {
-        "name": "products",
-        "type": "array_number",
-        "value": "[1, 1, 0]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "boolean",
-        "value": "false"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
     "problemId": "can-convert-string-in-k-moves",
     "functionInput": [
       {
@@ -49432,78 +48884,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 20
-  },
-  {
-    "problemId": "market-analysis-i",
-    "functionInput": [
-      {
-        "name": "Users",
-        "type": "array_string",
-        "value": "[{\"user_id\": 1, \"join_date\": \"2018-01-01\"}, {\"user_id\": 2, \"join_date\": \"2018-02-09\"}]"
-      },
-      {
-        "name": "Orders",
-        "type": "array_string",
-        "value": "[{\"order_id\": 1, \"user_id\": 1, \"order_date\": \"2018-01-11\", \"item_id\": 1, \"quantity\": 10}, {\"order_id\": 2, \"user_id\": 2, \"order_date\": \"2018-01-17\", \"item_id\": 2, \"quantity\": 1}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"buyer_id\": 1, \"join_date\": \"2018-01-01\", \"orders_in_2018\": 1}, {\"buyer_id\": 2, \"join_date\": \"2018-02-09\", \"orders_in_2018\": 1}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "market-analysis-i",
-    "functionInput": [
-      {
-        "name": "Users",
-        "type": "array_string",
-        "value": "[{\"user_id\": 1, \"join_date\": \"2018-01-01\"}, {\"user_id\": 2, \"join_date\": \"2018-02-09\"}, {\"user_id\": 3, \"join_date\": \"2018-01-19\"}]"
-      },
-      {
-        "name": "Orders",
-        "type": "array_string",
-        "value": "[{\"order_id\": 1, \"user_id\": 1, \"order_date\": \"2018-01-11\", \"item_id\": 1, \"quantity\": 10}, {\"order_id\": 2, \"user_id\": 1, \"order_date\": \"2018-01-15\", \"item_id\": 2, \"quantity\": 5}, {\"order_id\": 3, \"user_id\": 2, \"order_date\": \"2018-01-17\", \"item_id\": 1, \"quantity\": 3}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"buyer_id\": 1, \"join_date\": \"2018-01-01\", \"orders_in_2018\": 2}, {\"buyer_id\": 2, \"join_date\": \"2018-02-09\", \"orders_in_2018\": 1}, {\"buyer_id\": 3, \"join_date\": \"2018-01-19\", \"orders_in_2018\": 0}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
-    "problemId": "market-analysis-i",
-    "functionInput": [
-      {
-        "name": "Users",
-        "type": "array_string",
-        "value": "[{\"user_id\": 1, \"join_date\": \"2019-01-01\"}, {\"user_id\": 2, \"join_date\": \"2018-02-09\"}, {\"user_id\": 3, \"join_date\": \"2018-01-19\"}, {\"user_id\": 4, \"join_date\": \"2018-05-21\"}]"
-      },
-      {
-        "name": "Orders",
-        "type": "array_string",
-        "value": "[{\"order_id\": 1, \"user_id\": 3, \"order_date\": \"2018-04-06\", \"item_id\": 4, \"quantity\": 1}, {\"order_id\": 2, \"user_id\": 4, \"order_date\": \"2018-06-17\", \"item_id\": 5, \"quantity\": 2}, {\"order_id\": 3, \"user_id\": 2, \"order_date\": \"2018-12-07\", \"item_id\": 7, \"quantity\": 4}, {\"order_id\": 4, \"user_id\": 1, \"order_date\": \"2019-11-07\", \"item_id\": 8, \"quantity\": 1}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"buyer_id\": 1, \"join_date\": \"2019-01-01\", \"orders_in_2018\": 0}, {\"buyer_id\": 2, \"join_date\": \"2018-02-09\", \"orders_in_2018\": 1}, {\"buyer_id\": 3, \"join_date\": \"2018-01-19\", \"orders_in_2018\": 1}, {\"buyer_id\": 4, \"join_date\": \"2018-05-21\", \"orders_in_2018\": 1}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 25
   },
   {
     "problemId": "count-integers-with-even-digit-sum",
@@ -53418,63 +52798,6 @@
     "optimalTimeMs": 10
   },
   {
-    "problemId": "second-highest-salary",
-    "functionInput": [
-      {
-        "name": "salaries",
-        "type": "array_number",
-        "value": "[100, 200, 150]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "150"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "second-highest-salary",
-    "functionInput": [
-      {
-        "name": "salaries",
-        "type": "array_number",
-        "value": "[100, 100, 100]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "-1"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "second-highest-salary",
-    "functionInput": [
-      {
-        "name": "salaries",
-        "type": "array_number",
-        "value": "[50, 200, 100, 300, 150, 200]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "200"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
     "problemId": "diameter-of-binary-tree",
     "functionInput": [
       {
@@ -55137,78 +54460,6 @@
     "optimalTimeMs": 5
   },
   {
-    "problemId": "combine-two-tables",
-    "functionInput": [
-      {
-        "name": "person",
-        "type": "array_string",
-        "value": "[['PersonId', 'LastName', 'FirstName'], ['1', 'Wang', 'Allen'], ['2', 'Alice', 'Bob']]"
-      },
-      {
-        "name": "address",
-        "type": "array_string",
-        "value": "[['AddressId', 'PersonId', 'City', 'State'], ['1', '2', 'New York', 'NY'], ['2', '3', 'LeetCode', 'California']]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[['FirstName', 'LastName', 'City', 'State'], ['Allen', 'Wang', null, null], ['Bob', 'Alice', 'New York', 'NY']]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "combine-two-tables",
-    "functionInput": [
-      {
-        "name": "person",
-        "type": "array_string",
-        "value": "[['PersonId', 'LastName', 'FirstName'], ['1', 'Smith', 'John'], ['2', 'Doe', 'Jane'], ['3', 'Brown', 'Charlie']]"
-      },
-      {
-        "name": "address",
-        "type": "array_string",
-        "value": "[['AddressId', 'PersonId', 'City', 'State'], ['1', '1', 'Boston', 'MA'], ['2', '3', 'Chicago', 'IL']]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[['FirstName', 'LastName', 'City', 'State'], ['John', 'Smith', 'Boston', 'MA'], ['Jane', 'Doe', null, null], ['Charlie', 'Brown', 'Chicago', 'IL']]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "combine-two-tables",
-    "functionInput": [
-      {
-        "name": "person",
-        "type": "array_string",
-        "value": "[['PersonId', 'LastName', 'FirstName'], ['1', 'Johnson', 'Michael']]"
-      },
-      {
-        "name": "address",
-        "type": "array_string",
-        "value": "[['AddressId', 'PersonId', 'City', 'State']]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[['FirstName', 'LastName', 'City', 'State'], ['Michael', 'Johnson', null, null]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
     "problemId": "count-complete-tree-nodes",
     "functionInput": [
       {
@@ -55579,78 +54830,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 5
-  },
-  {
-    "problemId": "nth-highest-salary",
-    "functionInput": [
-      {
-        "name": "n",
-        "type": "number",
-        "value": "2"
-      },
-      {
-        "name": "salaries",
-        "type": "array_number",
-        "value": "[100, 200, 300, 400, 500]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "400"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "nth-highest-salary",
-    "functionInput": [
-      {
-        "name": "n",
-        "type": "number",
-        "value": "1"
-      },
-      {
-        "name": "salaries",
-        "type": "array_number",
-        "value": "[150, 250, 350]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "350"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "nth-highest-salary",
-    "functionInput": [
-      {
-        "name": "n",
-        "type": "number",
-        "value": "3"
-      },
-      {
-        "name": "salaries",
-        "type": "array_number",
-        "value": "[100, 100, 100, 100, 200]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "-1"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
   },
   {
     "problemId": "longest-increasing-path-in-a-matrix",
@@ -56253,63 +55432,6 @@
     "optimalTimeMs": 10
   },
   {
-    "problemId": "employees-earning-more-than-their-managers",
-    "functionInput": [
-      {
-        "name": "employees",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"name\": \"Joe\", \"salary\": 70000, \"managerId\": 3}, {\"id\": 2, \"name\": \"Henry\", \"salary\": 80000, \"managerId\": 4}, {\"id\": 3, \"name\": \"Sam\", \"salary\": 60000, \"managerId\": null}, {\"id\": 4, \"name\": \"Max\", \"salary\": 90000, \"managerId\": null}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"name\": \"Henry\"}, {\"name\": \"Sam\"}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "employees-earning-more-than-their-managers",
-    "functionInput": [
-      {
-        "name": "employees",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"name\": \"Alice\", \"salary\": 50000, \"managerId\": 2}, {\"id\": 2, \"name\": \"Bob\", \"salary\": 60000, \"managerId\": null}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 10
-  },
-  {
-    "problemId": "employees-earning-more-than-their-managers",
-    "functionInput": [
-      {
-        "name": "employees",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"name\": \"Tom\", \"salary\": 100000, \"managerId\": 2}, {\"id\": 2, \"name\": \"Jerry\", \"salary\": 80000, \"managerId\": 3}, {\"id\": 3, \"name\": \"Spike\", \"salary\": 70000, \"managerId\": null}, {\"id\": 4, \"name\": \"Tyke\", \"salary\": 90000, \"managerId\": 2}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"name\": \"Tom\"}, {\"name\": \"Jerry\"}, {\"name\": \"Tyke\"}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
     "problemId": "add-two-numbers-ii",
     "functionInput": [
       {
@@ -56509,63 +55631,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 10
-  },
-  {
-    "problemId": "rising-temperature",
-    "functionInput": [
-      {
-        "name": "records",
-        "type": "array_string",
-        "value": "[\"2015-01-01,10\",\"2015-01-02,25\",\"2015-01-03,20\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[2]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "rising-temperature",
-    "functionInput": [
-      {
-        "name": "records",
-        "type": "array_string",
-        "value": "[\"2015-01-01,10\",\"2015-01-02,5\",\"2015-01-03,15\",\"2015-01-04,20\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[3]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "rising-temperature",
-    "functionInput": [
-      {
-        "name": "records",
-        "type": "array_string",
-        "value": "[\"2015-01-01,30\",\"2015-01-02,28\",\"2015-01-03,32\",\"2015-01-04,25\",\"2015-01-05,35\",\"2015-01-06,40\",\"2015-01-07,38\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[3,5,6]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
   },
   {
     "problemId": "peak-index-in-a-mountain-array",
@@ -56824,78 +55889,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 25
-  },
-  {
-    "problemId": "department-highest-salary",
-    "functionInput": [
-      {
-        "name": "employee",
-        "type": "array_string",
-        "value": "[\"1,Joe,70000,1\",\"2,Jim,90000,1\",\"3,Henry,80000,2\",\"4,Sam,60000,2\",\"5,Max,90000,1\"]"
-      },
-      {
-        "name": "department",
-        "type": "array_string",
-        "value": "[\"1,IT\",\"2,Sales\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"IT,Jim,90000\",\"IT,Max,90000\",\"Sales,Henry,80000\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "department-highest-salary",
-    "functionInput": [
-      {
-        "name": "employee",
-        "type": "array_string",
-        "value": "[\"1,Alice,50000,1\",\"2,Bob,75000,1\",\"3,Charlie,80000,2\"]"
-      },
-      {
-        "name": "department",
-        "type": "array_string",
-        "value": "[\"1,Engineering\",\"2,Product\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"Engineering,Bob,75000\",\"Product,Charlie,80000\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 12
-  },
-  {
-    "problemId": "department-highest-salary",
-    "functionInput": [
-      {
-        "name": "employee",
-        "type": "array_string",
-        "value": "[\"1,Alice,100000,1\",\"2,Bob,100000,1\",\"3,Charlie,100000,1\",\"4,David,90000,2\",\"5,Eve,120000,2\",\"6,Frank,120000,2\"]"
-      },
-      {
-        "name": "department",
-        "type": "array_string",
-        "value": "[\"1,Finance\",\"2,Operations\"]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"Finance,Alice,100000\",\"Finance,Bob,100000\",\"Finance,Charlie,100000\",\"Operations,Eve,120000\",\"Operations,Frank,120000\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 18
   },
   {
     "problemId": "expression-add-operators",
@@ -65515,63 +64508,6 @@
     "optimalTimeMs": 15
   },
   {
-    "problemId": "customer-placing-the-largest-number-of-orders",
-    "functionInput": [
-      {
-        "name": "orders",
-        "type": "array_number",
-        "value": "[1, 1, 1, 2, 2, 3]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "1"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "customer-placing-the-largest-number-of-orders",
-    "functionInput": [
-      {
-        "name": "orders",
-        "type": "array_number",
-        "value": "[5, 5, 5, 5, 10, 10, 10, 20, 20]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "5"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "customer-placing-the-largest-number-of-orders",
-    "functionInput": [
-      {
-        "name": "orders",
-        "type": "array_number",
-        "value": "[1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 1, 1, 1, 1, 1]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "1"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
     "problemId": "group-the-people-given-the-group-size-they-belong-to",
     "functionInput": [
       {
@@ -66577,63 +65513,6 @@
     "optimalTimeMs": 100
   },
   {
-    "problemId": "reformat-department-table",
-    "functionInput": [
-      {
-        "name": "department",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"revenue\": 8000, \"month\": \"Jan\"}, {\"id\": 2, \"revenue\": 9000, \"month\": \"Jan\"}, {\"id\": 1, \"revenue\": 7000, \"month\": \"Feb\"}, {\"id\": 2, \"revenue\": 8000, \"month\": \"Feb\"}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"Jan_Revenue\": 8000, \"Feb_Revenue\": 7000}, {\"id\": 2, \"Jan_Revenue\": 9000, \"Feb_Revenue\": 8000}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "reformat-department-table",
-    "functionInput": [
-      {
-        "name": "department",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"revenue\": 5000, \"month\": \"Jan\"}, {\"id\": 1, \"revenue\": 6000, \"month\": \"Feb\"}, {\"id\": 1, \"revenue\": 7000, \"month\": \"Mar\"}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"Jan_Revenue\": 5000, \"Feb_Revenue\": 6000, \"Mar_Revenue\": 7000}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 10
-  },
-  {
-    "problemId": "reformat-department-table",
-    "functionInput": [
-      {
-        "name": "department",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"revenue\": 10000, \"month\": \"Jan\"}, {\"id\": 2, \"revenue\": 12000, \"month\": \"Jan\"}, {\"id\": 3, \"revenue\": 8000, \"month\": \"Jan\"}, {\"id\": 1, \"revenue\": 11000, \"month\": \"Feb\"}, {\"id\": 2, \"revenue\": 13000, \"month\": \"Feb\"}, {\"id\": 3, \"revenue\": 9000, \"month\": \"Feb\"}, {\"id\": 1, \"revenue\": 12000, \"month\": \"Mar\"}, {\"id\": 2, \"revenue\": 14000, \"month\": \"Mar\"}, {\"id\": 3, \"revenue\": 10000, \"month\": \"Mar\"}]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[{\"id\": 1, \"Jan_Revenue\": 10000, \"Feb_Revenue\": 11000, \"Mar_Revenue\": 12000}, {\"id\": 2, \"Jan_Revenue\": 12000, \"Feb_Revenue\": 13000, \"Mar_Revenue\": 14000}, {\"id\": 3, \"Jan_Revenue\": 8000, \"Feb_Revenue\": 9000, \"Mar_Revenue\": 10000}]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
     "problemId": "count-vowels-permutation",
     "functionInput": [
       {
@@ -67207,78 +66086,6 @@
     "optimalTimeMs": 5
   },
   {
-    "problemId": "find-customer-referee",
-    "functionInput": [
-      {
-        "name": "customer",
-        "type": "array_number",
-        "value": "[1, 2, 3, 4, 5]"
-      },
-      {
-        "name": "referee_id",
-        "type": "array_number",
-        "value": "[2, null, 2, null, 1]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[4, 5]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "find-customer-referee",
-    "functionInput": [
-      {
-        "name": "customer",
-        "type": "array_number",
-        "value": "[1, 2, 3]"
-      },
-      {
-        "name": "referee_id",
-        "type": "array_number",
-        "value": "[null, null, null]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[1, 2, 3]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 10
-  },
-  {
-    "problemId": "find-customer-referee",
-    "functionInput": [
-      {
-        "name": "customer",
-        "type": "array_number",
-        "value": "[10, 20, 30, 40, 50, 60, 70, 80]"
-      },
-      {
-        "name": "referee_id",
-        "type": "array_number",
-        "value": "[5, 10, null, 20, null, 30, 40, null]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[30, 50, 80]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
     "problemId": "max-chunks-to-make-sorted-ii",
     "functionInput": [
       {
@@ -67408,63 +66215,6 @@
     "optimalTimeMs": 100
   },
   {
-    "problemId": "sales-person",
-    "functionInput": [
-      {
-        "name": "sales",
-        "type": "array_number",
-        "value": "[100, 200, 150]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "450"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "sales-person",
-    "functionInput": [
-      {
-        "name": "sales",
-        "type": "array_number",
-        "value": "[50, 75, 125, 200, 300, 250]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "1000"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
-    "problemId": "sales-person",
-    "functionInput": [
-      {
-        "name": "sales",
-        "type": "array_number",
-        "value": "[1000]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "number",
-        "value": "1000"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 5
-  },
-  {
     "problemId": "couples-holding-hands",
     "functionInput": [
       {
@@ -67520,78 +66270,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 5
-  },
-  {
-    "problemId": "sales-analysis-iii",
-    "functionInput": [
-      {
-        "name": "Product",
-        "type": "array_string",
-        "value": "[\"product_id\",\"product_name\"],[\"1\",\"S8\"],[\"2\",\"G4\"],[\"3\",\"laptop\"]]"
-      },
-      {
-        "name": "Sales",
-        "type": "array_string",
-        "value": "[\"seller_id\",\"product_id\",\"buyer_id\",\"sale_date\",\"quantity\",\"price\"],[\"1\",\"1\",\"1\",\"2019-01-21\",\"2\",\"2000\"],[\"1\",\"2\",\"2\",\"2019-02-17\",\"1\",\"800\"],[\"2\",\"2\",\"3\",\"2019-06-11\",\"1\",\"800\"],[\"3\",\"3\",\"4\",\"2019-05-13\",\"2\",\"2800\"]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"product_id\",\"product_name\"],[\"1\",\"S8\"],[\"2\",\"G4\"]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "sales-analysis-iii",
-    "functionInput": [
-      {
-        "name": "Product",
-        "type": "array_string",
-        "value": "[\"product_id\",\"product_name\"],[\"1\",\"laptop\"],[\"2\",\"phone\"],[\"3\",\"monitor\"]]"
-      },
-      {
-        "name": "Sales",
-        "type": "array_string",
-        "value": "[\"seller_id\",\"product_id\",\"buyer_id\",\"sale_date\",\"quantity\",\"price\"],[\"1\",\"1\",\"1\",\"2019-01-15\",\"1\",\"1000\"],[\"1\",\"1\",\"2\",\"2019-02-15\",\"1\",\"1000\"],[\"2\",\"2\",\"3\",\"2019-01-20\",\"2\",\"500\"],[\"3\",\"3\",\"4\",\"2019-03-10\",\"1\",\"300\"]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"product_id\",\"product_name\"],[\"1\",\"laptop\"],[\"2\",\"phone\"]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "sales-analysis-iii",
-    "functionInput": [
-      {
-        "name": "Product",
-        "type": "array_string",
-        "value": "[\"product_id\",\"product_name\"],[\"1\",\"A\"],[\"2\",\"B\"],[\"3\",\"C\"],[\"4\",\"D\"]]"
-      },
-      {
-        "name": "Sales",
-        "type": "array_string",
-        "value": "[\"seller_id\",\"product_id\",\"buyer_id\",\"sale_date\",\"quantity\",\"price\"],[\"1\",\"1\",\"11\",\"2019-01-01\",\"2\",\"2000\"],[\"1\",\"1\",\"11\",\"2019-02-15\",\"2\",\"2000\"],[\"1\",\"2\",\"12\",\"2019-01-10\",\"1\",\"1500\"],[\"2\",\"3\",\"13\",\"2019-03-20\",\"5\",\"700\"],[\"2\",\"4\",\"14\",\"2019-04-15\",\"3\",\"1000\"]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"product_id\",\"product_name\"],[\"1\",\"A\"]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
   },
   {
     "problemId": "pseudo-palindromic-paths-in-a-binary-tree",
@@ -68713,63 +67391,6 @@
     "optimalTimeMs": 5
   },
   {
-    "problemId": "user-activity-for-the-past-30-days-i",
-    "functionInput": [
-      {
-        "name": "activity",
-        "type": "array_string",
-        "value": "[[\"1\",\"2021-01-01\"],[\"1\",\"2021-01-02\"],[\"2\",\"2021-01-01\"],[\"3\",\"2021-01-02\"],[\"3\",\"2021-01-03\"]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[[\"1\",\"2\"],[\"2\",\"1\"],[\"3\",\"2\"]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 50
-  },
-  {
-    "problemId": "user-activity-for-the-past-30-days-i",
-    "functionInput": [
-      {
-        "name": "activity",
-        "type": "array_string",
-        "value": "[[\"100\",\"2021-01-15\"],[\"100\",\"2021-01-16\"],[\"100\",\"2021-01-17\"]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[[\"100\",\"3\"]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 50
-  },
-  {
-    "problemId": "user-activity-for-the-past-30-days-i",
-    "functionInput": [
-      {
-        "name": "activity",
-        "type": "array_string",
-        "value": "[[\"1\",\"2021-01-05\"],[\"2\",\"2021-01-10\"],[\"3\",\"2021-01-07\"],[\"1\",\"2021-01-08\"],[\"2\",\"2021-01-10\"],[\"4\",\"2021-01-12\"],[\"5\",\"2021-01-01\"],[\"1\",\"2021-01-05\"],[\"3\",\"2021-01-15\"]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[[\"1\",\"3\"],[\"2\",\"2\"],[\"3\",\"2\"],[\"4\",\"1\"],[\"5\",\"1\"]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 50
-  },
-  {
     "problemId": "path-crossing",
     "functionInput": [
       {
@@ -69037,63 +67658,6 @@
         "name": "result",
         "type": "number",
         "value": "3"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 20
-  },
-  {
-    "problemId": "actors-and-directors-who-cooperated-at-least-three-times",
-    "functionInput": [
-      {
-        "name": "actorDirector",
-        "type": "array_array_number",
-        "value": "[[1,1],[1,1],[1,1],[1,2],[1,2],[2,1],[2,1],[2,1]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_array_number",
-        "value": "[[1,1],[2,1]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "actors-and-directors-who-cooperated-at-least-three-times",
-    "functionInput": [
-      {
-        "name": "actorDirector",
-        "type": "array_array_number",
-        "value": "[[1,1],[1,2],[1,2],[2,1],[2,1],[3,1],[3,1],[3,1]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_array_number",
-        "value": "[[3,1]]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "actors-and-directors-who-cooperated-at-least-three-times",
-    "functionInput": [
-      {
-        "name": "actorDirector",
-        "type": "array_array_number",
-        "value": "[[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[3,3],[4,4],[4,4],[4,4],[4,4],[4,4]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_array_number",
-        "value": "[[1,1],[2,2],[4,4]]"
       }
     ],
     "language": "javascript",
@@ -71579,63 +70143,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 20
-  },
-  {
-    "problemId": "article-views-i",
-    "functionInput": [
-      {
-        "name": "views",
-        "type": "array_number",
-        "value": "[[1,3,1],[1,3,2],[2,3,2]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[3]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 10
-  },
-  {
-    "problemId": "article-views-i",
-    "functionInput": [
-      {
-        "name": "views",
-        "type": "array_number",
-        "value": "[[4,3,2],[8,5,4],[5,6,5]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 10
-  },
-  {
-    "problemId": "article-views-i",
-    "functionInput": [
-      {
-        "name": "views",
-        "type": "array_number",
-        "value": "[[1,1,1],[2,2,2],[3,3,3],[1,2,1],[2,3,2],[1,3,1]]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_number",
-        "value": "[1,2,3]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 10
   },
   {
     "problemId": "escape-a-large-maze",
@@ -76362,78 +74869,6 @@
     ],
     "language": "javascript",
     "optimalTimeMs": 3
-  },
-  {
-    "problemId": "top-travellers",
-    "functionInput": [
-      {
-        "name": "users",
-        "type": "array_string",
-        "value": "[\"Alice\",\"Bob\",\"Alice\"]"
-      },
-      {
-        "name": "distances",
-        "type": "array_number",
-        "value": "[4,3,2]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"Alice\",\"Bob\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "top-travellers",
-    "functionInput": [
-      {
-        "name": "users",
-        "type": "array_string",
-        "value": "[\"John\",\"Jane\",\"John\",\"Jane\",\"Bob\"]"
-      },
-      {
-        "name": "distances",
-        "type": "array_number",
-        "value": "[100,50,100,50,25]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"John\",\"Jane\",\"Bob\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
-  },
-  {
-    "problemId": "top-travellers",
-    "functionInput": [
-      {
-        "name": "users",
-        "type": "array_string",
-        "value": "[\"Alice\",\"Alice\",\"Alice\",\"Bob\",\"Bob\",\"Charlie\"]"
-      },
-      {
-        "name": "distances",
-        "type": "array_number",
-        "value": "[10,20,30,5,10,15]"
-      }
-    ],
-    "expectedOutput": [
-      {
-        "name": "result",
-        "type": "array_string",
-        "value": "[\"Alice\",\"Charlie\",\"Bob\"]"
-      }
-    ],
-    "language": "javascript",
-    "optimalTimeMs": 15
   },
   {
     "problemId": "minimum-length-of-string-after-deleting-similar-ends",
