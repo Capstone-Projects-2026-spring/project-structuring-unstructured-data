@@ -15,13 +15,14 @@ const usersRouter = require('./routes/users');
 const DB_USER = process.env.MONGODB_USER;
 const DB_PASSWORD = process.env.MONGODB_PASSWORD;
 const PORT = process.env.DB_PORT || process.env.PORT || 5000;
+const REQUEST_BODY_LIMIT = process.env.REQUEST_BODY_LIMIT || '25mb';
 
 // initialize express app
 const app = express();
 
 // Set up middleware to parse JSON bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 // Custom middleware for logging
 app.use((req, res, next) => {
@@ -32,6 +33,18 @@ app.use((req, res, next) => {
 // Mount routers
 app.use(messagesRouter);
 app.use(usersRouter);
+
+// Return a clear error when payloads exceed configured body size.
+app.use((err, _req, res, next) => {
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: `Request payload is too large. Split requests into smaller chunks or increase REQUEST_BODY_LIMIT (current: ${REQUEST_BODY_LIMIT}).`,
+      requestBodyLimit: REQUEST_BODY_LIMIT,
+    });
+  }
+
+  return next(err);
+});
 
 // Simple health endpoint for uptime checks
 app.get('/health', (_req, res) => {
