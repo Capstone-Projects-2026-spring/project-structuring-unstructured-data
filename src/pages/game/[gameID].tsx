@@ -133,8 +133,10 @@ export default function PlayGameRoom() {
     });
 
     socketInstance.on("roleSwapWarning", () => {
-      if (role && role !== Role.SPECTATOR) {
+      if (role) {
         showRoleSwapWarning(role);
+      } else {
+        showRoleSwapWarning(Role.CODER); 
       }
     });
 

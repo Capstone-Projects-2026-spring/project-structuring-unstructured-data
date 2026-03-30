@@ -24,7 +24,6 @@ function createGameService(stateRedis) {
         const warningKey = `game:${gameId}:roleswap:warning`
         console.log("Flipped key being set");
         await stateRedis.set(flippedKey, '1', 'PX', flipped_duration, 'NX'); // set flip timer at the same time
-        console.log("Game ${gameId} will have a role swap at ${flipped_duration / 1000} seconds"); // log the flip time
         const warning_trigger = Math.max(0, flipped_duration - SECONDS_BEFORE_ROLE_SWAP_WARNING); // set the warning popup time
         console.log("Warning key being set")
         await stateRedis.set(warningKey, '1', 'PX', warning_trigger, 'NX');
