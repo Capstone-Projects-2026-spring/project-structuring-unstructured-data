@@ -1,23 +1,41 @@
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 import os
 import pandas as pd
+
+load_dotenv()
 
 class Summarizer:
     def __init__(self):
         pass
 
     def gemini_summarize(self,text):
-        # Load in gemini api key
-        load_dotenv()
-        gemini_api = os.getenv('GEMINI_API_KEY')
-        print("ENV KEY:", os.getenv("GEMINI_API_KEY"))
+        try:
+            # Load in gemini api key
+            
+            gemini_api = os.getenv('GEMINI_API_KEY')
+            #print("ENV KEY:", os.getenv("GEMINI_API_KEY"))
 
-        client = genai.Client(api_key=gemini_api)
+            # Number of bullet points
+            bp = '3'
 
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview", 
-            contents=f"Summarize the main points through bullet points and only return the bullet points. If there is nothing to summarize, just put Nothing to summarize: \n{text}"
-        )
-        print(response.text)
-        return response.text
+            mp = 'Summarize the main tasks'
+            mt = 'Summarize the main completed tasks'
+
+
+            client = genai.Client(api_key=gemini_api)
+
+            response = client.models.generate_content(
+                model="gemini-2.5-flash", 
+                contents=f"For each day section, {mp} and {mt} in {bp} bullet points each and just return the bullet points\n{text}",
+                config=types.GenerateContentConfig(
+                    system_instruction="You are a Slack message summarizer. Be concise and professional.",
+                    temperature=0.3,        # lower = more consistent summaries
+                    )
+            )
+            #print(response.text)
+            return response.text
+        except Exception as e:
+            print(f'Error: {e}')
+            return 'Please try again later'

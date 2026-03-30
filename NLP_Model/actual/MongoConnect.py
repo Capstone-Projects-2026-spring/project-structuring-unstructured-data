@@ -2,6 +2,7 @@ from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.database import Database
 from dotenv import load_dotenv
+import pandas as pd
 import os
 import json
 
@@ -40,6 +41,24 @@ class MongoConnect:
         db_inst = Database(client,database)
         coll_names = db_inst.list_collection_names()
 
+        test = db_inst.get_collection('all-structuring-data')
+
+        docs = []
+        with test.find() as cursor:
+            for doc in cursor:
+                doc.pop('_id')
+                docs.append(doc)
+
+        df = pd.DataFrame(docs)
+    
+        # Filter to only the columns you want
+        cols = ['user', 'type', 'text', 'ts']
+        available_cols = [c for c in cols if c in df.columns]
+    
+        return df[available_cols]
+
+
+        '''
         # Writes documents into corresponding collection files
         for collection in coll_names:
             temp = db_inst.get_collection(collection)
@@ -53,7 +72,7 @@ class MongoConnect:
                 for doc in cursor:
                     doc.pop('_id')
                     file.write(json.dumps(doc) + '\n')
-        return 1
+        '''
 
     def send(self, dic, time):
      client = self.connect(self.user, self.password)
@@ -67,9 +86,6 @@ class MongoConnect:
         client.drop_database(db_name)
 
         db_inst = Database(client, db_name)
-
-
-        client
 
         for day in df['day'].unique():
             filt_df = df[df['day'] == day].drop('day', axis=1, errors='ignore')
@@ -90,7 +106,7 @@ class MongoConnect:
             os.remove(os.path.join(self.collections_path, f'{collection}'))
         return 1
         
-'''
+
 if __name__ == '__main__':
     
     # Variable initialization
@@ -105,4 +121,3 @@ if __name__ == '__main__':
     inst = MongoConnect(mongo_user,mongo_password)
 
     print(inst.extract(ext_database))
-'''

@@ -16,8 +16,26 @@ ext_db = 'slack'
 
 # Creating mongo connection instance
 inst = MongoConnect(mongo_user,mongo_password)
-inst.extract(ext_db)
+chan_df = inst.extract(ext_db)
 
+# Preprocessing Data
+dp_inst = DataProcess()
+proc_df = dp_inst.normal_preprocess(chan_df)
+cproc_df = dp_inst.filter_by_week(proc_df,11)
+#text = ' '.join(proc_df['text'].dropna().astype(str).tolist())
+
+# Summarizer initalizer
+sum_inst = Summarizer()
+
+
+
+#--------------TOTAL SUMMARY----------------
+text = dp_inst.chunk_by_day(cproc_df)
+sum_text = sum_inst.gemini_summarize(text)
+
+print(sum_text)
+
+'''
 dp_inst = DataProcess()
 
 
@@ -79,3 +97,4 @@ inst.send(past,'pw')
 
 # Clear collections folder at the end of the program
 inst.clear_folder()
+'''

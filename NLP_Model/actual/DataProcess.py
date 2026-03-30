@@ -58,21 +58,15 @@ class DataProcess:
 
         return df
     
-    def normal_preprocess(self,dic):
+    def normal_preprocess(self,df):
 
-        for coll in dic:
-            df = dic[coll]
-            #print(df.info())
+        df = self.extract_channel_joins(df)
+        df = self.extract_links(df)
+        df = self.delete_emojis(df)
+        df = self.add_day_of_week(df)
+        df = self.add_week_of(df)
 
-            df = self.extract_channel_joins(df)
-            df = self.extract_links(df)
-            df = self.delete_emojis(df)
-            df = self.add_day_of_week(df)
-            df = self.add_week_of(df)
-
-            dic[coll] = df
-
-        return dic
+        return df
 
     def add_day_of_week(self, df):
         df['ts'] = pd.to_datetime(df['ts'], unit='s')
@@ -95,33 +89,16 @@ class DataProcess:
     def display_collection_df(self,):
         pass
 
-    def filter_by_week(self,dic,week_num=current_week):
-        filt_week = {}
-        for coll in dic:
-            df = dic[coll]
-            filt_week[coll] = df[df['week_of'] == week_num]
+    def filter_by_week(self,df,week_num=current_week):
+        df = df[df['week_of'] == week_num]
 
-        return filt_week
+        return df
     
     def create_user_summary(self,df,user,coll):
 
         summarize = Summarizer()
 
         user_text = '.'.join(df['text'])
-
-        #Uncomment one for the type of summary to use
-
-        #T5 Summarizer
-        #summary = summarize.t5_summarize(user_text)
-
-        #LSA Summarizer
-        #summary = summarize.lsa_summarize(user_text)
-
-        #Luhn Summarizer
-        #summary = summarize.luhn_summarize(user_text)
-
-        #Hugging Face Summarizer
-        #summary = summarize.hugging_face_summarize(user_text) 
 
         #Gemini LLM
         summary = summarize.gemini_summarize(user_text)
@@ -175,6 +152,40 @@ class DataProcess:
 
             
         return final_dic
+    
+    def filter_by_day(self,df,day):
+        df = df[df['day_name'] == day]
+
+        return df
+    
+    def filter_by_user(self,df,user):
+        df = df[df['user'] == user]
+
+        return df
+    
+    def chunk_by_day(self, df):
+        # Build one string with all days
+        chunks = []
+        for day, group in df.groupby('day_name'):
+            text = '\n'.join(group['text'].dropna().astype(str).tolist())
+            if text.strip():
+                chunks.append(f"--- {day} ---\n{text}")
+
+        # Combine all days into one string
+        full_text = '\n\n'.join(chunks)
+
+        if not full_text.strip():
+            return 'Nothing to chunk'
+
+        
+        return full_text
+
+    
+    
+
+    
+
+    #def UID_to_UName(self,dic):
 
 
 
