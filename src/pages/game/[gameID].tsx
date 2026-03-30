@@ -13,6 +13,7 @@ import { TeamCount } from "@/components/TeamSelect";
 import type { ActiveProblem } from '@/components/ProblemBox';
 import ProblemBox from '@/components/ProblemBox';
 import RoleFlipPopup from '@/components/RoleFlipPopup';
+import { showRoleSwapWarning } from '@/components/notifications';
 
 import { Role, GameStatus, GameType } from "@prisma/client";
 import { authClient } from "@/lib/auth-client";
@@ -149,6 +150,14 @@ function PlayGameRoom() {
     socketInstance.on("gameEnded", () => {
       setGameState(GameStatus.FINISHED);
       router.push(`/results/${gameId}`);
+    });
+
+    socketInstance.on("roleSwapWarning", () => {
+      if (role) {
+        showRoleSwapWarning(role);
+      } else {
+        showRoleSwapWarning(Role.CODER); 
+      }
     });
 
     socketInstance.on("roleSwapping", () => {
