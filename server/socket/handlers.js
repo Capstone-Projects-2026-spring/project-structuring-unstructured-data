@@ -7,7 +7,7 @@ function registerSocketHandlers(io, socket, services) {
 
   console.log(`New connection: ${socket.id}`);
 
-  socket.on('register', async ({userId }) => {
+  socket.on('register', async (userId) => {
     socket.userId = userId;
     await gameService.registerSocketToUser(userId, socket.id); // needed before to emit from api to socket leaving in case useful later down the road
   });
