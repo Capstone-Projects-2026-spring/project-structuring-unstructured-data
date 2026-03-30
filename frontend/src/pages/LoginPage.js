@@ -59,7 +59,7 @@ function LoginPage({ onLogin }) {
     setIsLoading(true);
     try {
       const problem = await getProblemByCode(problemKey.trim());
-      onLogin({ name: studentName.trim(), role: 'student', problem });
+      onLogin({ name: studentName.trim(), role: 'student', problem, studentName: studentName.trim() });
     } catch (err) {
       setError('No problem found with that code. Please check with your teacher and try again.');
     } finally {

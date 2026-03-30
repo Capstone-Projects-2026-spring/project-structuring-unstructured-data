@@ -1705,3 +1705,18 @@
 .submissions-table td { padding: 10px 12px; color: #ccc; border-bottom: 1px solid #2a2a2a; }
 .submissions-table tr:last-child td { border-bottom: none; }
 .submissions-table tr:hover td { background-color: #2a2a2b; }
+
+.restore-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .restore-dialog {
+    background: var(--bg-panel, #1e1e2e); border-radius: 10px;
+    padding: 2rem; max-width: 400px; width: 90%; text-align: center;
+  }
+  .restore-dialog h3 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+  .restore-dialog p { color: var(--text-muted, #888); margin-bottom: 1.5rem; }
+  .restore-actions { display: flex; gap: 1rem; justify-content: center; }
+  .save-status { font-size: 0.8rem; color: var(--text-muted, #888); }
+  .save-status--saved { color: #4caf50; }
+  .save-status--error { color: #f44336; max-width: 200px; }

@@ -26,6 +26,7 @@ function App() {
 
     const [currentPage, setCurrentPage] = useState(restoredUser ? 'dashboard' : 'login');
     const [selectedProblem, setSelectedProblem] = useState(null);
+    const [studentName, setStudentName] = useState(null);
     const [user, setUser] = useState(restoredUser);
     const [problems, setProblems] = useState([]);
 
@@ -44,6 +45,7 @@ function App() {
         }
         if (userData.role === 'student') {
             setSelectedProblem(userData.problem);
+            setStudentName(userData.studentName);
             setCurrentPage('problem');
         } else {
             setCurrentPage('dashboard');
@@ -77,6 +79,7 @@ function App() {
         localStorage.removeItem('token');
         setUser(null);
         setSelectedProblem(null);
+        setStudentName(null);
         setProblems([]);
         setCurrentPage('login');
     };
@@ -89,6 +92,7 @@ function App() {
         return (
             <ProblemPage
                 problem={selectedProblem}
+                studentName={studentName}
                 onBack={handleBackToDashboard}
             />
         );
