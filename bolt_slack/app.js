@@ -2,7 +2,7 @@ const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
 const config = require('./config');
 
-const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey } = require('./slack_to_DB');
+const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, userIDToName } = require('./slack_to_DB');
 
 // Shared API client for Mongo storage
 const apiClient = axios.create({
@@ -52,7 +52,7 @@ const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
 // Helper Functions
 // ====================
 
-// GET select number of messages via conversations.history
+// Fetch select number of messages via conversations.history
 async function getConversationHistory(channelId, limit = 100) {
   try {
     console.log(`🚀 Attempting to pull messages from: ${channelId}`);
@@ -70,7 +70,7 @@ async function getConversationHistory(channelId, limit = 100) {
   }
 }
 
-// GET select number of messages via conversations.history, ONLY collecting messages posted AFTER the last call
+// Fetch select number of messages via conversations.history, ONLY collecting messages posted AFTER the last call
 async function getRecentConversationHistory(channelId, lastTimestamp) {
   try {
     console.log(`🚀 Attempting to pull messages from: ${channelId} since ${lastTimestamp}`);
@@ -88,7 +88,7 @@ async function getRecentConversationHistory(channelId, lastTimestamp) {
   }
 }
 
-// GET info about channel via conversations.info
+// Fetch info about channel via conversations.info
 async function getConversationInfo(channelId) {
   try {  
     const result = await app.client.conversations.info({
@@ -108,6 +108,17 @@ async function getConversationInfo(channelId) {
 async function fetchMessagesFromAPI(collectionName) {
   try {
     const response = await apiClient.get(`/api/messages/${collectionName}`);
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Fetch member data from API
+async function fetchMembersFromAPI(collectionName) {
+  try {
+    const response = await apiClient.get(`/api/users/${collectionName}`);
     return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);
@@ -181,9 +192,26 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
       const messages = await fetchMessagesFromAPI(channelKey);
       
       if (messages && messages.length > 0) {
-        const messageText = messages.slice(0, 5).map((msg, idx) => 
-          `${idx + 1}. *${msg.user}*: ${msg.text || '(no text)'} _at ${new Date(parseFloat(msg.ts) * 1000).toLocaleString()}_`
-        ).join('\n');
+        const messageLines = await Promise.all(
+          messages.slice(0, 5).map(async (msg, idx) => {
+            let displayName = msg.user || 'unknown-user';
+
+            if (msg.user) {
+              try {
+                const resolvedName = await userIDToName(msg.user);
+                if (resolvedName) {
+                  displayName = resolvedName;
+                }
+              } catch (_error) {
+                // Fall back to the user ID if Slack user lookup fails.
+              }
+            }
+
+            return `${idx + 1}. *${displayName}*: ${msg.text || '(no text)'} _at ${new Date(parseFloat(msg.ts) * 1000).toLocaleString()}_`;
+          })
+        );
+
+        const messageText = messageLines.join('\n');
         
         await respond({
           response_type: 'in_channel',

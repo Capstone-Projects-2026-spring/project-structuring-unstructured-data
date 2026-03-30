@@ -7,6 +7,7 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
+// Normalizes channel names to create consistent database keys
 const normalizeChannelName = (channelName) => {
   const sanitized = String(channelName || '')
     .trim()
@@ -22,6 +23,7 @@ const normalizeChannelName = (channelName) => {
   return sanitized;
 };
 
+// Builds a unique channel key by combining the channel ID and normalized name
 async function buildChannelKey(channelName) {
   const normalizedName = normalizeChannelName(channelName);
   const channelId = await channelNameToID(channelName);
@@ -30,7 +32,7 @@ async function buildChannelKey(channelName) {
     throw new Error(`Channel ID not found for channel name: ${channelName}`);
   }
 
-  return `${normalizedName}_${channelId}`;
+  return `${channelId}_${normalizedName}`;
 }
 
 
@@ -69,7 +71,7 @@ async function getConversationHistory(channelName) {
   }
 }
 
-
+// Inserts message model data to the database via API
 async function insertMessageModels(channelName) {
     try {
         if (!channelName) {
@@ -141,6 +143,7 @@ async function getMembersData(channelId) {
   }
 }
 
+// Inserts message model data to the database via API
 async function insertUserModels(channelName) {
     try {
         const members = await getMembersData(channelName);
@@ -148,9 +151,15 @@ async function insertUserModels(channelName) {
           return;
         }
 
+        // Map Slack's 'id' field to 'member_id' for MongoDB schema
+        const transformedMembers = members.map(member => ({
+          ...member,
+          member_id: member.id
+        }));
+
         const channelKey = await buildChannelKey(channelName);
 
-        const response = await apiClient.post(`/api/users/${encodeURIComponent(channelKey)}`, members);
+        const response = await apiClient.post(`/api/users/${encodeURIComponent(channelKey)}`, transformedMembers);
         console.log(response.data.message || `Member data from channel ${channelName} successfully posted to API.`);
     } catch (error) {
         console.error("Database connection error:", error);
@@ -158,6 +167,7 @@ async function insertUserModels(channelName) {
     }
 }
 
+// Converts channel name to channel ID using conversations.list API method
 async function channelNameToID(channelName) {
     try {
         const channelList = await app.client.conversations.list({
@@ -172,4 +182,17 @@ async function channelNameToID(channelName) {
     }
   }
 
-module.exports = { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, channelNameToID };
+// Converts user ID to user name using users.info API method
+async function userIDToName(userId) {
+    try {
+        const userInfo = await app.client.users.info({
+            user: userId
+        });
+        return userInfo?.user?.real_name || null;
+    } catch (error) {
+        console.error("User Info Retrieval Error:", error.data ? error.data.error : error.message);
+        throw error;
+    }
+}
+
+module.exports = { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, channelNameToID, userIDToName };
