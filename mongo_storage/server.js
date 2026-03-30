@@ -51,7 +51,11 @@ if (MONGODB_LOCAL) {
   uri = `mongodb+srv://${encodeURIComponent(DB_USER || '')}:${encodeURIComponent(DB_PASSWORD || '')}@suds-cluster.poxtvnp.mongodb.net/?appName=SUDs-Cluster`;
 }
 
-console.log(`Connecting to MongoDB (Local: ${MONGODB_LOCAL}) at host: ${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}`);
+if (MONGODB_LOCAL) {
+  console.log(`Connecting to MongoDB (Local: ${MONGODB_LOCAL}) at host: ${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}`);
+} else {
+  console.log(`Connecting to MongoDB Atlas (suds-cluster.poxtvnp.mongodb.net)`);
+}
 
 // Connect to MongoDB using Mongoose
 const start = async () => {

@@ -1,5 +1,4 @@
-const config = require('./config');
-const { App } = require('@slack/bolt');
+const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
 
 console.log('DEBUG ENV:', {
@@ -20,14 +19,38 @@ const apiClient = axios.create({
 
 const BOT_USER_ID = config.slackBotUserId;
 
-// Initialize the Slack App with your secrets
-// Socket Mode = true means no need for ngrok or public URL!
-const app = new App({
-  token: config.slackBotToken,
-  signingSecret: config.slackSigningSecret,
-  socketMode: config.socketMode,
-  appToken: config.socketMode ? config.slackAppToken : undefined,
-});
+// Initialize Express and Slack App based on mode
+let receiver;
+let expressApp;
+let app;
+
+if (!config.socketMode) {
+  // HTTP Mode: Create Express receiver for webhook-based events
+  const express = require('express');
+  expressApp = express();
+  
+  // Create receiver - this handles /slack/events
+  receiver = new ExpressReceiver({
+    signingSecret: config.slackSigningSecret,
+    app: expressApp,  // Pass the Express app to ExpressReceiver
+  });
+  
+  // Create Slack app with the receiver
+  app = new App({
+    token: config.slackBotToken,
+    signingSecret: config.slackSigningSecret,
+    socketMode: false,
+    receiver: receiver,
+  });
+} else {
+  // Socket Mode: No receiver needed, uses WebSocket
+  app = new App({
+    token: config.slackBotToken,
+    signingSecret: config.slackSigningSecret,
+    socketMode: true,
+    appToken: config.slackAppToken,
+  });
+}
 
 // API endpoint configuration
 const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
@@ -692,14 +715,61 @@ app.action('save_message_deny', async ({ ack, body, client, logger, respond }) =
   const port = config.botPort;
 
   try {
-    await app.start(port);
+    if (config.socketMode) {
+      // Socket Mode: WebSocket connection
+      await app.start(port);
+      console.log('⚡️ Slack Bot is running in Socket Mode!');
+      console.log(`📡 Listening on port ${port}`);
+    } else {
+      // HTTP Mode: ExpressReceiver handles /slack/events endpoint
+      console.log('🔧 Setting up HTTP mode for Slack events...');
+      
+      // Add middleware to Express for logging and health checks
+      expressApp.use(require('express').json());
+      expressApp.use(require('express').urlencoded({ extended: true }));
+      
+      // Request logging (skip /slack/events for cleaner logs)
+      expressApp.use((req, res, next) => {
+        if (req.path !== '/slack/events') {
+          console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+        }
+        next();
+      });
+      
+      // Health check endpoints
+      expressApp.get('/', (req, res) => {
+        res.status(200).json({ 
+          status: 'ok', 
+          service: 'Slack Bot',
+          mode: 'HTTP',
+          endpoints: { 
+            health: '/health',
+            events: '/slack/events'
+          }
+        });
+      });
+      
+      expressApp.get('/health', (req, res) => {
+        res.status(200).json({ status: 'ok' });
+      });
+      
+      // Start the Express server
+      // ExpressReceiver already added /slack/events route to expressApp
+      expressApp.listen(port, '0.0.0.0', () => {
+        console.log('⚡️ Slack Bot is running in HTTP Mode!');
+        console.log(`📡 Listening on 0.0.0.0:${port}`);
+        console.log(`📨 Slack events: POST /slack/events (auto-configured by ExpressReceiver)`);
+        console.log(`🔗 Health: GET /health`);
+      });
+    }
 
-    console.log('⚡️ Slack Bot is running!');
-    console.log(`📡 Listening on port ${port}`);
     console.log(`🔗 Database API: ${API_BASE_URL}`);
     console.log('\n✅ Bot is ready to receive commands and events!');
   } catch (error) {
     console.error('❌ Failed to start Slack Bot:', error.message);
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
     process.exit(1);
   }
 })();
