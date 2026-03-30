@@ -10,6 +10,7 @@ console.log('MONGODB_USER:', process.env.MONGODB_USER);
 // Import routers
 const messagesRouter = require('./routes/messages');
 const usersRouter = require('./routes/users');
+const summaryRouter = require('./routes/summary');
 
 // Import database credentials from .env file
 const DB_USER = process.env.MONGODB_USER;
@@ -33,6 +34,7 @@ app.use((req, res, next) => {
 // Mount routers
 app.use(messagesRouter);
 app.use(usersRouter);
+app.use(summaryRouter);
 
 // Return a clear error when payloads exceed configured body size.
 app.use((err, _req, res, next) => {
