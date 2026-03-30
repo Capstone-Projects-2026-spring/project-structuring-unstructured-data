@@ -18,6 +18,12 @@ function startExpirationListener(io, pubClient) {
     const gameId = expiredKey.split(':')[1];
 
 
+    if (expiredKey.endsWith(':roleswap:warning')) {
+      console.log(`Game ${gameId} roleswap warning`);
+      io.to(gameId).emit('roleSwapWarning');
+      return;
+    }
+
     if (expiredKey.endsWith(':roleswap')) {
       console.log(`Game ${gameId} roleswap`);
       io.to(gameId).emit('roleSwapping');
@@ -60,7 +66,7 @@ function startExpirationListener(io, pubClient) {
         });
         io.to(teamIds[0]).emit('roleSwap');
         io.to(teamIds[1]).emit('roleSwap');
-      }, 2500) // too fast it happens almost instantaneously on the frontend (so while work it out later)
+      }, 2500); // too fast it happens almost instantaneously on the frontend (so while work it out later)
     }
 
     if (expiredKey.endsWith(':expires')) {

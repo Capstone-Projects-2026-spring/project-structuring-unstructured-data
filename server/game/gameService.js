@@ -2,6 +2,7 @@
 // Redis can be accessed in the api layer for special cases now
 
 const GAME_DURATION_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+const SECONDS_BEFORE_ROLE_SWAP_WARNING = 60 * 1000; // 60 seconds in milliseconds
 
 
 function createGameService(stateRedis) {
@@ -9,7 +10,7 @@ function createGameService(stateRedis) {
     GAME_DURATION_MS,
 
     async registerSocketToUser(userId, socketId) {
-      await stateRedis.set(`socket:${userId}`, socketId) // link userId
+      await stateRedis.set(`socket:${userId}`, socketId); // link userId
     },
 
     async startGameIfNeeded(gameId) {
@@ -20,8 +21,12 @@ function createGameService(stateRedis) {
         const flipRatio = Math.random() * (0.7 - 0.3) + 0.3; // random between 0.3 and 0.7
         const flipped_duration = Math.floor(GAME_DURATION_MS * flipRatio);
         const flippedKey = `game:${gameId}:roleswap`
+        const warningKey = `game:${gameId}:roleswap:warning`
         console.log("Flipped key being set");
         await stateRedis.set(flippedKey, '1', 'PX', flipped_duration, 'NX'); // set flip timer at the same time
+        const warning_trigger = Math.max(0, flipped_duration - SECONDS_BEFORE_ROLE_SWAP_WARNING); // set the warning popup time
+        console.log("Warning key being set")
+        await stateRedis.set(warningKey, '1', 'PX', warning_trigger, 'NX');
         await stateRedis.sadd('activeGames', gameId);
         console.log(
           `Game ${gameId} started with duration ${GAME_DURATION_MS / 1000} seconds`
@@ -74,13 +79,18 @@ function createGameService(stateRedis) {
     },
 
     async getGameTime(gameId) {
-      const ttl = await stateRedis.pttl(`game:${gameId}:expires`)
+      const ttl = await stateRedis.pttl(`game:${gameId}:expires`);
       return { ttl };
+    },
+
+    async getRoleSwapTime(gameId) {
+      const ttl = await stateRedis.pttl(`game:${gameId}:roleswap`);
+      return ttl > 0 ? ttl : null;
     },
 
     async cleanupGame(gameId, userId) {
       await stateRedis.srem('activeGames', gameId);
-      await stateRedis.del(`socket:${userId}`)
+      await stateRedis.del(`socket:${userId}`);
       // TODO: remove expiration key if not expired yet.
       // potential future cleanup: code, submissions, etc.
     },
