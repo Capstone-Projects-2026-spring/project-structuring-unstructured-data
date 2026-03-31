@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState } from "react";
 import { Center, Stack, Button, Text, Group, Badge, Title } from "@mantine/core";
-import { GameType, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 
 export interface TeamCount {
     teamId: string;
@@ -58,7 +58,7 @@ export default function TeamSelect({ userId, teams, gameRoomId, onJoined }: Team
                     })}
                     <Button
                         data-testid="spectator-button"
-                        onClick={() => { onJoined(null, Role.SPECTATOR, null) }}
+                        onClick={() => { onJoined(null, Role.SPECTATOR, null); }}
                     >
                         Spectator Mode
                     </Button>
