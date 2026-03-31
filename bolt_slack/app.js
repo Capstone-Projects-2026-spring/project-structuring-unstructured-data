@@ -1,5 +1,6 @@
 const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
+const config = require('./config');
 
 console.log('DEBUG ENV:', {
     SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN ? 'SET' : 'NOT SET',
@@ -393,6 +394,7 @@ app.command('/summary', async ({ command, ack, respond, client }) => {
             text: `Error fetching summaries: ${err.message}`
         });
     }
+});
 // /members-info - Get information about all members in the channel
 app.command('/members-info', async ({ command, ack, respond }) => {
   await ack();
