@@ -122,11 +122,11 @@ export async function saveDraft(sessionId, code) {
     return response.json();
 }
 
-export async function submitCode(sessionId, code) {
+export async function submitCode(sessionId, code, suggestionLog = []) {
     const response = await fetch(`${API_URL}/submissions/${sessionId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, suggestion_log: suggestionLog }),
     });
     if (!response.ok) {
         const data = await response.json();

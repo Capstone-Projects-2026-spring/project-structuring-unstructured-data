@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
@@ -15,8 +16,15 @@ class DraftRequest(BaseModel):
     code: str
 
 
+class SuggestionLogEntry(BaseModel):
+    time: str
+    action: str
+    label: str
+
+
 class SubmitRequest(BaseModel):
     code: str
+    suggestion_log: list[SuggestionLogEntry] = []
 
 
 @router.post("/start", status_code=201)
@@ -145,11 +153,12 @@ def submit_session(session_id: int, req: SubmitRequest):
             conn.close()
             raise HTTPException(status_code=403, detail="Submission limit reached")
 
+    log_json = json.dumps([e.dict() for e in req.suggestion_log])
     cursor.execute(
         """UPDATE sessions
-           SET code = %s, submitted_at = NOW()
+           SET code = %s, suggestion_log = %s, submitted_at = NOW()
            WHERE id = %s""",
-        (req.code, session_id),
+        (req.code, log_json, session_id),
     )
     conn.commit()
     conn.close()

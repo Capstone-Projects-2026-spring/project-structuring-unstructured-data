@@ -32,6 +32,7 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [submitError, setSubmitError] = useState('');
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
   const [draftCode, setDraftCode] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const periodicSaveRef = useRef(null);
   const debounceRef = useRef(null);
 
@@ -225,7 +226,10 @@ function ProblemPage({ problem, onBack, studentName }) {
     if (!sessionId) return;
     setSaveStatus('saving');
     saveDraft(sessionId, currentCode)
-      .then(() => setSaveStatus('saved'))
+      .then(() => {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(''), 2500);
+      })
       .catch(() => setSaveStatus(''));
   }, [sessionId]);
 
@@ -380,7 +384,7 @@ _stderr = _stderr_buf.getvalue()
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      await submitCode(sessionId, code);
+      await submitCode(sessionId, code, suggestionLog);
       clearTimeout(debounceRef.current);
       clearInterval(periodicSaveRef.current);
       setActiveTab('output');
@@ -395,6 +399,37 @@ _stderr = _stderr_buf.getvalue()
 
   return (
     <div className="app">
+      {showConfirmDialog && (
+        <div className="restore-overlay">
+          <div className="restore-dialog">
+            <h3>Submit your solution?</h3>
+            <p>
+              {suggestionLog.length > 0
+                ? `You accepted ${suggestionLog.length} AI suggestion${suggestionLog.length !== 1 ? 's' : ''} during this attempt.`
+                : 'You did not accept any AI suggestions during this attempt.'}
+            </p>
+            <p>This cannot be undone.</p>
+            <div className="restore-actions">
+              <button
+                className="btn btn-run"
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  handleSubmit();
+                }}
+              >
+                Confirm Submit
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showRestorePrompt && (
         <div className="restore-overlay">
           <div className="restore-dialog">
@@ -435,7 +470,7 @@ _stderr = _stderr_buf.getvalue()
           <span className="problem-title">{problem.title}</span>
           <button
             className="btn btn-outline"
-            onClick={handleSubmit}
+            onClick={() => setShowConfirmDialog(true)}
             disabled={isSubmitting || !!submitError}
           >
             {isSubmitting ? 'Submitting…' : 'Submit'}
