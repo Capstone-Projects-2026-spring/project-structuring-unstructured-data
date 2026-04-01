@@ -5,21 +5,19 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import sys
+from datetime import datetime, timezone
 # Type py -3.14 model.py to run
 
 
 def parse_args(argv):
     db_name = 'slack'  # default database name
-    week_num = 11
-    test_mode = False
+    week_num = None  # derive from data unless explicitly provided
 
     i = 1
     while i < len(argv):
         arg = argv[i]
 
-        if arg == '--test-mode':
-            test_mode = True
-        elif arg == '--week' and i + 1 < len(argv):
+        if arg == '--week' and i + 1 < len(argv):
             try:
                 week_num = int(argv[i + 1])
             except ValueError:
@@ -35,40 +33,48 @@ def parse_args(argv):
 
         i += 1
 
-    return db_name, week_num, test_mode
+    return db_name, week_num
 
 
-def print_test_mode_output(db_name, week_num, chan_df, proc_df, cproc_df, text):
-    print('[TEST MODE] Gemini call skipped.')
-    print(f'[TEST MODE] Channel DB: {db_name}')
-    print(f'[TEST MODE] Week: {week_num}')
-    print(f'[TEST MODE] Messages extracted: {len(chan_df)}')
-    print(f'[TEST MODE] Messages after preprocess: {len(proc_df)}')
-    print(f'[TEST MODE] Messages in selected week: {len(cproc_df)}')
+def resolve_week_num(data_process, proc_df, requested_week=None):
+    if requested_week is not None:
+        requested_week_df = data_process.filter_by_week(proc_df, requested_week)
+        if not requested_week_df.empty:
+            return requested_week
 
-    day_chunks = cproc_df['day_name'].nunique() if 'day_name' in cproc_df.columns else 0
-    print(f'[TEST MODE] Generated day chunks: {day_chunks}')
+    inferred_week = data_process.infer_week_of(proc_df)
+    return inferred_week if inferred_week is not None else requested_week
 
-    if text and text != 'Nothing to chunk':
-        preview = text[:700]
-        print('[TEST MODE] Preview:')
-        print(preview)
 
-        users = cproc_df['user'].nunique() if 'user' in cproc_df.columns else 0
-        print('[TEST MODE] Final summary output:')
-        print(f'TEST SUMMARY for {db_name}')
-        print(f'- Week: {week_num}')
-        print(f'- Days with activity: {day_chunks}')
-        print(f'- Distinct users: {users}')
-        print(f'- Total messages processed: {len(cproc_df)}')
-        print('- Status: pipeline executed successfully without LLM call')
-    else:
-        print('[TEST MODE] Final summary output:')
-        print('No content found for the selected channel/week in test mode.')
+def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_process):
+    summary_docs = []
+
+    for day_name, day_text in day_chunks.items():
+        day_df = week_df[week_df['day_name'] == day_name]
+        week_of = data_process.infer_week_of(day_df)
+        users = int(day_df['user'].nunique()) if 'user' in day_df.columns else 0
+        message_count = int(len(day_df))
+
+        prompt_text = f'--- {day_name} ---\n{day_text}'
+        day_summary = summarizer.gemini_summarize(prompt_text)
+
+        summary_docs.append(
+            {
+                'channel_db': db_name,
+                'week_of': week_of,
+                'day_name': day_name,
+                'summary_text': day_summary,
+                'message_count': message_count,
+                'distinct_users': users,
+                'generated_at_utc': datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    return summary_docs
 
 
 # Import arguments from command line
-dbName, week_num, test_mode = parse_args(sys.argv)
+dbName, week_num = parse_args(sys.argv)
 
 # Connect and extract collections
 load_dotenv()
@@ -89,7 +95,16 @@ if missing_cols:
 # Preprocessing Data
 dp_inst = DataProcess()
 proc_df = dp_inst.normal_preprocess(chan_df)
-cproc_df = dp_inst.filter_by_week(proc_df,week_num)
+
+resolved_week_num = resolve_week_num(dp_inst, proc_df, week_num)
+if resolved_week_num is None:
+    print('Unable to determine a week number from the available messages.')
+    sys.exit(1)
+
+if week_num is not None and resolved_week_num != week_num:
+    print(f'No messages found for requested week {week_num}; using inferred week {resolved_week_num} instead.')
+
+cproc_df = dp_inst.filter_by_week(proc_df, resolved_week_num)
 #text = ' '.join(proc_df['text'].dropna().astype(str).tolist())
 
 # Summarizer initalizer
@@ -97,15 +112,24 @@ sum_inst = Summarizer()
 
 
 
-#--------------TOTAL SUMMARY----------------
-text = dp_inst.chunk_by_day(cproc_df)
-if test_mode:
-    print_test_mode_output(dbName, week_num, chan_df, proc_df, cproc_df, text)
+#--------------DAY SUMMARIES----------------
+day_chunks = dp_inst.chunk_text_by_day(cproc_df)
+
+if not day_chunks:
+    print(f'No content found for channel "{dbName}" in week {resolved_week_num}.')
     sys.exit(0)
 
-sum_text = sum_inst.gemini_summarize(text)
+summary_docs = build_day_summary_docs(dbName, cproc_df, day_chunks, sum_inst, dp_inst)
 
-print(sum_text)
+for doc in summary_docs:
+    print(f"\n--- {doc['day_name']} (week {doc['week_of']}) ---")
+    print(doc['summary_text'])
+
+# Daily summaries are saved into the selected channel database under the `summaries` collection.
+saved_count = inst.upsert_day_summaries(dbName, summary_docs)
+print(f"\nSaved {saved_count} day summaries to '{dbName}.summaries'.")
+
+
 
 '''
 dp_inst = DataProcess()

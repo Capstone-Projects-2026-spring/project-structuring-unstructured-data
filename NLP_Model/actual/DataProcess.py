@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from calendar import day_name
 from Summarizer import Summarizer
 
 import pandas as pd
@@ -93,6 +94,25 @@ class DataProcess:
         #print(self.current_week)
 
         return df
+
+    def infer_week_of(self, df):
+        if df.empty:
+            return None
+
+        if 'week_of' not in df.columns:
+            df = self.add_week_of(df.copy())
+
+        week_values = pd.to_numeric(df['week_of'], errors='coerce').dropna().astype(int)
+        if week_values.empty:
+            return None
+
+        unique_weeks = week_values.unique()
+        if len(unique_weeks) == 1:
+            return int(unique_weeks[0])
+
+        # If the slice spans multiple weeks, use the most common week so the
+        # summary stays anchored to the dominant timestamp group.
+        return int(week_values.mode().iloc[0])
     
     def display_collection_df(self,):
         pass
@@ -187,6 +207,21 @@ class DataProcess:
 
         
         return full_text
+
+    def chunk_text_by_day(self, df):
+        if df.empty or 'day_name' not in df.columns:
+            return {}
+
+        # Keep day order stable (Monday..Sunday), then append any unexpected labels.
+        day_order = {name: idx for idx, name in enumerate(day_name)}
+        grouped = []
+        for day, group in df.groupby('day_name'):
+            text = '\n'.join(group['text'].dropna().astype(str).tolist()).strip()
+            if text:
+                grouped.append((day, text))
+
+        grouped.sort(key=lambda item: day_order.get(item[0], 99))
+        return {day: text for day, text in grouped}
 
     
     

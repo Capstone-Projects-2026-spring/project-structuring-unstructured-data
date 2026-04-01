@@ -97,6 +97,30 @@ class MongoConnect:
 
      return 1
 
+    def upsert_day_summaries(self, database, summaries):
+        client = self.connect(self.user, self.password)
+        db_inst = Database(client, database)
+        summaries_coll = db_inst.get_collection('summaries')
+
+        upserted_count = 0
+        for summary_doc in summaries:
+            week_of = summary_doc.get('week_of')
+            day_name = summary_doc.get('day_name')
+
+            if week_of is None or day_name is None:
+                continue
+
+            result = summaries_coll.replace_one(
+                {'week_of': week_of, 'day_name': day_name},
+                summary_doc,
+                upsert=True,
+            )
+
+            if result.upserted_id is not None or result.modified_count > 0:
+                upserted_count += 1
+
+        return upserted_count
+
 
     def clear_folder(self):
         '''
