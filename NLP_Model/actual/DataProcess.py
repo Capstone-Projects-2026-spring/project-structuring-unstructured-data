@@ -10,10 +10,17 @@ class DataProcess:
 
     def __init__(self):
         pass
+
+    def _normalize_ts(self, df):
+        # Slack timestamps often come in as strings like 1774895194.086679.
+        # Convert them to numeric epoch seconds first, then to datetime.
+        ts_numeric = pd.to_numeric(df['ts'], errors='coerce')
+        df['ts'] = pd.to_datetime(ts_numeric, unit='s', errors='coerce')
+        return df
     
     def create_links_df(self,df):
 
-        link_re = '<https?://[^\s<>"{}|\\^`\[\]]+>'
+        link_re = r'<https?://[^\s<>"{}|\\^`\[\]]+>'
 
         link_df = df[df['text'].str.contains(link_re,regex = True)]
 
@@ -21,7 +28,7 @@ class DataProcess:
 
     def extract_links(self,df):
 
-        link_re = '<https?://[^\s<>"{}|\\^`\[\]]+>'
+        link_re = r'<https?://[^\s<>"{}|\\^`\[\]]+>'
 
         link_df = df[~df['text'].str.contains(link_re,regex = True)]
 
@@ -69,14 +76,15 @@ class DataProcess:
         return df
 
     def add_day_of_week(self, df):
-        df['ts'] = pd.to_datetime(df['ts'], unit='s')
+        df = self._normalize_ts(df)
 
         df['day_name'] = df['ts'].dt.day_name()
 
         return df
     
     def add_week_of(self, df):
-        df['ts'] = pd.to_datetime(df['ts'], unit='s')
+        if not pd.api.types.is_datetime64_any_dtype(df['ts']):
+            df = self._normalize_ts(df)
 
         df['week_of'] = df['ts'].dt.strftime('%U')
 

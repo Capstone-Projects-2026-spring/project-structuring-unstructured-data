@@ -2,11 +2,12 @@ const mongoose = require('mongoose');
 const { PythonShell } = require('python-shell');
 
 
-async function runModel(){
+async function runModel(dbName) {
     let options = {
     pythonPath: 'py',
     pythonOptions: ['-3.14','-u'],
-    scriptPath: '../NLP_Model/actual'
+    scriptPath: '../NLP_Model/actual',
+    args: [dbName]
     };
 
     PythonShell.run('model.py', options).then(messages => {
@@ -86,4 +87,4 @@ async function postSummaries(channel_id, channel_name) {
     }
 }
 
-module.exports = { runModel };
+module.exports = { runModel, postSummaries };

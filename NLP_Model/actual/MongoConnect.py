@@ -37,11 +37,11 @@ class MongoConnect:
         # Establishes connection
         client = self.connect(self.user,self.password)
 
-        # Extracts all collections within the database
+        # Extracts collection of raw messages within the channel database
         db_inst = Database(client,database)
         coll_names = db_inst.list_collection_names()
 
-        test = db_inst.get_collection('all-structuring-data')
+        test = db_inst.get_collection('raw_messages')
 
         docs = []
         with test.find() as cursor:
