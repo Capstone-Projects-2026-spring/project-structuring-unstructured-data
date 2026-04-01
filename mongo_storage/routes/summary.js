@@ -40,7 +40,7 @@ router.get('/api/summary/all', async (_req, res) => {
 router.get('/api/summary/:channelName', async (req, res) => {
   try {
     const { channelName } = req.params;
-    const dbName = buildChannelKey(channelKey);
+    const dbName = buildChannelKey(channelName);
 
     runModel(dbName);
 
