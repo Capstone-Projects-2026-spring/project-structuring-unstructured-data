@@ -9,6 +9,7 @@ export interface Message {
   userName: string;
   timestamp: number;
 }
+
 interface ChatBoxProps {
   socket: Socket;
   roomId: string;
