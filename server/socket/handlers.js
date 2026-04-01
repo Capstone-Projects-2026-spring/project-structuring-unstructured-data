@@ -34,9 +34,16 @@ const codeChangeSchema = z.object({
   code: z.string().max(10000) // Adjust max length as needed
 });
 
+const messageSchema = z.object({
+  id: z.string(),
+  text: z.string().max(1000),
+  userName: z.string(),
+  timestamp: z.number()
+});
+
 const chatMessageSchema = z.object({
   teamId: z.string(),
-  message: z.string().max(1000) // Adjust max length as needed
+  message: messageSchema // Adjust max length as needed
 });
 
 const testableCaseSchema = z.object({
@@ -203,6 +210,8 @@ function registerSocketHandlers(io, socket, services) {
       socket.emit('error', { message: 'Invalid payload for sendChat.' });
       return;
     }
+
+    const { teamId, message } = payload;
 
     try {
       await gameService.saveChatMessage(teamId, message);
