@@ -42,6 +42,11 @@ def resolve_week_num(data_process, proc_df, requested_week=None):
         if not requested_week_df.empty:
             return requested_week
 
+    if requested_week is None:
+        latest_week = data_process.latest_week_of(proc_df)
+        if latest_week is not None:
+            return latest_week
+
     inferred_week = data_process.infer_week_of(proc_df)
     return inferred_week if inferred_week is not None else requested_week
 

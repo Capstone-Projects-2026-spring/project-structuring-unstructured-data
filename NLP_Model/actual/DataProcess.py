@@ -113,6 +113,19 @@ class DataProcess:
         # If the slice spans multiple weeks, use the most common week so the
         # summary stays anchored to the dominant timestamp group.
         return int(week_values.mode().iloc[0])
+
+    def latest_week_of(self, df):
+        if df.empty:
+            return None
+
+        if 'week_of' not in df.columns:
+            df = self.add_week_of(df.copy())
+
+        week_values = pd.to_numeric(df['week_of'], errors='coerce').dropna().astype(int)
+        if week_values.empty:
+            return None
+
+        return int(week_values.max())
     
     def display_collection_df(self,):
         pass
