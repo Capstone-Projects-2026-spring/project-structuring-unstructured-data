@@ -4,7 +4,9 @@ const config = require('./config');
 const {
   publishHomeTab,
   HOME_CHANNEL_SELECT_ACTION_ID,
-  HOME_REFRESH_ACTION_ID
+  HOME_REFRESH_ACTION_ID,
+  HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  encodeDashboardState
 } = require('./homeDashboard');
 
 const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey } = require('./slack_to_DB');
@@ -16,6 +18,60 @@ const apiClient = axios.create({
 });
 
 const BOT_USER_ID = config.slackBotUserId;
+
+function parseDashboardState(rawValue) {
+  if (!rawValue) {
+    return {
+      channelName: '',
+      selectedWeek: null
+    };
+  }
+
+  // Backward compatibility for older button values that stored only channelName.
+  if (!rawValue.startsWith('{')) {
+    return {
+      channelName: rawValue,
+      selectedWeek: null
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    const parsedSelectedWeek = Number.parseInt(parsed.selectedWeek, 10);
+
+    return {
+      channelName: typeof parsed.channelName === 'string' ? parsed.channelName : '',
+      selectedWeek: Number.isFinite(parsedSelectedWeek) ? parsedSelectedWeek : null
+    };
+  } catch (_error) {
+    return {
+      channelName: '',
+      selectedWeek: null
+    };
+  }
+}
+
+function getSelectedOptionValueFromViewState(viewState, actionId) {
+  const values = viewState && viewState.values ? Object.values(viewState.values) : [];
+
+  for (const valueGroup of values) {
+    if (!valueGroup || typeof valueGroup !== 'object') {
+      continue;
+    }
+
+    for (const actionState of Object.values(valueGroup)) {
+      if (!actionState || actionState.type !== 'static_select' || actionState.action_id !== actionId) {
+        continue;
+      }
+
+      return actionState.selected_option && actionState.selected_option.value
+        ? actionState.selected_option.value
+        : '';
+    }
+  }
+
+  return '';
+}
 
 // Initialize Express and Slack App based on mode
 let receiver;
@@ -357,8 +413,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
     client,
     userId: command.user_id,
     logger,
-    apiClient,
-    buildChannelKey
+    apiClient
   })
     .then(() => {
       console.log(`✅ Home dashboard successfully refreshed for user ${command.user_id}`);
@@ -382,8 +437,8 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       userId: body.user.id,
       logger,
       apiClient,
-      buildChannelKey,
-      selectedChannelName
+      selectedChannelName,
+      selectedWeek: null
     })
       .catch((error) => {
         logger.error('Error handling Home channel selection:', error);
@@ -397,9 +452,14 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
 app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
 
-  const selectedChannelName = body.actions && body.actions[0] && body.actions[0].value
+  const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
-    : '';
+    : encodeDashboardState({ channelName: '', selectedWeek: null });
+
+  const {
+    channelName: selectedChannelName,
+    selectedWeek
+  } = parseDashboardState(actionValue);
 
   // Republish asynchronously so ack is never blocked by dashboard work.
   publishHomeTab({
@@ -407,11 +467,34 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
     userId: body.user.id,
     logger,
     apiClient,
-    buildChannelKey,
-    selectedChannelName
+    selectedChannelName,
+    selectedWeek
   })
     .catch((error) => {
       logger.error('Error handling Home refresh action:', error);
+    });
+});
+
+// Home tab week dropdown: republish with selected week updates.
+app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+
+  const selectedWeekRaw = body.actions && body.actions[0] && body.actions[0].selected_option
+    ? body.actions[0].selected_option.value
+    : '';
+  const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
+  const selectedWeek = Number.parseInt(selectedWeekRaw, 10);
+
+  publishHomeTab({
+    client,
+    userId: body.user.id,
+    logger,
+    apiClient,
+    selectedChannelName,
+    selectedWeek: Number.isFinite(selectedWeek) ? selectedWeek : null
+  })
+    .catch((error) => {
+      logger.error('Error handling Home week selection action:', error);
     });
 });
 

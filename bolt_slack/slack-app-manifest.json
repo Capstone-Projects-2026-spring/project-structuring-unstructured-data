@@ -36,6 +36,11 @@
                 "should_escape": false
             },
             {
+                "command": "/refresh-home",
+                "description": "Refresh the SUD dashboard in the app home.",
+                "should_escape": false
+            },
+            {
                 "command": "/summary",
                 "description": "This creates a summary of messages from the current week and past week",
                 "should_escape": false

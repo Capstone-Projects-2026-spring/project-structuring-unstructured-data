@@ -7,6 +7,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // Load 
 // Import routers
 const messagesRouter = require('./routes/messages');
 const usersRouter = require('./routes/users');
+const summariesRouter = require('./routes/summaries');
 
 // Import database credentials from .env file
 const DB_USER = process.env.MONGODB_USER;
@@ -29,6 +30,7 @@ app.use((req, res, next) => {
 // Mount routers
 app.use(messagesRouter);
 app.use(usersRouter);
+app.use(summariesRouter);
 
 // Simple health endpoint for uptime checks
 app.get('/health', (_req, res) => {

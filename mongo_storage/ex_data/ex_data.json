@@ -1,0 +1,45 @@
+{
+    "dbName": "all_structuring_data_C0ADQ1Y4B6X",
+    "summaries": [
+        {
+            "_id": "69cd7fca15941f0f920c426b",
+            "channel_db": "all_structuring_data_C0ADQ1Y4B6X",
+            "week_of": 12,
+            "day_name": "Monday",
+            "summary_text": "- Main tasks:\n  - Investigate public distribution setup.\n  - Clarify .ENV variable sharing for external teams.\n  - Incorporate serious examples into demo presentation.\n- Completed tasks:\n  - None",
+            "message_count": 52,
+            "distinct_users": 5,
+            "generated_at_utc": "2026-04-01T21:09:06.775410+00:00"
+        },
+        {
+            "_id": "69cd7fca15941f0f920c426c",
+            "channel_db": "all_structuring_data_C0ADQ1Y4B6X",
+            "week_of": 12,
+            "day_name": "Tuesday",
+            "summary_text": "- Main tasks:\n  - Determine how to update the assignment submission with the latest release link\n  - Review and merge the important PR for tester access\n  - Ensure testers receive the most updated release\n- Completed tasks:\n  - Updated acceptance testing documentation\n  - Added details for ENV variable setup and created a new MongoDB user for testers\n  - Approved a merge for tester access",
+            "message_count": 19,
+            "distinct_users": 2,
+            "generated_at_utc": "2026-04-01T21:09:11.178038+00:00"
+        },
+        {
+            "_id": "69cd7fca15941f0f920c426d",
+            "channel_db": "all_structuring_data_C0ADQ1Y4B6X",
+            "week_of": 12,
+            "day_name": "Wednesday",
+            "summary_text": "- Main tasks:\n  - Improve summarization feature for better readability, detail, and speaker attribution, including testing with large texts.\n  - Enhance user interaction for message saving, focusing on bundled saving and flexible user options.\n  - Implement user and bot permissions.\n- Completed tasks:\n  - Successfully stored channel messages to the database.\n  - Successfully stored member data to the database.\n  - Performed testing for duplicate message checks during storage.",
+            "message_count": 12,
+            "distinct_users": 2,
+            "generated_at_utc": "2026-04-01T21:09:16.714530+00:00"
+        },
+        {
+            "_id": "69cd7fca15941f0f920c426e",
+            "channel_db": "all_structuring_data_C0ADQ1Y4B6X",
+            "week_of": 12,
+            "day_name": "Friday",
+            "summary_text": "- Main tasks:\n  - Evaluate readiness of a PR for merging and offer merge conflict assistance\n  - Request to rebase branch `SUD-53-Prototype-message-summary-dashboard`\n  - Decision to maintain current free-tier service plan\n- Completed tasks:\n  - Deployed the SUB bud service",
+            "message_count": 5,
+            "distinct_users": 2,
+            "generated_at_utc": "2026-04-01T21:09:19.837828+00:00"
+        }
+    ]
+}

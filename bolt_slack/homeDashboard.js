@@ -1,6 +1,7 @@
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
-const DEFAULT_RECENT_MESSAGES_LIMIT = 3;
+const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
+const MAX_SUMMARY_TEXT_LENGTH = 750;
 const CHANNEL_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_STATIC_SELECT_OPTIONS = 100;
 
@@ -9,18 +10,63 @@ const channelCache = {
   expiresAt: 0
 };
 
-function toTimestampMillis(ts) {
-  const parsedTs = Number.parseFloat(ts);
-  return Number.isFinite(parsedTs) ? parsedTs * 1000 : 0;
-}
-
-function formatMessageTimestamp(ts) {
-  const timestamp = toTimestampMillis(ts);
-  if (!timestamp) {
+function formatSummaryTimestamp(ts) {
+  if (!ts) {
     return 'unknown time';
   }
 
-  return new Date(timestamp).toLocaleString();
+  const parsed = Date.parse(ts);
+  if (Number.isNaN(parsed)) {
+    return 'unknown time';
+  }
+
+  return new Date(parsed).toLocaleString();
+}
+
+function truncateText(text, maxLength) {
+  const normalizedText = String(text || '').trim();
+
+  if (!normalizedText) {
+    return '(no summary text)';
+  }
+
+  if (normalizedText.length <= maxLength) {
+    return normalizedText;
+  }
+
+  return `${normalizedText.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function encodeDashboardState({ channelName, selectedWeek }) {
+  const normalizedSelectedWeek = Number.parseInt(selectedWeek, 10);
+
+  return JSON.stringify({
+    channelName: channelName || '',
+    selectedWeek: Number.isFinite(normalizedSelectedWeek) ? normalizedSelectedWeek : null
+  });
+}
+
+function getAvailableWeeks(summaries) {
+  const uniqueWeeks = new Set();
+
+  for (const summary of summaries) {
+    const week = Number(summary && summary.week_of);
+    if (Number.isFinite(week)) {
+      uniqueWeeks.add(week);
+    }
+  }
+
+  return Array.from(uniqueWeeks).sort((left, right) => right - left);
+}
+
+function buildWeekOptions(availableWeeks) {
+  return availableWeeks.slice(0, MAX_STATIC_SELECT_OPTIONS).map((week) => ({
+    text: {
+      type: 'plain_text',
+      text: `Week ${week}`
+    },
+    value: String(week)
+  }));
 }
 
 function buildChannelOptions(channels) {
@@ -77,81 +123,210 @@ async function getBotChannels(client) {
   return channels;
 }
 
-async function fetchRecentMessagesForChannel({ apiClient, buildChannelKey, channelName, logger }) {
+async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }) {
   if (!channelName) {
     return {
       apiStatus: 'No channel selected',
-      recentMessages: [],
-      messagesStored: 0,
+      dbName: '',
+      summaries: [],
+      availableWeeks: [],
+      summaryRecords: 0,
+      messagesSummarized: 0,
       errorMessage: ''
     };
   }
 
   try {
-    const collectionName = await buildChannelKey(channelName);
+    const response = await apiClient.get(`/api/summaries/${encodeURIComponent(channelName)}`);
+    const summaries = response.data && Array.isArray(response.data.summaries)
+      ? response.data.summaries
+      : [];
 
-    const response = await apiClient.get(`/api/messages/${collectionName}`, {
-      params: {
-        limit: DEFAULT_RECENT_MESSAGES_LIMIT
-      }
-    });
-
-    const messages = Array.isArray(response.data) ? response.data : [];
-    const totalMessagesHeader = Number.parseInt(response.headers['x-total-count'], 10);
-    const sortedMessages = messages
-      .slice()
-      .sort((a, b) => toTimestampMillis(b.ts) - toTimestampMillis(a.ts));
+    const messagesSummarized = summaries.reduce((sum, summary) => {
+      const count = Number(summary && summary.message_count);
+      return sum + (Number.isFinite(count) ? count : 0);
+    }, 0);
+    const availableWeeks = getAvailableWeeks(summaries);
 
     return {
       apiStatus: 'Online',
-      recentMessages: sortedMessages.slice(0, DEFAULT_RECENT_MESSAGES_LIMIT),
-      messagesStored: Number.isFinite(totalMessagesHeader) ? totalMessagesHeader : messages.length,
+      dbName: response.data && typeof response.data.dbName === 'string' ? response.data.dbName : '',
+      summaries,
+      availableWeeks,
+      summaryRecords: summaries.length,
+      messagesSummarized,
       errorMessage: ''
     };
   } catch (error) {
     if (logger) {
-      logger.error('Error fetching recent messages for Home tab:', error);
+      logger.error('Error fetching weekly summaries for Home tab:', error);
     } else {
-      console.error('Error fetching recent messages for Home tab:', error);
+      console.error('Error fetching weekly summaries for Home tab:', error);
     }
 
     return {
       apiStatus: 'Offline',
-      recentMessages: [],
-      messagesStored: 0,
+      dbName: '',
+      summaries: [],
+      availableWeeks: [],
+      summaryRecords: 0,
+      messagesSummarized: 0,
       errorMessage: error.message || 'Unknown API error'
     };
   }
 }
 
-function buildRecentMessagesMarkdown(channelName, recentMessages) {
-  if (!channelName) {
-    return 'Select a channel from the dropdown above to load messages.';
+function buildSummaryDetailsMarkdown(summary) {
+  const weekOf = summary.week_of != null ? summary.week_of : 'n/a';
+  const messageCount = summary.message_count != null ? summary.message_count : 'n/a';
+  const distinctUsers = summary.distinct_users != null ? summary.distinct_users : 'n/a';
+  const generatedAt = formatSummaryTimestamp(summary.generated_at_utc);
+
+  return [
+    {
+      type: 'mrkdwn',
+      text: `*Week*\n${weekOf}`
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Messages*\n${messageCount}`
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Distinct users*\n${distinctUsers}`
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Generated*\n${generatedAt}`
+    }
+  ];
+}
+
+function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, selectedWeek }) {
+  if (!selectedChannelName) {
+    return [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: 'Select a channel above to load its weekly summaries.'
+        }
+      }
+    ];
   }
 
-  if (!recentMessages.length) {
-    return `No messages found in the database for *#${channelName}* yet.`;
+  if (!summaries.length) {
+    return [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `No weekly summaries found yet for *#${selectedChannelName}*.`
+        }
+      }
+    ];
   }
 
-  return recentMessages
-    .map((message, index) => {
-      const userLabel = message.user || 'Unknown user';
-      const text = message.text || '(no text)';
-      const postedAt = formatMessageTimestamp(message.ts);
-      return `${index + 1}. *${userLabel}*: ${text} _at ${postedAt}_`;
-    })
-    .join('\n');
+  const sortedSummaries = summaries
+    .slice()
+    .sort((left, right) => Date.parse(right.generated_at_utc || '') - Date.parse(left.generated_at_utc || ''));
+
+  const availableWeeks = getAvailableWeeks(sortedSummaries);
+  const parsedSelectedWeek = Number.parseInt(selectedWeek, 10);
+  const resolvedSelectedWeek = availableWeeks.includes(parsedSelectedWeek)
+    ? parsedSelectedWeek
+    : (availableWeeks[0] || null);
+
+  const weekOptions = buildWeekOptions(availableWeeks);
+  const selectedWeekOption = resolvedSelectedWeek == null
+    ? null
+    : weekOptions.find((option) => option.value === String(resolvedSelectedWeek));
+  const visibleSummaries = resolvedSelectedWeek == null
+    ? sortedSummaries
+    : sortedSummaries.filter((summary) => Number(summary && summary.week_of) === resolvedSelectedWeek);
+  const blocks = [];
+
+  blocks.push({
+    type: 'header',
+    text: {
+      type: 'plain_text',
+      text: 'Weekly Summaries'
+    },
+    level: 2
+
+  });
+
+  blocks.push({
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text: `Latest summaries for *#${selectedChannelName}*`
+    },
+    accessory: {
+      type: 'static_select',
+      placeholder: {
+        type: 'plain_text',
+        text: 'Select week'
+      },
+      action_id: HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+      options: weekOptions,
+      ...(selectedWeekOption ? { initial_option: selectedWeekOption } : {})
+    }
+  });
+
+  blocks.push({ type: 'divider' });
+
+  blocks.push({
+    type: 'context',
+    elements: [
+      {
+        type: 'mrkdwn',
+        text: resolvedSelectedWeek == null
+          ? `Showing all ${visibleSummaries.length} daily updates.`
+          : `Showing ${visibleSummaries.length} daily updates for *Week ${resolvedSelectedWeek}*.`
+      }
+    ]
+  });
+
+  for (const [index, summary] of visibleSummaries.entries()) {
+    const summaryTitle = `${summary.day_name || 'Unknown day'} · Week ${summary.week_of != null ? summary.week_of : 'n/a'}`;
+    const summaryText = truncateText(summary.summary_text, MAX_SUMMARY_TEXT_LENGTH);
+    const cardNumber = index + 1;
+
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `:bookmark_tabs: *Summary ${cardNumber}*\n*${summaryTitle}*\n${summaryText}`
+      }
+    });
+
+    blocks.push({
+      type: 'section',
+      fields: buildSummaryDetailsMarkdown(summary)
+    });
+    
+
+    if (index < visibleSummaries.length - 1) {
+      blocks.push({ type: 'divider' });
+    }
+  }
+
+  return blocks;
 }
 
 function buildSampleHomeView({
   userId,
   channelOptions,
   selectedChannelName,
+  selectedWeek,
   activeChannels,
   selectableChannels,
-  messagesStored,
+  summaryRecords,
+  messagesSummarized,
   apiStatus,
-  recentMessages,
+  dbName,
+  summaries,
   errorMessage
 }) {
   const generatedAt = new Date().toLocaleString();
@@ -163,7 +338,8 @@ function buildSampleHomeView({
       text: {
         type: 'plain_text',
         text: 'SUD Dashboard'
-      }
+      },
+      level: 1
     },
     {
       type: 'section',
@@ -184,15 +360,26 @@ function buildSampleHomeView({
           },
           style: 'primary',
           action_id: HOME_REFRESH_ACTION_ID,
-          value: selectedChannelName || ''
+          value: encodeDashboardState({
+            channelName: selectedChannelName,
+            selectedWeek
+          })
         }
       ]
+    },
+    {
+      type: 'header',
+        text: {
+          type: 'plain_text',        
+          text: 'Channel Overview'
+      },
+      level: 2
     },
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '\n*Channel*'
+        text: `Select a channel to view its analytics and weekly summaries:`
       },
       accessory: {
         type: 'static_select',
@@ -213,7 +400,11 @@ function buildSampleHomeView({
       fields: [
         {
           type: 'mrkdwn',
-          text: `*Messages Stored*\n${messagesStored}`
+          text: `*Summary Records*\n${summaryRecords}`
+        },
+        {
+          type: 'mrkdwn',
+          text: `*Messages Summarized*\n${messagesSummarized}`
         },
         {
           type: 'mrkdwn',
@@ -228,15 +419,15 @@ function buildSampleHomeView({
           text: `*Last Refresh*\n${generatedAt}`
         }
       ]
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*Most Recent Messages (${DEFAULT_RECENT_MESSAGES_LIMIT})*\n${buildRecentMessagesMarkdown(selectedChannelName, recentMessages)}`
-      }
     }
   ];
+
+  blocks.push(...buildWeeklySummaryBlocks({
+    selectedChannelName,
+    dbName,
+    summaries,
+    selectedWeek
+  }));
 
   if (activeChannels > selectableChannels) {
     blocks.push({
@@ -269,7 +460,7 @@ function buildSampleHomeView({
   };
 }
 
-async function publishHomeTab({ client, userId, logger, apiClient, buildChannelKey, selectedChannelName }) {
+async function publishHomeTab({ client, userId, logger, apiClient, selectedChannelName, selectedWeek = null }) {
   try {
     const channels = await getBotChannels(client);
     const channelOptions = buildChannelOptions(channels);
@@ -278,12 +469,14 @@ async function publishHomeTab({ client, userId, logger, apiClient, buildChannelK
 
     const {
       apiStatus,
-      recentMessages,
-      messagesStored,
+      dbName,
+      summaries,
+      availableWeeks,
+      summaryRecords,
+      messagesSummarized,
       errorMessage
-    } = await fetchRecentMessagesForChannel({
+    } = await fetchWeeklySummariesForChannel({
       apiClient,
-      buildChannelKey,
       channelName: resolvedChannelName,
       logger
     });
@@ -292,11 +485,14 @@ async function publishHomeTab({ client, userId, logger, apiClient, buildChannelK
       userId,
       channelOptions,
       selectedChannelName: resolvedChannelName,
+      selectedWeek: availableWeeks.includes(Number(selectedWeek)) ? Number(selectedWeek) : availableWeeks[0],
       activeChannels: channels.length,
       selectableChannels: channelOptions.length,
-      messagesStored,
+      summaryRecords,
+      messagesSummarized,
       apiStatus,
-      recentMessages,
+      dbName,
+      summaries,
       errorMessage
     });
 
@@ -316,6 +512,8 @@ async function publishHomeTab({ client, userId, logger, apiClient, buildChannelK
 module.exports = {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
+  HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   buildSampleHomeView,
-  publishHomeTab
+  publishHomeTab,
+  encodeDashboardState
 };
