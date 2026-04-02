@@ -17,14 +17,14 @@ class Summarizer:
             gemini_api = os.getenv('GEMINI_API_KEY')
             
             sample_text = (
-                "- Main tasks:\n"
-                "  - Finalized API schema updates for summary retrieval endpoint\n"
-                "  - Reviewed preprocessing edge cases for Slack timestamp parsing\n"
-                "  - Coordinated MongoDB collection naming conventions\n"
-                "- Completed tasks:\n"
-                "  - Merged parser fix for malformed ts values\n"
-                "  - Added week-based filtering to preprocessing pipeline\n"
-                "  - Verified local run for selected channel and week"
+                "*Main tasks:*\n"
+                "\t- Finalized API schema updates for summary retrieval endpoint\n"
+                "\t- Reviewed preprocessing edge cases for Slack timestamp parsing\n"
+                "\t- Coordinated MongoDB collection naming conventions\n"
+                "*Completed tasks*\n"
+                "\t- Merged parser fix for malformed ts values\n"
+                "\t- Added week-based filtering to preprocessing pipeline\n"
+                "\t- Verified local run for selected channel and week"
             )
 
             system_instruction = (
