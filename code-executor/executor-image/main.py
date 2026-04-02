@@ -73,20 +73,21 @@ def run_in_sandbox(code: str, stdin: str, language: str):
 
         # build nsjail command
         cmd = [
-            "nsjail",
-            "-Mo",
-            "--quiet",
-            "--disable_proc",
-            "--disable_clone_newnet",
-            "--time_limit", "5",
-            "--rlimit_as", "2048",  # 2GB to avoid oom
-            "--rlimit_cpu", "2",
-            "--chroot", rootfs_path,
-            "--bindmount_ro", f"{host_code_path}:/{host_code_path}",
-            "--user", "99999",
-            "--group", "99999",
-            "--",
-            "/usr/bin/node", # TODO: a quick mapping in languages to map language strings to executables and args
+            # "nsjail",
+            # "-Mo",
+            # "--quiet",
+            # "--disable_proc",
+            # "--disable_clone_newnet",
+            # "--time_limit", "5",
+            # "--rlimit_as", "2048",  # 2GB to avoid oom
+            # "--rlimit_cpu", "2",
+            # "--chroot", rootfs_path,
+            # "--bindmount_ro", f"{host_code_path}:/{host_code_path}",
+            # "--user", "99999",
+            # "--group", "99999",
+            # "--",
+            "/Users/samir/.nvm/versions/node/v24.11.1/bin/node",
+             # TODO: a quick mapping in languages to map language strings to executables and args
             "--max-old-space-size=64",
             f"/{host_code_path}",
         ]
