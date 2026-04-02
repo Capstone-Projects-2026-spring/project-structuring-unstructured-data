@@ -131,7 +131,7 @@ function registerSocketHandlers(io, socket, services) {
         method: "POST",
         body: {
           roomId,
-          code
+          code: btoa(code)
         }
       });
     } catch (error) {
@@ -166,7 +166,7 @@ function registerSocketHandlers(io, socket, services) {
       body: {
         gameId,
         teamId,
-        code,
+        code: btoa(code), // convert to base64
         testCases: JSON.stringify(testCases),
         runIDs: JSON.stringify(runIDs)
       },
