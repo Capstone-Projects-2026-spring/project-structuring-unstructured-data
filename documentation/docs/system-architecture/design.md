@@ -8,7 +8,7 @@ The Design Document - Part I Architecture describes the software architecture an
 
 **Overview**
 
-For the scope of our project, our application's design will utilize the Slack API to access all user, message, and channel data, but development of a codebase compatible with multiple communication platforms is anticipated. For the best compatibility with the existing Web API that communication platforms generally provide, the application will integrate with the target platform using routes composed in JavaScript and Node.js; this version of the app specifically will leverege the Bolt for JavaScript open-source framework in the backend designed directly for Slack, allowing both the access of Slack data and interaction with Slack's UI. The tool's backend also will have the ability to extract context and structure data into meaningful units, accomplished through a custom built LLM or similar NLP model designed for organizing data based on learned language patterns. The tools used to implement this may shift as the project scope is fully defined, but possible services include the LangChain framework for Python or JavaScript or the LangExtract Python library. All instances of raw user and message data, as well as all the resulting strucutred conversation data will be placed in a persistent storage source such as MongoDB or NoSQL.
+For the scope of the SUD Bud project, our application's design will utilize the Slack API to access all user, message, and channel data, but development of a codebase compatible with multiple communication platforms is anticipated. For the best compatibility with the existing Web API that communication platforms generally provide, the application will integrate with the target platform using routes composed in JavaScript and Node.js; this version of the app specifically will leverege the Bolt for JavaScript open-source framework in the backend designed directly for Slack, allowing both the access of Slack data and interaction with Slack's UI. The tool's backend also will have the ability to extract context from conversations and structure data into daily summaries via a Google Gemini LLM. The Gemini model, configured through the Google GenAI SDK for Python, will be primarily prompt-engineered to convert message objects within specified time ranges into concise text summaries that identify key tasks, terms and user responsibilities. All instances of raw user and message data, as well as all the resulting strucutred conversation data will be placed in a MongoDB cluster as a persistent storage source. The application will directly address individual user privacy by designing settings that allow members to specify the extent they wish their messages to be collected for summaries within the Slack bot's UI. The app scales to process across multiple workspaces, meaning that the SUD Bud will be designed to manage and store different user, channel, and summary data from entirely seperate organizations.
 
 **Requirements**
 
@@ -28,8 +28,6 @@ A check list for architecture design is attached here [architecture\_design\_che
 # Database Design
 
 ## Entity Relationship Diagram
-![alt text](SUD_UML_01.PNG)
-
 
 ## Raw Data Schema
 ```mermaid
@@ -38,6 +36,7 @@ erDiagram
     WORKSPACE ||--|{ CONVERSATION : contains
 
     USER ||--|{ CONVERSATION : belongsTo
+    USER ||--o{ CONVERSATION : creates
     USER ||--o{ MESSAGE : sends
 
     MESSAGE }o--|| CONVERSATION : contains
@@ -47,12 +46,12 @@ erDiagram
     WORKSPACE {
         string id PK
         string name
+        string[] members
     }
     USER {
         string id PK
         string username
         string real_name
-        string workspace_id FK
     }
     CONVERSATION {
         string id PK
@@ -65,7 +64,6 @@ erDiagram
     }
     MESSAGE {
         int id PK
-        string type
         string text
         string timestamp
         string client_msg_id
@@ -86,16 +84,17 @@ erDiagram
         string block_id FK
     }
 ```
+*Figure 1: ER Diagram of relations between Slack data objects collected directly from Slack API*
 
 ### Workspace
 Stores organizational data of an entire workspace
 - id: string - primary key, also known as "team_id" or "team"
 - name: string - name of the workspace
+- members: string[] - array of user IDs referencing all members of the workspace
 
 ### Conversation
 Stores data of all group objects in Slack, called conversations
 - id: string - primary key
-- name: string - name of the conversation
 - type: string - marks type of conversation (channel, group, mpim)
 - isPrivate: boolean - declares if conversation is private
 - isArchived: boolean - declares if conversation is archived
@@ -107,18 +106,14 @@ Stores user data for specific member in a workspace
 - id: string - primary key, also known as "user"
 - username: string - displayed username of the user
 - real_name: string - first and last name of the user
-- workspace_id: string - foreign key (Workspace: id), contains relation to workspace
 
 ### Message
 Stores data of a select message sent into a conversation
-- id: int - primary key, assigned manually per conversation
-- name: string - name of the conversation
-- type: string - marks type of conversation (channel, group, mpim)
+- id: int - primary key, unique identifier assigned manually per message in a conversation
 - text: string - string representation of message's text
-- timestamp: string - string representation of timestamp the message was sent
+- timestamp: bigint - UNIX representation of timestamp the message was sent, derived from original string provided by Slack API (ex= `"1512104434.000490"`)
 - client_msg_id: uuid -  unique id for the message on the client side
 - author_id: string - foreign key (User: id), contains relation to user that sent message
-- workspace_id: string - foreign key (Workspace: id), contains relation to workspace
 - conversation_id: string - foreign key (Conversation: id), contains relation to conversation where message is located
 
 ### Block
@@ -136,7 +131,6 @@ Composed element/section of a message block
 
 ## Structured Message Schema
 
-## Raw Data Schema
 ```mermaid
 erDiagram
     SUMMARY }o--|| USER : contains
@@ -155,6 +149,8 @@ erDiagram
         string real_name
     }
 ```
+*Figure 2: ER Diagram of structured message data from the LLM model, which includes a daily task summary*
+
 
 ### Summary
 Collection of structuring model's outputs of daily message summaries
