@@ -50,7 +50,7 @@ cursor.execute(
             "  most_frequent([4, 4, 1, 2])       -> 4"
         ),
         "python",
-        json.dumps(["python"]),
+        json.dumps(["python", "c", "java", "javascript"]),
         None,
         None,
         1,
@@ -65,12 +65,40 @@ SECTIONS = [
     {
         "order_index": 0,
         "label": "Choose a Data Structure",
-        "code": (
-            "def most_frequent(nums: list[int]) -> int:\n"
-            "    # Initialize a data structure to keep track of how many\n"
-            "    # times each number appears in the list\n"
-            "    "
-        ),
+        "code": {
+            "python": (
+                "def most_frequent(nums: list[int]) -> int:\n"
+                "    # Initialize a data structure to keep track of how many\n"
+                "    # times each number appears in the list\n"
+                "    "
+            ),
+            "javascript": (
+                "function mostFrequent(nums) {\n"
+                "    // Initialize a data structure to keep track of how many\n"
+                "    // times each number appears in the list\n"
+                "    \n"
+                "}\n"
+            ),
+            "java": (
+                "public class Solution {\n"
+                "    public static int mostFrequent(int[] nums) {\n"
+                "        // Initialize a data structure to keep track of how many\n"
+                "        // times each number appears in the list\n"
+                "        \n"
+                "    }\n"
+                "}\n"
+            ),
+            "c": (
+                "#include <stdio.h>\n"
+                "#include <stdlib.h>\n"
+                "\n"
+                "int most_frequent(int* nums, int numsSize) {\n"
+                "    // Initialize a data structure to keep track of how many\n"
+                "    // times each number appears in the list\n"
+                "    \n"
+                "}\n"
+            ),
+        },
         "suggestions": [
             {"content": "", "is_correct": True, "source": "ai"},
         ],
@@ -78,11 +106,32 @@ SECTIONS = [
     {
         "order_index": 1,
         "label": "Write a Loop",
-        "code": (
-            "    # Loop over the list and populate your data structure\n"
-            "    # with the count of each element\n"
-            "    "
-        ),
+        "code": {
+            "python": (
+                "    # Loop over the list and populate your data structure\n"
+                "    # with the count of each element\n"
+                "    "
+            ),
+            "javascript": (
+                "    // Loop over the array and populate your data structure\n"
+                "    // with the count of each element\n"
+                "    \n"
+                "}\n"
+            ),
+            "java": (
+                "        // Loop over the array and populate your data structure\n"
+                "        // with the count of each element\n"
+                "        \n"
+                "    }\n"
+                "}\n"
+            ),
+            "c": (
+                "    // Loop over the array and populate your data structure\n"
+                "    // with the count of each element\n"
+                "    \n"
+                "}\n"
+            ),
+        },
         "suggestions": [
             {"content": "", "is_correct": True, "source": "ai"},
         ],
@@ -90,10 +139,28 @@ SECTIONS = [
     {
         "order_index": 2,
         "label": "Return the Result",
-        "code": (
-            "    # Return the element that has the highest count\n"
-            "    "
-        ),
+        "code": {
+            "python": (
+                "    # Return the element that has the highest count\n"
+                "    "
+            ),
+            "javascript": (
+                "    // Return the element that has the highest count\n"
+                "    \n"
+                "}\n"
+            ),
+            "java": (
+                "        // Return the element that has the highest count\n"
+                "        \n"
+                "    }\n"
+                "}\n"
+            ),
+            "c": (
+                "    // Return the element that has the highest count\n"
+                "    \n"
+                "}\n"
+            ),
+        },
         "suggestions": [
             {"content": "", "is_correct": True, "source": "ai"},
         ],
