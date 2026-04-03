@@ -35,6 +35,8 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const periodicSaveRef = useRef(null);
   const debounceRef = useRef(null);
+  const codeRef = useRef(code);
+  useEffect(() => { codeRef.current = code; }, [code]);
 
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
@@ -242,9 +244,8 @@ function ProblemPage({ problem, onBack, studentName }) {
 
   useEffect(() => {
     if (!sessionId) return;
-    periodicSaveRef.current = setInterval(() => doSave(code), 30000);
+    periodicSaveRef.current = setInterval(() => doSave(codeRef.current), 30000);
     return () => clearInterval(periodicSaveRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, doSave]);
 
   useEffect(() => {
@@ -471,7 +472,7 @@ _stderr = _stderr_buf.getvalue()
           <button
             className="btn btn-outline"
             onClick={() => setShowConfirmDialog(true)}
-            disabled={isSubmitting || !!submitError}
+            disabled={isSubmitting || !sessionId}
           >
             {isSubmitting ? 'Submitting…' : 'Submit'}
           </button>
