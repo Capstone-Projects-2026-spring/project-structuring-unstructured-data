@@ -12,6 +12,8 @@ For the scope of the SUD Bud project, our application's design will utilize the 
 
 **Requirements**
 
+***TODO:***
+
 In addition to the general requirements the Design Document - Part I Architecture will contain:
 
 A description the different components and their interfaces. For example: client, server, database.
@@ -27,8 +29,6 @@ A check list for architecture design is attached here [architecture\_design\_che
 
 # Database Design
 
-## Entity Relationship Diagram
-
 ## Raw Data Schema
 ```mermaid
 erDiagram
@@ -41,7 +41,7 @@ erDiagram
 
     MESSAGE }o--|| CONVERSATION : contains
     MESSAGE ||--|{ BLOCK : consistsOf
-    BLOCK ||--|{ ELEMENT : consistsOf
+    BLOCK ||--|{ ELEMENT : madeOf
 
     WORKSPACE {
         string id PK
@@ -68,7 +68,6 @@ erDiagram
         string timestamp
         string client_msg_id
         string author_id FK
-        string workspace_id FK
         string conversation_id FK
         
     }
@@ -117,13 +116,13 @@ Stores data of a select message sent into a conversation
 - conversation_id: string - foreign key (Conversation: id), contains relation to conversation where message is located
 
 ### Block
-Collection of objects that make up a message
+Collection of objects that compose a message's contents. This can include plain text, rich text, images, files, and other components of a message.
 - id: string - primary key, also known as "block_id"
 - type: string - type of block object (rich_text, etc.)
 - message_id: string - foreign key (Message: id), contains relation to message the block makes up
 
 ### Element
-Composed element/section of a message block
+Composed element/section that makes up a message block. This can include a URL associated with an attachment, text representing a markdown file, etc.
 - id: int - primary key
 - type: string - type of element (text, url)
 - value: string - string representation of the item type associated with the text
