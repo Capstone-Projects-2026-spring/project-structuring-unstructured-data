@@ -1,18 +1,6 @@
 # Sequence Diagrams
 
-## Use Case 1 (Account Creation)
-![alt text](res/use-case-1.png)
-
-## Use Case 2 (Signing In)
-![alt text](res/use-case-2.png)
-
-## Use Case 3 (Default Matchmaking)
-![alt text](res/use-case-3.png)
-
-## Use Case 4 (Party Matchmaking)
-![alt text](res/use-case-4.png)
-
-## Use Case 5 (Full Game Flow with Redis/websockets)
+## Use Case 1 (Full Game Flow with Redis/websockets)
 ```plantuml-diagram
 @startuml
 title Game Flow
@@ -115,3 +103,15 @@ deactivate ub
 
 @enduml
 ```
+
+## Use Case 2 (Default Matchmaking)
+![alt text](res/use-case-3.png)
+
+## Use Case 3 (Party Matchmaking)
+![alt text](res/use-case-4.png)
+
+## Use Case 4 (Account Creation)
+![alt text](res/use-case-1.png)
+
+## Use Case 5 (Signing In)
+![alt text](res/use-case-2.png)
