@@ -3,7 +3,7 @@ import { AVAILABLE_LANGUAGES } from '../constants';
 import { createProblem } from '../api';
 
 
-const STEPS = ['Details', 'Languages', 'Sections', 'Settings'];
+const STEPS = ['Details', 'Languages', 'Sections', 'Test Cases','Settings'];
 
 
 /**
@@ -427,6 +427,63 @@ function StepIndicator({ currentStep }) {
   );
 }
 
+function StepTestCases({ testCases, setTestCases }) {
+
+  const updateTestCase = (index, field, value) => {
+    const updated = [...testCases];
+    updated[index][field] = value;
+    setTestCases(updated);
+  };
+
+  const addTestCase = () => {
+    setTestCases([
+      ...testCases,
+      { input: '', expected: '', explanation: '' }
+    ]);
+  };
+
+  const removeTestCase = (index) => {
+    setTestCases(testCases.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="cp-step">
+      <div className="cp-step-intro">
+        <h3 className="cp-step-title">Test Cases</h3>
+      </div>
+
+      {testCases.map((tc, index) => (
+        <div key={index} className="cp-testcase-row">
+          <textarea
+            placeholder="Input"
+            value={tc.input}
+            onChange={(e) => updateTestCase(index, 'input', e.target.value)}
+          />
+
+          <textarea
+            placeholder="Expected Output"
+            value={tc.expected}
+            onChange={(e) => updateTestCase(index, 'expected', e.target.value)}
+          />
+
+          <textarea
+            placeholder="Explanation (optional)"
+            value={tc.explanation}
+            onChange={(e) => updateTestCase(index, 'explanation', e.target.value)}
+          />
+
+          {testCases.length > 1 && (
+            <button onClick={() => removeTestCase(index)}>×</button>
+          )}
+        </div>
+      ))}
+
+      <button onClick={addTestCase}>
+        + Add Test Case
+      </button>
+    </div>
+  );
+}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -455,6 +512,9 @@ function CreateProblemPage({ onBack }) {
   const [sections, setSections] = useState([initSection()]);
 
   // Step 4
+  const [testCases, setTestCases] = useState([{ input: '', expected: '', explanation: '' }]);
+  
+  //Step 5
   const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
   const [maxSubmissions, setMaxSubmissions] = useState('');
   const [allowCopyPaste, setAllowCopyPaste] = useState(true);
@@ -483,6 +543,10 @@ function CreateProblemPage({ onBack }) {
     if (step === 2) {
       const hasEmpty = sections.some(s => !s.label.trim());
       if (hasEmpty) errs.sections = 'Every section needs a label.';
+    }
+    if (step === 3) {
+      const hasEmpty = testCases.some(tc => !tc.input.trim() || !tc.expected.trim());
+      if (hasEmpty) errs.testCases = 'All test cases must have input and output.';
     }
     return errs;
   };
@@ -527,11 +591,14 @@ function CreateProblemPage({ onBack }) {
           content: sg.type === 'manual' ? sg.content : '',
         })),
       })),
+      testCases: testCases,
       timeLimitMinutes: timeLimitMinutes !== '' ? Number(timeLimitMinutes) : null,
       maxSubmissions: maxSubmissions !== '' ? Number(maxSubmissions) : null,
       allowCopyPaste,
       trackTabSwitching,
     };
+
+    console.log(JSON.stringify(problemData.testCases, null, 2));
 
     try {
       const result = await createProblem(problemData, localStorage.getItem('token'));
@@ -596,6 +663,12 @@ function CreateProblemPage({ onBack }) {
                 />
               )}
               {step === 3 && (
+                <StepTestCases
+                  testCases={testCases}
+                  setTestCases={setTestCases}
+                />
+              )}
+              {step === 4 && (
                 <StepSettings
                   timeLimitMinutes={timeLimitMinutes} setTimeLimitMinutes={setTimeLimitMinutes}
                   maxSubmissions={maxSubmissions} setMaxSubmissions={setMaxSubmissions}
