@@ -1,9 +1,6 @@
 import os
-import string
 import subprocess
 import time
-import random
-from typing import List, Optional
 import base64
 import json
 
@@ -11,8 +8,15 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, ValidationError
 
+from utils import *
+from models import *
+
 app = FastAPI()
 
+# This seems backwards but we want nsjail to be on by default.
+# So if the env key isn't set, it's still on # TODO: havent implemented thi yet
+use_nsjail = False if os.getenv("USE_NSJAIL") == "false" else True
+node_path = os.getenv("NODE_PATH", "/usr/bin/node")
 
 @app.get("/", response_class=PlainTextResponse)
 def root():
@@ -23,60 +27,15 @@ def root():
 def health():
     return {"status": "ok"}
 
-
-class Languages:
-    map = {
-        "javascript": "js",
-        # "python": ".py",
-    }
-
-    @classmethod
-    def is_supported(cls, language: str) -> bool:
-        return language in cls.map
-
-# Mirrors ProblemInputOutput#Parameter
-class Parameter(BaseModel):
-    name: str
-    type: str  # how can we make this a list of literals
-    value: str = None
-    # isOutputParameter = Optional[bool]
-
-# Mirrors GameTestCasesContext.tsx#TestableCase
-class TestableCase(BaseModel):
-    id: int
-    functionInput: List[Parameter]
-    expectedOutput: Parameter
-    computedOutput: Optional[str] = None
-
-
-class ExecutionRequest(BaseModel):
-    language: str
-    code: str
-    stdin: Optional[str] = ""
-    testCases: str = None
-
-# write to file with its extension, catching error if langauge is not implemented.
-# returns None if langauge is not implemented or the filename written to
-def write_code_to_file(content: str, language: str):
-    # TODO: we should check if code compiles before running it and returning garbage.
-    try:
-        lang_ext = Languages.map[language]
-    except KeyError:
-        return None
-    name = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-    with open(f"/tmp/{name}.{lang_ext}", "w+") as f:
-        f.write(content)
-    return f"/tmp/{name}.{lang_ext}"
-
-
 def run_in_sandbox(
     code: str,
     stdin: str,
     language: str,
-    testCases: List[str] = None
+    testCase: TestableCase = None
 ):
     # write code to a random temp file with the correct extension
-    host_code_path = write_code_to_file(code, language)
+
+    host_code_path = write_code_to_file(code, language, testCase)
     if host_code_path is None:  # we verify on /execute but nice to be sure
         return {
             "stdout": "",
@@ -181,7 +140,7 @@ def execute(req: ExecutionRequest):
     # the test cases are coming in as a json string.
     # decode to python!
     testCases = json.loads(req.testCases)
-    print(testCases)
+    # print(testCases)
     if type(testCases) != list:
         return JSONResponse(
             status_code=400,
@@ -205,12 +164,13 @@ def execute(req: ExecutionRequest):
 
         # unnngggghhhhh list comprehension 🤤
         testCaseInputs = [test.value for test in test.functionInput]
+        print(testCaseInputs)
 
         result = run_in_sandbox(
             code=code,
             stdin="",
             language=req.language,
-            testCases=testCaseInputs
+            testCase=test
         )
 
         # check if we passed
