@@ -145,13 +145,6 @@ function ProblemPage({ problem, onBack, studentName }) {
       editorRef.current = editor;
       monacoRef.current = monaco;
 
-      editor.onKeyDown((e) => {
-        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
-          // e.preventDefault();
-          // e.stopPropagation();
-        }
-      });
-
       editor.onDidChangeModelContent((event) => {
         if (idleTimerRef.current) {
           clearTimeout(idleTimerRef.current);

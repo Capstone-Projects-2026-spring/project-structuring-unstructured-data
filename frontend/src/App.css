@@ -1252,6 +1252,152 @@
     white-space: pre-wrap;
 }
 
+/* ── Review Page ──────────────────────────────────────────────────────────── */
+
+.review-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.review-student {
+    color: #9cdcfe;
+    font-weight: 600;
+}
+
+.review-sep {
+    color: #444;
+}
+
+.review-date {
+    color: #666;
+}
+
+.review-info-card {
+    margin-top: 20px;
+    background-color: #252526;
+    border: 1px solid #3c3c3c;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.review-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.review-info-row:last-child {
+    border-bottom: none;
+}
+
+.review-info-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #666;
+}
+
+.review-info-value {
+    font-size: 13px;
+    color: #ccc;
+}
+
+.review-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 8px 12px;
+    background-color: rgba(192, 139, 48, 0.08);
+    border: 1px solid rgba(192, 139, 48, 0.25);
+    border-radius: 6px;
+}
+
+.review-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background-color: rgba(192, 139, 48, 0.35);
+    border: 1px solid rgba(192, 139, 48, 0.5);
+    flex-shrink: 0;
+}
+
+.review-legend-text {
+    font-size: 12px;
+    color: #c08b30;
+    line-height: 1.4;
+}
+
+/* Monaco AI highlight decoration — injected via deltaDecorations */
+.ai-highlight-line {
+    background-color: rgba(192, 139, 48, 0.18) !important;
+    border-left: 2px solid rgba(192, 139, 48, 0.7) !important;
+}
+
+.review-test-case {
+    background-color: #252526;
+    border: 1px solid #3c3c3c;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.review-test-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background-color: #2a2a2b;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+.review-test-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #569cd6;
+}
+
+.review-test-explanation {
+    font-size: 12px;
+    color: #888;
+}
+
+.review-test-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.review-test-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.review-test-key {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #666;
+    width: 60px;
+    flex-shrink: 0;
+}
+
+.review-test-val {
+    font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    color: #9cdcfe;
+}
+
 ::-webkit-scrollbar {
     width: 8px;
 }

@@ -4,15 +4,16 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import ProblemPage from './pages/ProblemPage';
 import CreateProblemPage from './pages/CreateProblemPage';
+import ReviewPage from './pages/ReviewPage';
 import { getTeacherProblems, deleteProblem } from './api';
 
 function restoreSession() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('teacher_token');
         if (!token) return null;
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.exp * 1000 < Date.now()) {
-            localStorage.removeItem('token');
+            localStorage.removeItem('teacher_token');
             return null;
         }
         return { token, email: payload.email, role: payload.role, id: payload.user_id };
@@ -29,19 +30,29 @@ function App() {
     const [studentName, setStudentName] = useState(null);
     const [user, setUser] = useState(restoredUser);
     const [problems, setProblems] = useState([]);
+    const [problemsLoading, setProblemsLoading] = useState(false);
+    const [problemsError, setProblemsError] = useState('');
+    const [reviewTarget, setReviewTarget] = useState(null); // { submission, problem }
+
+    const loadProblems = (token) => {
+        setProblemsLoading(true);
+        setProblemsError('');
+        getTeacherProblems(token)
+            .then((data) => { setProblems(data); setProblemsLoading(false); })
+            .catch((err) => { setProblemsError(err.message); setProblemsLoading(false); });
+    };
 
     useEffect(() => {
         if (user?.token && currentPage === 'dashboard') {
-            getTeacherProblems(user.token)
-                .then(setProblems)
-                .catch((err) => console.error('Failed to load problems:', err));
+            loadProblems(user.token);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, currentPage]);
 
     const handleLogin = (userData) => {
         setUser(userData);
         if (userData.token) {
-            localStorage.setItem('token', userData.token);
+            localStorage.setItem('teacher_token', userData.token);
         }
         if (userData.role === 'student') {
             setSelectedProblem(userData.problem);
@@ -53,8 +64,16 @@ function App() {
     };
 
     const handleBackToDashboard = () => {
-        setCurrentPage('dashboard');
-        setSelectedProblem(null);
+        if (!user?.token) {
+            // Student — no teacher session, return to login
+            setSelectedProblem(null);
+            setStudentName(null);
+            setCurrentPage('login');
+        } else {
+            setCurrentPage('dashboard');
+            setSelectedProblem(null);
+            loadProblems(user.token);
+        }
     };
 
     const handleCreateProblem = () => {
@@ -76,7 +95,7 @@ function App() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('teacher_token');
         setUser(null);
         setSelectedProblem(null);
         setStudentName(null);
@@ -86,6 +105,16 @@ function App() {
 
     if (currentPage === 'login') {
         return <LoginPage onLogin={handleLogin} />;
+    }
+
+    if (reviewTarget) {
+        return (
+            <ReviewPage
+                submission={reviewTarget.submission}
+                problem={reviewTarget.problem}
+                onBack={() => setReviewTarget(null)}
+            />
+        );
     }
 
     if (currentPage === 'problem' && selectedProblem) {
@@ -110,9 +139,13 @@ function App() {
     return (
         <Dashboard
             problems={problems}
+            problemsLoading={problemsLoading}
+            problemsError={problemsError}
             onCreateProblem={handleCreateProblem}
             onDeleteProblem={handleDeleteProblem}
             onProblemsUpdate={setProblems}
+            onRefresh={() => loadProblems(user.token)}
+            onReview={(submission, problem) => setReviewTarget({ submission, problem })}
             onLogout={handleLogout}
             user={user}
         />
