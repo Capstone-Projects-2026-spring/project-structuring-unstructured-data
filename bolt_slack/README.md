@@ -46,6 +46,7 @@ That section covers both:
 - **`/messages`** - Retrieve recent messages from the database
 - **`/store-messages`** - Store current channel messages to the database
 - **`/channel-info`** - Get detailed channel information
+- **`/refresh-home`** - Refresh the Home tab dashboard for the current user
 - **`@BotName help`** - Show help message
 - **`@BotName status`** - Check bot status
 
@@ -142,7 +143,8 @@ To add new commands:
 1. Add command in Slack App settings
 2. Add `app.command()` handler in `app.js`
 3. Implement the command logic
-4. Test in Slack
+4. Reinstall the app so Slack picks up the new command
+5. Test in Slack
 
 ## API Endpoints Reference
 
