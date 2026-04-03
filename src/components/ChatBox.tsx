@@ -3,6 +3,7 @@ import { ScrollArea, TextInput, ActionIcon, Paper, Text, Stack, Box } from '@man
 import { IconSend2 } from '@tabler/icons-react';
 import type { Socket } from 'socket.io-client';
 import { usePostHog } from 'posthog-js/react';
+import { Role } from '@prisma/client';
 
 export interface Message {
   id: string;
@@ -16,9 +17,10 @@ interface ChatBoxProps {
   roomId: string;
   userName: string;
   isSpectator?: boolean;
+  role?: Role | null // for analytic purposes
 }
 
-export default function ChatBox({ socket, roomId, userName, isSpectator = false }: ChatBoxProps) {
+export default function ChatBox({ socket, roomId, userName, isSpectator = false, role }: ChatBoxProps) {
 
   const posthog = usePostHog();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -63,7 +65,12 @@ export default function ChatBox({ socket, roomId, userName, isSpectator = false 
     // Send it to the server to broadcast to the other person
     socket.emit('sendChat', { teamId: roomId, message: newMessage });
 
-    posthog.capture("chat_message_sent", { roomId, role, message: newMessage });
+    posthog.capture("chat_message_sent", { 
+      roomId, 
+      message: newMessage, 
+      isSpectator,
+      role // helpful to know which role is sending more messages
+    });
 
     // Clear the input box
     setCurrentText('');

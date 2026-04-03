@@ -326,6 +326,11 @@ function PlayGameRoom() {
     testCaseCtx.setParameters(prev => [...prev, parameter]);
     testCaseCtx.setCases(newCases);
     socket?.emit("updateTestCases", { teamId: teamSelected, testCases: newCases });
+
+    posthog.capture("parameter_created", {
+      gameId: gameStateCtx.gameId,
+      parameter
+    });
   };
 
   const handleParameterDelete = (parameter: ParameterType) => {
@@ -577,6 +582,7 @@ function PlayGameRoom() {
                     roomId={teamSelected as string}
                     userName={session?.user.name as string}
                     isSpectator={isSpectator}
+                    role={role}
                   />
                 </Box>
               </Box>
@@ -656,7 +662,6 @@ function PlayGameRoom() {
                           <GameTestCase
                             testableCase={currentTestCase}
                             onTestCaseChange={handleTestBoxChange}
-                            onNewParameter={handleNewParameter}
                             onParameterDelete={handleParameterDelete}
 
                             onTestCaseDelete={removeTest}
