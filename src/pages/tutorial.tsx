@@ -1,6 +1,5 @@
 import NavBar from '@/components/Navbar'
 import { Container, Grid, Image, Stack, Text, Title } from '@mantine/core';
-import Broadstats from '@/components/Broadstats';
 import { usePostHog } from 'posthog-js/react';
 import { useEffect } from 'react';
 
@@ -117,7 +116,6 @@ export default function GameTutorial() {
                     We hope that you found this guide useful in beginning your journey on 
                     the code battlefield. Good luck, and may you rise to the occasion and become Coding Champions!
                 </Title>
-                <Broadstats />
             </Stack>
         </Container>
     </>);
