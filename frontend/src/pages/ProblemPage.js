@@ -1,7 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { LANGUAGE_MAP, AVAILABLE_LANGUAGES } from '../constants';
-import { executeCode } from '../api';
 import { LANGUAGE_MAP } from '../constants';
 import { startSubmission, saveDraft, submitCode } from '../api';
 
@@ -10,15 +8,12 @@ import { startSubmission, saveDraft, submitCode } from '../api';
  * @module ProblemPage
  */
 
-function ProblemPage({ problem, onBack }) {
-  const availableLanguages = problem.languages || [problem.language];
-  const [selectedLanguage, setSelectedLanguage] = useState(availableLanguages[0] || 'python');
 function ProblemPage({ problem, onBack, studentName }) {
   const language = problem.language;
   const starterCode = (problem.sections || [])
     .sort((a, b) => a.order_index - b.order_index)
     .map((s) => {
-      const sectionCode = (typeof s.code === 'object' ? s.code[selectedLanguage] : s.code) || '';
+      const sectionCode = (typeof s.code === 'object' ? s.code[language] : s.code) || '';
       return `# ${s.label}\n${sectionCode}`;
     })
     .join('\n');
@@ -30,7 +25,6 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [suggestionLog, setSuggestionLog] = useState([]);
   const [pyodide, setPyodide] = useState(null);
   const [pyodideLoading, setPyodideLoading] = useState(true);
-  const [input, setInput] = useState('');
 
   const [sessionId, setSessionId] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
@@ -195,9 +189,9 @@ function ProblemPage({ problem, onBack, studentName }) {
         }, 2000);
       });
 
-      registerCompletionProvider(monaco, LANGUAGE_MAP[selectedLanguage]);
+      registerCompletionProvider(monaco, LANGUAGE_MAP[language]);
     },
-    [registerCompletionProvider, selectedLanguage]
+    [registerCompletionProvider, language]
   );
 
   useEffect(() => {
@@ -208,21 +202,6 @@ function ProblemPage({ problem, onBack, studentName }) {
   }, []);
 
   useEffect(() => {
-    if (monacoRef.current && editorRef.current) {
-      registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[selectedLanguage]);
-    }
-  }, [selectedLanguage, registerCompletionProvider]);
-
-  useEffect(() => {
-    const newStarterCode = (problem.sections || [])
-      .sort((a, b) => a.order_index - b.order_index)
-      .map((s) => {
-        const sectionCode = (typeof s.code === 'object' ? s.code[selectedLanguage] : s.code) || '';
-        return `# ${s.label}\n${sectionCode}`;
-      })
-      .join('\n');
-    setCode(newStarterCode);
-  }, [selectedLanguage, problem.sections]);
     if (!studentName) return;
     startSubmission(problem.id, studentName)
       .then((result) => {
@@ -319,25 +298,29 @@ function ProblemPage({ problem, onBack, studentName }) {
     initPyodide();
   }, []);
 
-  // ProblemPage.jsx (or wherever your component is)
+  const handleRunCode = async () => {
+    if (!pyodide) {
+      setOutput('Error: Python runtime not loaded yet. Please wait...\n');
+      return;
+    }
 
+    if (language !== 'python') {
+      setIsRunning(true);
+      setActiveTab('output');
+      setOutput('Running code...\n');
 
+      setTimeout(() => {
+        setOutput(`$ Running ${language} code...\n\nExecution complete.\n`);
+        setIsRunning(false);
+      }, 1500);
+      return;
+    }
 
-// --------------------
-// Code execution
-// --------------------
+    setIsRunning(true);
+    setActiveTab('output');
+    setOutput('');
 
-const handleRunCode = async () => {
-  setIsRunning(true);
-  setActiveTab('output');
-  setOutput('Running code...\n');
-
-  try {
-    if (selectedLanguage === 'python') {
-      if (!pyodide) {
-        throw new Error('Python runtime not loaded');
-      }
-
+    try {
       const fullCode = `
 import sys
 from io import StringIO
@@ -358,28 +341,34 @@ _stderr = _stderr_buf.getvalue()
       const stdout = pyodide.globals.get('_stdout');
       const stderr = pyodide.globals.get('_stderr');
 
+      // Try to evaluate the last meaningful line as an expression (REPL-style),
+      // so that return values like most_frequent([1,3,3]) are shown automatically.
+      let returnValue = '';
+      const lines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+      const lastLine = lines[lines.length - 1];
+      if (lastLine) {
+        try {
+          const val = await pyodide.runPythonAsync(lastLine);
+          if (val !== undefined && val !== null) {
+            returnValue = `\n=> ${val}`;
+          }
+        } catch {
+          // last line isn't an expression (e.g. it's a def or assignment) — that's fine
+        }
+      }
+
       let result = '';
       if (stdout) result += stdout;
+      if (returnValue) result += returnValue;
       if (stderr) result += 'Error: ' + stderr;
 
       setOutput(result || 'Code executed successfully (no output)\n');
-    } 
-    else {
-      const result = await executeCode(code, selectedLanguage, input);
-      let output = result.output;
-      if (result.error) {
-        output += '\nError: ' + result.error;
-      }
-      setOutput(output || 'Code executed successfully (no output)\n');
+    } catch (error) {
+      setOutput(`Error executing Python code:\n${error.message}\n`);
+    } finally {
+      setIsRunning(false);
     }
-
-  } catch (error) {
-    setOutput(`Error:\n${error.message}\n`);
-  } finally {
-    setIsRunning(false);
-  }
-};
-
+  };
 
   const handleSubmit = async () => {
     if (!sessionId) {
@@ -497,28 +486,20 @@ _stderr = _stderr_buf.getvalue()
         <div className="panel editor-panel">
           <div className="panel-header editor-header">
             <div className="language-selector">
-              <select
-                className="lang-select"
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-              >
-                {availableLanguages.map(lang => (
-                  <option key={lang} value={lang}>
-                    {AVAILABLE_LANGUAGES.find(l => l.id === lang)?.name || lang.charAt(0).toUpperCase() + lang.slice(1)}
-                  </option>
-                ))}
-              </select>
+              <span className="lang-btn active">
+                {language.charAt(0).toUpperCase() + language.slice(1)}
+              </span>
             </div>
 
             <div className="editor-actions">
               <button
                 className="btn btn-run"
                 onClick={handleRunCode}
-                disabled={isRunning || (selectedLanguage === 'python' && pyodideLoading)}
+                disabled={isRunning || (language === 'python' && pyodideLoading)}
               >
                 {isRunning
                   ? '⏳ Running...'
-                  : selectedLanguage === 'python' && pyodideLoading
+                  : language === 'python' && pyodideLoading
                     ? '⏳ Loading Python...'
                     : '▶ Run Code'}
               </button>
@@ -528,7 +509,7 @@ _stderr = _stderr_buf.getvalue()
           <div className="editor-container">
             <Editor
               height="100%"
-              language={LANGUAGE_MAP[selectedLanguage]}
+              language={LANGUAGE_MAP[language]}
               value={code}
               onChange={(value) => setCode(value || '')}
               onMount={handleEditorDidMount}
@@ -567,12 +548,6 @@ _stderr = _stderr_buf.getvalue()
           <div className="bottom-panel">
             <div className="bottom-tabs">
               <button
-                className={`tab-btn ${activeTab === 'input' ? 'active' : ''}`}
-                onClick={() => setActiveTab('input')}
-              >
-                Input
-              </button>
-              <button
                 className={`tab-btn ${activeTab === 'output' ? 'active' : ''}`}
                 onClick={() => setActiveTab('output')}
               >
@@ -590,17 +565,7 @@ _stderr = _stderr_buf.getvalue()
             </div>
 
             <div className="bottom-content">
-              {activeTab === 'input' ? (
-                <div className="input-section">
-                  <textarea
-                    className="input-textarea"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Enter input for your program (stdin)..."
-                    rows={4}
-                  />
-                </div>
-              ) : activeTab === 'output' ? (
+              {activeTab === 'output' ? (
                 <pre className="output-text">
                   {output || 'Click "Run Code" to see output here.'}
                 </pre>

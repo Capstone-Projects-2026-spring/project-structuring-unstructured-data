@@ -204,28 +204,6 @@
     gap: 2px;
 }
 
-.lang-select {
-    padding: 4px 8px;
-    background: #1e1e1e;
-    border: 1px solid #3e3e3e;
-    border-radius: 4px;
-    color: #d4d4d4;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    outline: none;
-    min-width: 100px;
-}
-
-.lang-select:focus {
-    border-color: #569cd6;
-}
-
-.lang-select option {
-    background: #1e1e1e;
-    color: #d4d4d4;
-}
-
 .lang-btn {
     padding: 4px 12px;
     background: transparent;
@@ -319,33 +297,6 @@
     color: #d4d4d4;
     white-space: pre-wrap;
     margin: 0;
-}
-
-.input-section {
-    padding: 8px;
-}
-
-.input-textarea {
-    width: 100%;
-    min-height: 80px;
-    padding: 8px;
-    background-color: #1e1e1e;
-    border: 1px solid #3e3e3e;
-    border-radius: 4px;
-    color: #d4d4d4;
-    font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
-    font-size: 13px;
-    line-height: 1.4;
-    resize: vertical;
-    outline: none;
-}
-
-.input-textarea:focus {
-    border-color: #569cd6;
-}
-
-.input-textarea::placeholder {
-    color: #888;
 }
 
 .suggestion-log {

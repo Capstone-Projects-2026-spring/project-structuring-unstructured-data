@@ -60,11 +60,6 @@ cursor.execute(
             "  most_frequent([4, 4, 1, 2])       -> 4"
         ),
         "python",
-        json.dumps(["python", "c", "java", "javascript"]),
-        None,
-        None,
-        1,
-        0,
         json.dumps(["python"]),
         None, None, True, False,
     ),
@@ -83,37 +78,6 @@ SECTIONS = [
                 "    # Initialize a data structure to keep track of how many\n"
                 "    # times each number appears in the list\n"
                 "    "
-            ),
-            "javascript": (
-                "function mostFrequent(nums) {\n"
-                "    // Initialize a data structure to keep track of how many\n"
-                "    // times each number appears in the list\n"
-                "    \n"
-                "}\n"
-            ),
-            "java": (
-                "public class Solution {\n"
-                "    public static int mostFrequent(int[] nums) {\n"
-                "        // Initialize a data structure to keep track of how many\n"
-                "        // times each number appears in the list\n"
-                "        \n"
-                "    }\n"
-                "}\n"
-            ),
-            "c": (
-                "#include <stdio.h>\n"
-                "#include <stdlib.h>\n"
-                "\n"
-                "int most_frequent(int* nums, int numsSize) {\n"
-                "    // Initialize a data structure to keep track of how many\n"
-                "    // times each number appears in the list\n"
-                "    \n"
-                "}\n"
-            ),
-        },
-        "suggestions": [
-            {"content": "", "is_correct": True, "source": "ai"},
-        ],
             )
         },
     },
@@ -125,30 +89,6 @@ SECTIONS = [
                 "    # Loop over the list and populate your data structure\n"
                 "    # with the count of each element\n"
                 "    "
-            ),
-            "javascript": (
-                "    // Loop over the array and populate your data structure\n"
-                "    // with the count of each element\n"
-                "    \n"
-                "}\n"
-            ),
-            "java": (
-                "        // Loop over the array and populate your data structure\n"
-                "        // with the count of each element\n"
-                "        \n"
-                "    }\n"
-                "}\n"
-            ),
-            "c": (
-                "    // Loop over the array and populate your data structure\n"
-                "    // with the count of each element\n"
-                "    \n"
-                "}\n"
-            ),
-        },
-        "suggestions": [
-            {"content": "", "is_correct": True, "source": "ai"},
-        ],
             )
         },
     },
@@ -159,27 +99,6 @@ SECTIONS = [
             "python": (
                 "    # Return the element that has the highest count\n"
                 "    "
-            ),
-            "javascript": (
-                "    // Return the element that has the highest count\n"
-                "    \n"
-                "}\n"
-            ),
-            "java": (
-                "        // Return the element that has the highest count\n"
-                "        \n"
-                "    }\n"
-                "}\n"
-            ),
-            "c": (
-                "    // Return the element that has the highest count\n"
-                "    \n"
-                "}\n"
-            ),
-        },
-        "suggestions": [
-            {"content": "", "is_correct": True, "source": "ai"},
-        ],
             )
         },
     },
