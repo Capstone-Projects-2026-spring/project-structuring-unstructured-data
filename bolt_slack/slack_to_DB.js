@@ -32,7 +32,7 @@ async function buildChannelKey(channelName) {
     throw new Error(`Channel ID not found for channel name: ${channelName}`);
   }
 
-  return `${channelId}_${normalizedName}`;
+  return `${normalizedName}_${channelId}`;
 }
 
 

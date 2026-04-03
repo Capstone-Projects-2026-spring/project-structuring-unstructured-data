@@ -467,6 +467,7 @@ app.command('/summary', async ({ command, ack, respond, client }) => {
         });
     }
 });
+
 // /members-info - Get information about all members in the channel
 app.command('/members-info', async ({ command, ack, respond }) => {
   await ack();
