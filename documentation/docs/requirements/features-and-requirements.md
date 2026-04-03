@@ -45,13 +45,13 @@ sidebar_position: 4
 # Nonfunctional Requirements
 
 1. Security
-    - The application will leverage Google Authentication services
+    - The application will leverage Better Auth to provide secure login and logout functionality for users, ensuring user data is kept private.
 
 2. Interfaces
-    - The user interface will be designed for simplicity and ease of use, following modern design principles.
+    - The user interface will be designed for simplicity and ease of use, following modern design principles. The goal is to provide a seamless, user-friendly experience for all users.
 
 3. Performance
-    - The program can handle submitting code and providing feedback between users in an efficient and fast manner
+    - The program can handle submitting code and providing feedback between users in an efficient and fast manner, with code compilation taking no more than 2 seconds per submission.
 
 4. Usability
-    - Provide a responsive design
+    - Users will be able to understand how to use the application and its features and leverage them without issue, thus allowing for a better overall user experience.
