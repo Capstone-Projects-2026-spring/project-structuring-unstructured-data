@@ -94,6 +94,49 @@ export async function deleteProblem(problemId, token) {
     }
 }
 
+// --- Submissions (student flow) ---
+
+export async function startSubmission(problemId, studentName) {
+    const response = await fetch(`${API_URL}/submissions/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problem_id: problemId, student_name: studentName }),
+    });
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to start session');
+    }
+    return response.json();
+}
+
+export async function saveDraft(sessionId, code) {
+    const response = await fetch(`${API_URL}/submissions/${sessionId}/draft`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+    });
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to save draft');
+    }
+    return response.json();
+}
+
+export async function submitCode(sessionId, code, suggestionLog = []) {
+    const response = await fetch(`${API_URL}/submissions/${sessionId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, suggestion_log: suggestionLog }),
+    });
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to submit');
+    }
+    return response.json();
+}
+
+// --- Grading (teacher flow) ---
+
 export async function gradeSubmission(problemId, sessionId, grade, token) {
     const response = await fetch(`${API_URL}/problems/${problemId}/grade`, {
         method: 'POST',

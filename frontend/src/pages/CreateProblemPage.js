@@ -325,6 +325,7 @@ function StepSettings({
   maxSubmissions, setMaxSubmissions,
   allowCopyPaste, setAllowCopyPaste,
   trackTabSwitching, setTrackTabSwitching,
+  errors,
 }) {
   return (
     <div className="cp-step">
@@ -354,12 +355,13 @@ function StepSettings({
           <label className="form-label">Max Submissions</label>
           <input
             type="number"
-            className="form-input"
+            className={`form-input${errors && errors.maxSubmissions ? ' form-input-error' : ''}`}
             placeholder="Unlimited"
             value={maxSubmissions}
             min={1}
             onChange={e => setMaxSubmissions(e.target.value)}
           />
+          {errors && errors.maxSubmissions && <span className="form-error">{errors.maxSubmissions}</span>}
           <span className="form-hint">Leave blank for unlimited submissions.</span>
         </div>
       </div>
@@ -545,8 +547,8 @@ function CreateProblemPage({ onBack }) {
       if (hasEmpty) errs.sections = 'Every section needs a label.';
     }
     if (step === 3) {
-      const hasEmpty = testCases.some(tc => !tc.input.trim() || !tc.expected.trim());
-      if (hasEmpty) errs.testCases = 'All test cases must have input and output.';
+      if (maxSubmissions !== '' && Number(maxSubmissions) < 1)
+        errs.maxSubmissions = 'Must be at least 1.';
     }
     return errs;
   };
@@ -674,6 +676,7 @@ function CreateProblemPage({ onBack }) {
                   maxSubmissions={maxSubmissions} setMaxSubmissions={setMaxSubmissions}
                   allowCopyPaste={allowCopyPaste} setAllowCopyPaste={setAllowCopyPaste}
                   trackTabSwitching={trackTabSwitching} setTrackTabSwitching={setTrackTabSwitching}
+                  errors={errors}
                 />
               )}
 

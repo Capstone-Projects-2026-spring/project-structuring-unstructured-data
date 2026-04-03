@@ -182,7 +182,7 @@ function EditModal({ problem, token, onSaved, onClose }) {
 
 // ─── Submissions / Grade Modal ────────────────────────────────────────────────
 
-function SubmissionsModal({ problem, token, onGraded, onClose }) {
+function SubmissionsModal({ problem, token, onGraded, onReview, onClose }) {
     const submissions = problem.submissions || [];
     const [gradingId, setGradingId] = useState(null);
     const [gradeInput, setGradeInput] = useState('');
@@ -245,53 +245,46 @@ function SubmissionsModal({ problem, token, onGraded, onClose }) {
                                                 : <span style={{ color: '#666', fontSize: '12px' }}>Ungraded</span>}
                                         </td>
                                         <td>
-                                            {gradingId === s.session_id ? (
-                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                    <input
-                                                        type="number"
-                                                        min={0}
-                                                        max={100}
-                                                        value={gradeInput}
-                                                        onChange={(e) => setGradeInput(e.target.value)}
-                                                        style={{
-                                                            width: '60px',
-                                                            background: '#1e1e1e',
-                                                            border: '1px solid #3c3c3c',
-                                                            borderRadius: '4px',
-                                                            color: '#ccc',
-                                                            padding: '2px 6px',
-                                                            fontSize: '12px',
-                                                        }}
-                                                    />
-                                                    <button
-                                                        className="btn btn-run"
-                                                        style={{ fontSize: '11px', padding: '3px 8px' }}
-                                                        onClick={() => handleGradeSave(s.session_id)}
-                                                        disabled={saving}
-                                                    >
-                                                        {saving ? '...' : 'Save'}
-                                                    </button>
-                                                    <button
-                                                        className="btn btn-outline"
-                                                        style={{ fontSize: '11px', padding: '3px 8px' }}
-                                                        onClick={() => { setGradingId(null); setGradeInput(''); setError(''); }}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            ) : (
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                 <button
                                                     className="btn btn-outline"
                                                     style={{ fontSize: '11px', padding: '3px 8px' }}
                                                     onClick={() => {
-                                                        setGradingId(s.session_id);
-                                                        setGradeInput(s.grade ?? '');
-                                                        setError('');
+                                                        const studentSubs = submissions
+                                                            .filter(sub => sub.student_name === s.student_name)
+                                                            .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+                                                        onReview(s, problem, studentSubs);
                                                     }}
                                                 >
-                                                    {s.grade != null ? 'Edit Grade' : 'Grade'}
+                                                    Review
                                                 </button>
-                                            )}
+                                                {gradingId === s.session_id ? (
+                                                    <>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            max={100}
+                                                            value={gradeInput}
+                                                            onChange={(e) => setGradeInput(e.target.value)}
+                                                            style={{ width: '60px', background: '#1e1e1e', border: '1px solid #3c3c3c', borderRadius: '4px', color: '#ccc', padding: '2px 6px', fontSize: '12px' }}
+                                                        />
+                                                        <button className="btn btn-run" style={{ fontSize: '11px', padding: '3px 8px' }} onClick={() => handleGradeSave(s.session_id)} disabled={saving}>
+                                                            {saving ? '...' : 'Save'}
+                                                        </button>
+                                                        <button className="btn btn-outline" style={{ fontSize: '11px', padding: '3px 8px' }} onClick={() => { setGradingId(null); setGradeInput(''); setError(''); }}>
+                                                            Cancel
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button
+                                                        className="btn btn-outline"
+                                                        style={{ fontSize: '11px', padding: '3px 8px' }}
+                                                        onClick={() => { setGradingId(s.session_id); setGradeInput(s.grade ?? ''); setError(''); }}
+                                                    >
+                                                        {s.grade != null ? 'Edit Grade' : 'Grade'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -393,7 +386,7 @@ function ProblemCard({ problem, onShare, onDelete, onEdit, onViewSubmissions }) 
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, user, onProblemsUpdate }) {
+function Dashboard({ problems = [], problemsLoading = false, problemsError = '', onCreateProblem, onDeleteProblem, onLogout, user, onProblemsUpdate, onRefresh, onReview }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [shareModal, setShareModal] = useState(null);
     const [deleteModal, setDeleteModal] = useState(null);
@@ -462,6 +455,9 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                     <span className="dashboard-greeting">
                         Welcome back, {user?.name || user?.email || 'Teacher'}
                     </span>
+                    <button className="btn btn-outline" onClick={onRefresh} disabled={problemsLoading} title="Refresh problems">
+                        {problemsLoading ? '↻ Loading…' : '↻ Refresh'}
+                    </button>
                     <button className="btn btn-outline" onClick={onCreateProblem}>
                         + New Problem
                     </button>
@@ -510,14 +506,22 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                 </div>
 
                 {/* Grid */}
-                {filtered.length === 0 ? (
+                {problemsError && (
                     <div className="empty-state">
-                        {problems.length === 0
-                            ? <p>No problems yet. Click <strong style={{ color: '#569cd6' }}>+ New Problem</strong> to create your first one.</p>
-                            : <p>No problems match your search.</p>
+                        <p style={{ color: '#f48771' }}>Failed to load problems: {problemsError}</p>
+                        <button className="btn btn-outline" style={{ marginTop: '12px' }} onClick={onRefresh}>Try Again</button>
+                    </div>
+                )}
+                {!problemsError && filtered.length === 0 ? (
+                    <div className="empty-state">
+                        {problemsLoading
+                            ? <p style={{ color: '#666' }}>Loading problems…</p>
+                            : problems.length === 0
+                                ? <p>No problems yet. Click <strong style={{ color: '#569cd6' }}>+ New Problem</strong> to create your first one.</p>
+                                : <p>No problems match your search.</p>
                         }
                     </div>
-                ) : (
+                ) : !problemsError && (
                     <div className="problem-grid">
                         {filtered.map((problem) => (
                             <ProblemCard
@@ -557,6 +561,7 @@ function Dashboard({ problems = [], onCreateProblem, onDeleteProblem, onLogout, 
                     problem={submissionsModal}
                     token={user?.token}
                     onGraded={handleGraded}
+                    onReview={onReview}
                     onClose={() => setSubmissionsModal(null)}
                 />
             )}
