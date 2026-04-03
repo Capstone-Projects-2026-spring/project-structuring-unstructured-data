@@ -25,6 +25,10 @@ import { GameStateProvider, useGameState } from '@/components/contexts/GameState
 
 interface RoomDetailsResponse {
   problem: ActiveProblem;
+  gameType: GameType;
+  teams: TeamCount[];
+  teamId: string | null;
+  role: Role | null;
 }
 
 // interface TestCase {
@@ -92,51 +96,47 @@ function PlayGameRoom() {
 
   const isSpectator = role === Role.SPECTATOR;
 
-  useEffect(() => {
-    if (router.query.teamId && router.query.role) {
-      setTeamSelected(router.query.teamId as string);
-      gameStateCtx.setTeamId(router.query.teamId as string);
-      setRole(router.query.role as Role);
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.query.teamId, router.query.role]);
-
   // ONLY HAPPENS ON PAGE LAUNCH
   useEffect(() => {
     if (!session?.user.id || !gameId || socketRef.current) return;
 
     gameStateCtx.setGameId(gameId);
 
-    const fetchGameType = async () => {
-      const res = await fetch(`/api/rooms/type?gameId=${gameId}`);
-      const data = await res.json();
-      if (data.gameType) {
-        setGameType(data.gameType);
-      }
-    };
-    fetchGameType();
-
-    // fetch teams and their player counts
-    const fetchCounts = async () => {
-      const res = await fetch(`/api/team/count?gameId=${gameId}`);
-      const data = await res.json();
-      setTeams(data.teams);
-    };
-    fetchCounts();
-
-    const loadProblem = async () => {
+    const loadRoomDetails = async () => {
       try {
-        const response = await fetch(`/api/rooms/${gameId}`);
+        const response = await fetch(`/api/rooms/${gameId}/${session.user.id}`);
         if (!response.ok) return;
         const data = (await response.json()) as RoomDetailsResponse;
-        setProblem(data.problem);
-        setLoading(false);
+        setProblem(data.problem as ActiveProblem);
+        setGameType(data.gameType as GameType);
+        setTeams(data.teams as TeamCount[]);
+        if (data.teamId) setTeamSelected(data.teamId as string);
+        if (data.role) setRole(data.role as Role);
+        console.log("Fetched room details:", data);
+
+        if (data.gameType === GameType.TWOPLAYER && !data.teamId && !data.role) {
+          // Auto-join team if it's a 2 player game and the user isn't assigned to a team yet
+          const teamId = data.teams[0]?.teamId;
+          if (teamId) {
+            const res = await fetch(`/api/team/join`, {
+              method: "POST",
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: session.user.id, teamId, gameRoomId: gameId })
+            });
+            if (res.ok) {
+              const joined = await res.json();
+              setTeamSelected(teamId);
+              setRole(joined.role);
+            }
+          }
+        }
+
       } catch (error) {
         console.error('Failed to load room problem', error);
       }
     };
-    loadProblem();
+    loadRoomDetails();
+    setLoading(false);
 
     // 3. Initialize the connection to our custom server.js backend
     const socketInstance = io();
@@ -144,7 +144,7 @@ function PlayGameRoom() {
     setSocket(socketRef.current);
     gameStateCtx.setSocket(socketRef.current);
 
-    socketInstance.emit("register", session.user.id);
+    socketInstance.emit("register", { userId: session.user.id });
 
     socketInstance.on("gameStarting", () => {
       setGameState(GameStatus.STARTING);
@@ -350,7 +350,6 @@ function PlayGameRoom() {
         userId={session?.user.id as string}
         teams={teams}
         gameRoomId={gameId}
-        gameType={gameType as GameType}
         onJoined={(teamId, role, playerCount) => {
           setTeamSelected(teamId);
           setRole(role); // TODO: add localStorage persistence

@@ -33,9 +33,16 @@ const codeChangeSchema = z.object({
   code: z.string().max(10000) // Adjust max length as needed
 });
 
+const messageSchema = z.object({
+  id: z.string(),
+  text: z.string().max(1000),
+  userName: z.string(),
+  timestamp: z.number()
+});
+
 const chatMessageSchema = z.object({
   teamId: z.string(),
-  message: z.string().max(1000) // Adjust max length as needed
+  message: messageSchema // Adjust max length as needed
 });
 
 const testableCaseSchema = z.object({
@@ -68,7 +75,7 @@ const submitCodeSchema = z.object({
 // Socket event handlers isolated here
 // Expects io (Server), socket (Socket), and services to manage game state
 function registerSocketHandlers(io, socket, services) {
-  const { gameService } = services;
+  const { gameService, matchmakingService } = services;
 
   console.log(`New connection: ${socket.id}`);
 
@@ -199,6 +206,8 @@ function registerSocketHandlers(io, socket, services) {
       socket.emit('error', { message: 'Invalid payload for sendChat.' });
       return;
     }
+
+    const { teamId, message } = payload;
 
     try {
       await gameService.saveChatMessage(teamId, message);
@@ -341,7 +350,18 @@ function registerSocketHandlers(io, socket, services) {
     // so need to figure out a way to emit to all users in the game room including those in team select but not in the game room yet thinking another id to join off of that can be left after teamselect is done
   });
 
-  // 3. Handle graceful disconnection need to do more to this so will just leave it to this right now
+  socket.on('joinQueue', async ({ userId, gameType, difficulty, partyId }) => {
+    const result = await matchmakingService.joinQueue(userId, gameType, difficulty, partyId ?? null);
+    socket.emit('queueStatus', result);
+  });
+
+  socket.on('leaveQueue', async ({ gameType, difficulty }) => {
+      if (!socket.userId) return;
+      const result = await matchmakingService.leaveQueue(socket.userId, gameType, difficulty);
+      socket.emit('queueStatus', result);
+  });
+
+  // 3. Handle graceful disconnection
   socket.on('disconnect', async () => {
     if (socket.gameId && socket.userId) {
       try {
@@ -352,14 +372,16 @@ function registerSocketHandlers(io, socket, services) {
         socket.emit('error', { e, message: 'Failed to cleanup on disconnect.' });
       }
     }
-
+    if (socket.userId) {
+        await matchmakingService.leaveAllQueues(socket.userId);
+    }
   });
 }
 
 function validate(schema, data) {
   const result = schema.safeParse(data);
   if (!result.success) {
-    console.error('Validation error for socket event', { errors: result.error.errors });
+    console.error('Validation error for socket event', { errors: result.error });
     return false;
   }
   return result.data;
