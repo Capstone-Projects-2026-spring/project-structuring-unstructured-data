@@ -24,12 +24,19 @@ class SectionIn(BaseModel):
     suggestions: List[SuggestionIn] = []
 
 
+class TestCaseIn(BaseModel):
+    input: str = ""
+    expected: str = ""
+    explanation: str = ""
+
+
 class CreateProblemRequest(BaseModel):
     title: str
     description: str
     languages: List[str]
     boilerplate: Dict[str, str]
     sections: List[SectionIn]
+    testCases: List[TestCaseIn] = []
     timeLimitMinutes: Optional[int] = None
     maxSubmissions: Optional[int] = None
     allowCopyPaste: bool = True
@@ -65,23 +72,23 @@ def _get_current_user(authorization: Optional[str]):
 def _generate_unique_access_code(cursor) -> str:
     for _ in range(10):
         code = str(random.randint(100000, 999999))
-        cursor.execute("SELECT id FROM problems WHERE access_code = ?", (code,))
+        cursor.execute("SELECT id FROM problems WHERE access_code = %s", (code,))
         if not cursor.fetchone():
             return code
     raise HTTPException(status_code=500, detail="Could not generate unique access code")
 
 
 def _build_problem(cursor, problem) -> dict:
-    """Build full problem dict with sections, suggestions, and submissions."""
+    """Build full problem dict with sections, suggestions, test cases, and submissions."""
     cursor.execute(
-        "SELECT * FROM sections WHERE problem_id = ? ORDER BY order_index",
+        "SELECT * FROM sections WHERE problem_id = %s ORDER BY order_index",
         (problem["id"],),
     )
     section_rows = cursor.fetchall()
 
     sections = []
     for s in section_rows:
-        cursor.execute("SELECT * FROM suggestions WHERE section_id = ?", (s["id"],))
+        cursor.execute("SELECT * FROM suggestions WHERE section_id = %s", (s["id"],))
         suggestion_rows = cursor.fetchall()
 
         try:
@@ -105,11 +112,27 @@ def _build_problem(cursor, problem) -> dict:
             ],
         })
 
-    # Pull submissions from sessions table
+    # Test cases
     cursor.execute(
-        """SELECT id, student_name, submitted_at, score, total
+        "SELECT * FROM test_cases WHERE problem_id = %s ORDER BY id",
+        (problem["id"],),
+    )
+    test_case_rows = cursor.fetchall()
+    test_cases = [
+        {
+            "id": tc["id"],
+            "input": tc["input"],
+            "expected": tc["expected"],
+            "explanation": tc["explanation"],
+        }
+        for tc in test_case_rows
+    ]
+
+    # Submissions
+    cursor.execute(
+        """SELECT id, student_name, submitted_at, score, total, code, suggestion_log
            FROM sessions
-           WHERE problem_id = ? AND submitted_at IS NOT NULL
+           WHERE problem_id = %s AND submitted_at IS NOT NULL
            ORDER BY submitted_at DESC""",
         (problem["id"],),
     )
@@ -121,6 +144,8 @@ def _build_problem(cursor, problem) -> dict:
             "submitted_at": row["submitted_at"],
             "score": row["score"],
             "total": row["total"],
+            "code": row["code"],
+            "suggestion_log": row["suggestion_log"],
             "grade": round((row["score"] / row["total"]) * 100) if row["total"] else None,
         }
         for row in session_rows
@@ -134,6 +159,7 @@ def _build_problem(cursor, problem) -> dict:
         "language": problem["language"],
         "languages": json.loads(problem["languages"]),
         "sections": sections,
+        "test_cases": test_cases,
         "submissions": submissions,
         "time_limit_minutes": problem["time_limit_minutes"],
         "max_attempts": problem["max_attempts"],
@@ -156,7 +182,7 @@ def get_teacher_problems(
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM problems WHERE teacher_id = ? ORDER BY created_at DESC",
+        "SELECT * FROM problems WHERE teacher_id = %s ORDER BY created_at DESC",
         (user["user_id"],),
     )
     problems = cursor.fetchall()
@@ -186,7 +212,8 @@ def create_problem(
             """INSERT INTO problems
                (teacher_id, access_code, title, description, language, languages,
                 time_limit_minutes, max_attempts, allow_copy_paste, track_tab_switching)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id""",
             (
                 user["user_id"],
                 access_code,
@@ -196,31 +223,39 @@ def create_problem(
                 json.dumps(req.languages),
                 req.timeLimitMinutes,
                 req.maxSubmissions,
-                1 if req.allowCopyPaste else 0,
-                1 if req.trackTabSwitching else 0,
+                req.allowCopyPaste,
+                req.trackTabSwitching,
             ),
         )
-        problem_id = cursor.lastrowid
+        problem_id = cursor.fetchone()["id"]
 
         for section in sorted(req.sections, key=lambda s: s.order):
             cursor.execute(
                 """INSERT INTO sections (problem_id, order_index, label, code)
-                   VALUES (?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s)
+                   RETURNING id""",
                 (problem_id, section.order, section.label, json.dumps(section.code)),
             )
-            section_id = cursor.lastrowid
+            section_id = cursor.fetchone()["id"]
 
             for sg in section.suggestions:
                 if sg.type == "manual" and not sg.content.strip():
                     continue
                 cursor.execute(
                     """INSERT INTO suggestions (section_id, content, is_correct, source)
-                       VALUES (?, ?, ?, ?)""",
-                    (section_id, sg.content, 1 if sg.isCorrect else 0, sg.type),
+                       VALUES (%s, %s, %s, %s)""",
+                    (section_id, sg.content, sg.isCorrect, sg.type),
                 )
 
+        for tc in req.testCases:
+            cursor.execute(
+                """INSERT INTO test_cases (problem_id, input, expected, explanation)
+                   VALUES (%s, %s, %s, %s)""",
+                (problem_id, tc.input, tc.expected, tc.explanation),
+            )
+
         conn.commit()
-        cursor.execute("SELECT * FROM problems WHERE id = ?", (problem_id,))
+        cursor.execute("SELECT * FROM problems WHERE id = %s", (problem_id,))
         new_problem = cursor.fetchone()
         result = _build_problem(cursor, new_problem)
     except Exception:
@@ -245,7 +280,7 @@ def edit_problem(
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM problems WHERE id = ?", (problem_id,))
+    cursor.execute("SELECT * FROM problems WHERE id = %s", (problem_id,))
     problem = cursor.fetchone()
     if not problem:
         conn.close()
@@ -259,30 +294,33 @@ def edit_problem(
     values = []
 
     if req.title is not None:
-        fields.append("title = ?")
+        fields.append("title = %s")
         values.append(req.title)
     if req.description is not None:
-        fields.append("description = ?")
+        fields.append("description = %s")
         values.append(req.description)
     if req.timeLimitMinutes is not None:
-        fields.append("time_limit_minutes = ?")
+        fields.append("time_limit_minutes = %s")
         values.append(req.timeLimitMinutes)
     if req.maxSubmissions is not None:
-        fields.append("max_attempts = ?")
+        fields.append("max_attempts = %s")
         values.append(req.maxSubmissions)
     if req.allowCopyPaste is not None:
-        fields.append("allow_copy_paste = ?")
-        values.append(1 if req.allowCopyPaste else 0)
+        fields.append("allow_copy_paste = %s")
+        values.append(req.allowCopyPaste)
     if req.trackTabSwitching is not None:
-        fields.append("track_tab_switching = ?")
-        values.append(1 if req.trackTabSwitching else 0)
+        fields.append("track_tab_switching = %s")
+        values.append(req.trackTabSwitching)
 
     if fields:
         values.append(problem_id)
-        cursor.execute(f"UPDATE problems SET {', '.join(fields)} WHERE id = ?", values)
+        cursor.execute(
+            f"UPDATE problems SET {', '.join(fields)} WHERE id = %s",
+            values,
+        )
         conn.commit()
 
-    cursor.execute("SELECT * FROM problems WHERE id = ?", (problem_id,))
+    cursor.execute("SELECT * FROM problems WHERE id = %s", (problem_id,))
     updated = cursor.fetchone()
     result = _build_problem(cursor, updated)
     conn.close()
@@ -302,7 +340,7 @@ def delete_problem(
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT teacher_id FROM problems WHERE id = ?", (problem_id,))
+    cursor.execute("SELECT teacher_id FROM problems WHERE id = %s", (problem_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -312,7 +350,7 @@ def delete_problem(
         conn.close()
         raise HTTPException(status_code=403, detail="You can only delete your own problems")
 
-    cursor.execute("DELETE FROM problems WHERE id = ?", (problem_id,))
+    cursor.execute("DELETE FROM problems WHERE id = %s", (problem_id,))
     conn.commit()
     conn.close()
 
@@ -323,7 +361,7 @@ def grade_submission(
         req: GradeSubmissionRequest,
         authorization: Optional[str] = Header(default=None),
 ):
-    """Manually grade a student submission by overriding the score."""
+    """Manually grade a student submission."""
     user = _get_current_user(authorization)
     if user.get("role") not in ("teacher", "admin"):
         raise HTTPException(status_code=403, detail="Only teachers can grade submissions")
@@ -334,7 +372,7 @@ def grade_submission(
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT teacher_id FROM problems WHERE id = ?", (problem_id,))
+    cursor.execute("SELECT teacher_id FROM problems WHERE id = %s", (problem_id,))
     problem = cursor.fetchone()
     if not problem:
         conn.close()
@@ -344,20 +382,20 @@ def grade_submission(
         conn.close()
         raise HTTPException(status_code=403, detail="You can only grade your own problems")
 
-    cursor.execute("SELECT id FROM sessions WHERE id = ? AND problem_id = ?", (req.session_id, problem_id))
-    session = cursor.fetchone()
-    if not session:
+    cursor.execute(
+        "SELECT id FROM sessions WHERE id = %s AND problem_id = %s",
+        (req.session_id, problem_id),
+    )
+    if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Submission not found")
 
-    # Store grade as score out of 100
     cursor.execute(
-        "UPDATE sessions SET score = ?, total = 100 WHERE id = ?",
+        "UPDATE sessions SET score = %s, total = 100 WHERE id = %s",
         (req.grade, req.session_id),
     )
     conn.commit()
     conn.close()
-
     return {"session_id": req.session_id, "grade": req.grade}
 
 
@@ -370,7 +408,7 @@ def get_problem_by_code(code: str):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM problems WHERE access_code = ?", (code,))
+    cursor.execute("SELECT * FROM problems WHERE access_code = %s", (code,))
     problem = cursor.fetchone()
     if not problem:
         conn.close()

@@ -37,41 +37,118 @@ ASQ also supports teachers by allowing them to upload problems and give students
 
 ## Required Resources
 
-Devices: Hardware/software must be present in order for application usage.
+- Windows 11 / macOS
+- Internet access
+- [Node.js](https://nodejs.org) v16+
+- [Python](https://www.python.org) 3.10+
+- An [OpenAI API key](https://platform.openai.com/api-keys) for AI code suggestions
 
-Windows 11/Mac OS compatibility
-Internet Access
-Technology: Programming languages, frameworks, API.
+---
 
-Python
-Use of the OpenAI API key for the AI coding assistant and functionality.
+## Running Locally
+
+### Backend
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate         # Windows
+pip install -r requirements.txt
+```
+
+**Environment variables**
+
+Copy the template and fill in your values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Then edit `backend/.env`:
+
+| Variable | Description | Required |
+|---|---|---|
+| `OPENAI_API_KEY` | OpenAI API key for AI code suggestions | **Yes** |
+| `DATABASE_URL` | SQLite path — default: `sqlite:///./quiz.db` | No |
+| `DEBUG` | Set to `True` in development | No |
+| `SUPABASE_URL` | Your Supabase project URL | Only for OTP login |
+| `SUPABASE_SERVICE_KEY` | Your Supabase anon/service key | Only for OTP login |
+
+**Start the server**
+
+```bash
+uvicorn main:app --reload
+```
+
+The API runs at `http://localhost:8000`. The database is **created and seeded automatically** on first startup — no manual migration needed. A seed teacher (`seed@autoquiz.dev`) and a sample problem (access code `123456`) are added when the database is empty.
+
+---
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+> **Optional:** If your backend is not on the default port, create `frontend/.env` and set `REACT_APP_API_URL=http://localhost:<your_port>`. Otherwise no `.env` is needed.
+
+**Start the app**
+
+```bash
+npm start
+```
+
+The app opens at `http://localhost:3000`.
+
+---
+
+### Supabase / OTP Login
+
+All Supabase communication happens on the **backend** — the frontend does not need any Supabase credentials. To enable OTP email login:
+
+1. Create a free account at [supabase.com](https://supabase.com).
+2. Create a new project.
+3. Go to **Project Settings → API**.
+4. Copy the **Project URL** → paste as `SUPABASE_URL` in `backend/.env`.
+5. Copy the **anon / public** key → paste as `SUPABASE_SERVICE_KEY` in `backend/.env`.
+
+**Dev bypass — no Supabase account needed**
+
+On the login page, enter `dev` as the email and click **Send OTP**. This skips Supabase entirely and signs you in as the seed teacher (`seed@autoquiz.dev`) without sending any email. This only works when `DEBUG=True` is set in `backend/.env`.
+
+---
+
+## Testing
+
+### Backend
+
+Make sure the virtual environment is activated, then run:
+
+```bash
+cd backend
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate         # Windows
+pytest backUnitTest/
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm test
+```
+
+Press `a` to run all tests.
+
+---
 
 ## First Release
 
-Use this link to access the current version of Autosuggestion Quiz: https://autosuggestions.onrender.com/
+Live app: https://autosuggestions.onrender.com/
 
-To run the project locally, run the following commands:
-```
-cd frontend
-npm install
-npm run start
-```
-
-To test the backend, run the following command in your terminal:
-```
-cd backend
-pip install pytest
-python pytest test_back.py
-```
-To test the frontend, run the following command in your terminal:
-```
-cd frontend
-npm test
-a
-```
-a will run all of the tests
-
-Features
+## Features
   - Teachers can create an account by entering their email and receiving a one-time password.
   - Teachers can access their dashboard and create problems by providing a problem prompt and boilerplate code for the student to start with.
   - Teachers will receive a one-time password after creating a problem. Save this password to distribute to students.

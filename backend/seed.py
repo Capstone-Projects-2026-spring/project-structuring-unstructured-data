@@ -1,22 +1,33 @@
 """
-seed.py — seeds the database with a placeholder teacher and one sample problem.
-Run from the backend directory: python3 seed.py
+seed.py — re-seeds the Supabase database with the placeholder teacher and
+sample problem. Wipes existing seed data first.
+
+Run from the backend directory:
+    python3 seed.py
+
+Requires DATABASE_URL to be set in .env.
 """
 import json
-import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+import sys
+from dotenv import load_dotenv
 
-from database import init_db, get_connection
+load_dotenv()
 
-init_db()
+import psycopg2
+import psycopg2.extras
 
-conn = get_connection()
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    sys.exit("ERROR: DATABASE_URL is not set in your environment / .env file.")
+
+conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
 cursor = conn.cursor()
 
 # ── Wipe existing seed data ────────────────────────────────────────────────────
 cursor.execute("DELETE FROM suggestions")
 cursor.execute("DELETE FROM sections")
+cursor.execute("DELETE FROM test_cases")
 cursor.execute("DELETE FROM problems")
 cursor.execute("DELETE FROM users")
 conn.commit()
@@ -24,23 +35,22 @@ print("Cleared existing data.")
 
 # ── Seed teacher ───────────────────────────────────────────────────────────────
 cursor.execute(
-    "INSERT INTO users (name, email, role) VALUES (?, ?, ?)",
+    "INSERT INTO users (name, email, role) VALUES (%s, %s, %s) RETURNING id",
     ("Seed Teacher", "seed@autoquiz.dev", "teacher"),
 )
-teacher_id = cursor.lastrowid
+teacher_id = cursor.fetchone()["id"]
 print(f"Created seed teacher (id={teacher_id})")
 
 # ── Seed problem ───────────────────────────────────────────────────────────────
-ACCESS_CODE = "123456"
-
 cursor.execute(
     """INSERT INTO problems
        (teacher_id, access_code, title, description, language, languages,
         time_limit_minutes, max_attempts, allow_copy_paste, track_tab_switching)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+       RETURNING id""",
     (
         teacher_id,
-        ACCESS_CODE,
+        "123456",
         "Most Frequent Element",
         (
             "Given a list of integers, return the element that appears most frequently.\n\n"
@@ -55,10 +65,12 @@ cursor.execute(
         None,
         1,
         0,
+        json.dumps(["python"]),
+        None, None, True, False,
     ),
 )
-problem_id = cursor.lastrowid
-print(f"Created problem '{ACCESS_CODE}' (id={problem_id})")
+problem_id = cursor.fetchone()["id"]
+print(f"Created problem '123456' (id={problem_id})")
 
 # ── Sections ───────────────────────────────────────────────────────────────────
 SECTIONS = [
@@ -102,6 +114,8 @@ SECTIONS = [
         "suggestions": [
             {"content": "", "is_correct": True, "source": "ai"},
         ],
+            )
+        },
     },
     {
         "order_index": 1,
@@ -135,6 +149,8 @@ SECTIONS = [
         "suggestions": [
             {"content": "", "is_correct": True, "source": "ai"},
         ],
+            )
+        },
     },
     {
         "order_index": 2,
@@ -164,23 +180,25 @@ SECTIONS = [
         "suggestions": [
             {"content": "", "is_correct": True, "source": "ai"},
         ],
+            )
+        },
     },
 ]
 
 for section in SECTIONS:
     cursor.execute(
-        "INSERT INTO sections (problem_id, order_index, label, code) VALUES (?, ?, ?, ?)",
-        (problem_id, section["order_index"], section["label"], json.dumps({"python": section["code"]})),
+        """INSERT INTO sections (problem_id, order_index, label, code)
+           VALUES (%s, %s, %s, %s)
+           RETURNING id""",
+        (problem_id, section["order_index"], section["label"], json.dumps(section["code"])),
     )
-    section_id = cursor.lastrowid
+    section_id = cursor.fetchone()["id"]
     print(f"  Created section '{section['label']}' (id={section_id})")
 
-    for sg in section["suggestions"]:
-        cursor.execute(
-            "INSERT INTO suggestions (section_id, content, is_correct, source) "
-            "VALUES (?, ?, ?, ?)",
-            (section_id, sg["content"], 1 if sg["is_correct"] else 0, sg["source"]),
-        )
+    cursor.execute(
+        "INSERT INTO suggestions (section_id, content, is_correct, source) VALUES (%s, %s, %s, %s)",
+        (section_id, "", True, "ai"),
+    )
 
 conn.commit()
 conn.close()

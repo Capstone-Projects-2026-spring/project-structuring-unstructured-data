@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import init_db
 from routes_auth import router as auth_router
 from routes_ai import router as ai_router
 from routes_quiz import router as quiz_router
 from routes_problems import router as problems_router
 from routes_judge import router as code_router
+from routes_submissions import router as submissions_router
 
 app = FastAPI(
     title="AutoSuggestion Quiz API",
@@ -106,13 +106,10 @@ def startup():
         print("Auto-seeded database with seed teacher and sample problem 123456.")
 
     conn.close()
+app.include_router(submissions_router)
 
 
 @app.get("/")
 def root():
-    """
-    Health check endpoint.
-
-    :return: A JSON object confirming the API is running.
-    """
+    """Health check endpoint."""
     return {"status": "ok", "message": "AutoSuggestion Quiz API is running"}

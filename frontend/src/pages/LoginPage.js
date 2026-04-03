@@ -18,16 +18,14 @@ import { requestOTP, verifyOTP, getProblemByCode } from '../api';
  * @returns {React.ReactElement} The rendered login page.
  */
 function LoginPage({ onLogin }) {
-  const [mode, setMode] = useState('student'); // 'student' | 'teacher'
+  const [mode, setMode] = useState('student');
 
-  // Student fields
   const [studentName, setStudentName] = useState('');
   const [problemKey, setProblemKey] = useState('');
 
-  // Teacher fields
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('email'); // 'email' | 'otp'
+  const [step, setStep] = useState('email');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +59,7 @@ function LoginPage({ onLogin }) {
     setIsLoading(true);
     try {
       const problem = await getProblemByCode(problemKey.trim());
-      onLogin({ name: studentName.trim(), role: 'student', problem });
+      onLogin({ name: studentName.trim(), role: 'student', problem, studentName: studentName.trim() });
     } catch (err) {
       setError('No problem found with that code. Please check with your teacher and try again.');
     } finally {
@@ -81,7 +79,6 @@ function LoginPage({ onLogin }) {
       return;
     }
 
-    // Dev bypass — type "dev" as the email to skip OTP entirely
     if (email.trim().toLowerCase() === 'dev') {
       setIsLoading(true);
       try {
@@ -102,7 +99,7 @@ function LoginPage({ onLogin }) {
 
     setIsLoading(true);
     try {
-      await requestOTP(email);
+      await requestOTP(email.trim());
       setStep('otp');
     } catch (err) {
       setError(err.message);
@@ -125,8 +122,8 @@ function LoginPage({ onLogin }) {
 
     setIsLoading(true);
     try {
-      const user = await verifyOTP(email, otp);
-      onLogin(user);
+      const data = await verifyOTP(email.trim(), otp.trim());
+      onLogin({ ...data.user, token: data.token });
     } catch (err) {
       setError(err.message);
     } finally {

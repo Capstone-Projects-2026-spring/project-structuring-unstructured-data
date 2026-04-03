@@ -8,14 +8,12 @@ import jwt
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
 
-# ---------------------------------------------------------------------------
-# Schemas
-# ---------------------------------------------------------------------------
+# ── Schemas ────────────────────────────────────────────────────────────────────
 
 class QuizAnswer(BaseModel):
-    question_index: int   # 0-based index of the question in the problem
-    selected_option: str  # The answer text the student chose
-    is_correct: bool      # Frontend can compute this; stored for reporting
+    question_index: int
+    selected_option: str
+    is_correct: bool
 
 
 class QuizSubmitRequest(BaseModel):
@@ -43,12 +41,9 @@ class QuizAttemptResponse(BaseModel):
     answers: list[QuizAnswerResponse] = []
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _get_user_from_token(authorization: Optional[str]) -> dict:
-    """Extract and validate the Bearer JWT from the Authorization header."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
     token = authorization.split(" ", 1)[1]
@@ -60,30 +55,21 @@ def _get_user_from_token(authorization: Optional[str]) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
+# ── Routes ─────────────────────────────────────────────────────────────────────
 
 @router.post("/submit", response_model=QuizAttemptResponse, status_code=201)
 def submit_quiz(
     req: QuizSubmitRequest,
     authorization: Optional[str] = Header(default=None),
 ):
-    """
-    Submit a completed quiz attempt.
-
-    - Requires a valid Bearer JWT in the `Authorization` header.
-    - Saves the attempt and all answers to the database.
-    - Returns the saved attempt with a computed score.
-    """
+    """Submit a completed quiz attempt."""
     payload = _get_user_from_token(authorization)
     user_id: int = payload["user_id"]
 
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Validate problem exists
-    cursor.execute("SELECT id FROM problems WHERE id = ?", (req.problem_id,))
+    cursor.execute("SELECT id FROM problems WHERE id = %s", (req.problem_id,))
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Problem not found")
@@ -92,30 +78,27 @@ def submit_quiz(
     total = len(req.answers)
 
     cursor.execute(
-        """
-        INSERT INTO quiz_attempts (user_id, problem_id, language, score, total, time_taken_seconds)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
+        """INSERT INTO quiz_attempts
+               (user_id, problem_id, language, score, total, time_taken_seconds)
+           VALUES (%s, %s, %s, %s, %s, %s)
+           RETURNING id""",
         (user_id, req.problem_id, req.language, score, total, req.time_taken_seconds),
     )
-    attempt_id = cursor.lastrowid
+    attempt_id = cursor.fetchone()["id"]
 
     for answer in req.answers:
         cursor.execute(
-            """
-            INSERT INTO quiz_answers (attempt_id, question_index, selected_option, is_correct)
-            VALUES (?, ?, ?, ?)
-            """,
-            (attempt_id, answer.question_index, answer.selected_option, int(answer.is_correct)),
+            """INSERT INTO quiz_answers
+                   (attempt_id, question_index, selected_option, is_correct)
+               VALUES (%s, %s, %s, %s)""",
+            (attempt_id, answer.question_index, answer.selected_option, answer.is_correct),
         )
 
     conn.commit()
 
-    # Fetch the saved attempt to return
-    cursor.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,))
+    cursor.execute("SELECT * FROM quiz_attempts WHERE id = %s", (attempt_id,))
     row = cursor.fetchone()
-
-    cursor.execute("SELECT * FROM quiz_answers WHERE attempt_id = ?", (attempt_id,))
+    cursor.execute("SELECT * FROM quiz_answers WHERE attempt_id = %s", (attempt_id,))
     answer_rows = cursor.fetchall()
     conn.close()
 
@@ -127,7 +110,7 @@ def submit_quiz(
         score=row["score"],
         total=row["total"],
         time_taken_seconds=row["time_taken_seconds"],
-        submitted_at=row["submitted_at"],
+        submitted_at=str(row["submitted_at"]),
         answers=[
             QuizAnswerResponse(
                 question_index=a["question_index"],
@@ -144,12 +127,7 @@ def get_attempts(
     user_id: int,
     authorization: Optional[str] = Header(default=None),
 ):
-    """
-    Get all quiz attempts for a user.
-
-    - Students can only fetch their own attempts.
-    - Teachers and admins can fetch any user's attempts.
-    """
+    """Get all quiz attempts for a user."""
     payload = _get_user_from_token(authorization)
     requester_id: int = payload["user_id"]
     requester_role: str = payload["role"]
@@ -159,9 +137,8 @@ def get_attempts(
 
     conn = get_connection()
     cursor = conn.cursor()
-
     cursor.execute(
-        "SELECT * FROM quiz_attempts WHERE user_id = ? ORDER BY submitted_at DESC",
+        "SELECT * FROM quiz_attempts WHERE user_id = %s ORDER BY submitted_at DESC",
         (user_id,),
     )
     attempts = cursor.fetchall()
@@ -176,8 +153,8 @@ def get_attempts(
             score=row["score"],
             total=row["total"],
             time_taken_seconds=row["time_taken_seconds"],
-            submitted_at=row["submitted_at"],
-            answers=[],  # Omitted in list view for performance
+            submitted_at=str(row["submitted_at"]),
+            answers=[],
         )
         for row in attempts
     ]
@@ -188,12 +165,7 @@ def get_attempt_detail(
     attempt_id: int,
     authorization: Optional[str] = Header(default=None),
 ):
-    """
-    Get a single quiz attempt with all answers.
-
-    - Students can only fetch their own attempts.
-    - Teachers and admins can fetch any attempt.
-    """
+    """Get a single quiz attempt with all answers."""
     payload = _get_user_from_token(authorization)
     requester_id: int = payload["user_id"]
     requester_role: str = payload["role"]
@@ -201,7 +173,7 @@ def get_attempt_detail(
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,))
+    cursor.execute("SELECT * FROM quiz_attempts WHERE id = %s", (attempt_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -211,7 +183,7 @@ def get_attempt_detail(
         conn.close()
         raise HTTPException(status_code=403, detail="Access denied")
 
-    cursor.execute("SELECT * FROM quiz_answers WHERE attempt_id = ?", (attempt_id,))
+    cursor.execute("SELECT * FROM quiz_answers WHERE attempt_id = %s", (attempt_id,))
     answer_rows = cursor.fetchall()
     conn.close()
 
@@ -223,7 +195,7 @@ def get_attempt_detail(
         score=row["score"],
         total=row["total"],
         time_taken_seconds=row["time_taken_seconds"],
-        submitted_at=row["submitted_at"],
+        submitted_at=str(row["submitted_at"]),
         answers=[
             QuizAnswerResponse(
                 question_index=a["question_index"],

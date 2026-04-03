@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { LANGUAGE_MAP, AVAILABLE_LANGUAGES } from '../constants';
 import { executeCode } from '../api';
+import { LANGUAGE_MAP } from '../constants';
+import { startSubmission, saveDraft, submitCode } from '../api';
 
 /**
  * @fileoverview Problem page component for the AutoSuggestion Quiz application.
@@ -11,6 +13,8 @@ import { executeCode } from '../api';
 function ProblemPage({ problem, onBack }) {
   const availableLanguages = problem.languages || [problem.language];
   const [selectedLanguage, setSelectedLanguage] = useState(availableLanguages[0] || 'python');
+function ProblemPage({ problem, onBack, studentName }) {
+  const language = problem.language;
   const starterCode = (problem.sections || [])
     .sort((a, b) => a.order_index - b.order_index)
     .map((s) => {
@@ -27,6 +31,18 @@ function ProblemPage({ problem, onBack }) {
   const [pyodide, setPyodide] = useState(null);
   const [pyodideLoading, setPyodideLoading] = useState(true);
   const [input, setInput] = useState('');
+
+  const [sessionId, setSessionId] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [draftCode, setDraftCode] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const periodicSaveRef = useRef(null);
+  const debounceRef = useRef(null);
+  const codeRef = useRef(code);
+  useEffect(() => { codeRef.current = code; }, [code]);
 
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
@@ -135,13 +151,6 @@ function ProblemPage({ problem, onBack }) {
       editorRef.current = editor;
       monacoRef.current = monaco;
 
-      editor.onKeyDown((e) => {
-        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
-          // e.preventDefault();
-          // e.stopPropagation();
-        }
-      });
-
       editor.onDidChangeModelContent((event) => {
         if (idleTimerRef.current) {
           clearTimeout(idleTimerRef.current);
@@ -214,6 +223,44 @@ function ProblemPage({ problem, onBack }) {
       .join('\n');
     setCode(newStarterCode);
   }, [selectedLanguage, problem.sections]);
+    if (!studentName) return;
+    startSubmission(problem.id, studentName)
+      .then((result) => {
+        setSessionId(result.session_id);
+        if (result.has_draft && result.code) {
+          setDraftCode(result.code);
+          setShowRestorePrompt(true);
+        }
+      })
+      .catch((err) => {
+        setSubmitError(err.message);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const doSave = useCallback((currentCode) => {
+    if (!sessionId) return;
+    setSaveStatus('saving');
+    saveDraft(sessionId, currentCode)
+      .then(() => {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(''), 2500);
+      })
+      .catch(() => setSaveStatus(''));
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSave(code), 5000);
+    return () => clearTimeout(debounceRef.current);
+  }, [code, sessionId, doSave]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    periodicSaveRef.current = setInterval(() => doSave(codeRef.current), 30000);
+    return () => clearInterval(periodicSaveRef.current);
+  }, [sessionId, doSave]);
 
   useEffect(() => {
     const initPyodide = async () => {
@@ -334,18 +381,86 @@ _stderr = _stderr_buf.getvalue()
 };
 
 
-  const handleSubmit = () => {
-    setActiveTab('output');
-    setOutput(
-      'Submitting solution...\n\n' +
-        'Your solution has been submitted successfully.\n' +
-        'Redirecting to dashboard...'
-    );
-    setTimeout(() => onBack(), 2000);
+  const handleSubmit = async () => {
+    if (!sessionId) {
+      setSubmitError('Session not ready. Please wait a moment and try again.');
+      return;
+    }
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      await submitCode(sessionId, code, suggestionLog);
+      clearTimeout(debounceRef.current);
+      clearInterval(periodicSaveRef.current);
+      setActiveTab('output');
+      setOutput('Your solution has been submitted successfully.\nRedirecting to dashboard...');
+      setTimeout(() => onBack(), 2000);
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="app">
+      {showConfirmDialog && (
+        <div className="restore-overlay">
+          <div className="restore-dialog">
+            <h3>Submit your solution?</h3>
+            <p>
+              {suggestionLog.length > 0
+                ? `You accepted ${suggestionLog.length} AI suggestion${suggestionLog.length !== 1 ? 's' : ''} during this attempt.`
+                : 'You did not accept any AI suggestions during this attempt.'}
+            </p>
+            <p>This cannot be undone.</p>
+            <div className="restore-actions">
+              <button
+                className="btn btn-run"
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  handleSubmit();
+                }}
+              >
+                Confirm Submit
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRestorePrompt && (
+        <div className="restore-overlay">
+          <div className="restore-dialog">
+            <h3>Resume your work?</h3>
+            <p>We found a saved draft for this problem. Would you like to restore it?</p>
+            <div className="restore-actions">
+              <button
+                className="btn btn-run"
+                onClick={() => {
+                  setCode(draftCode);
+                  setShowRestorePrompt(false);
+                }}
+              >
+                Restore Draft
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => setShowRestorePrompt(false)}
+              >
+                Start Fresh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="app-header">
         <div className="header-left">
           <button className="btn-back" onClick={onBack}>
@@ -354,9 +469,16 @@ _stderr = _stderr_buf.getvalue()
           <h1 className="logo">AutoSuggestion Quiz</h1>
         </div>
         <div className="header-right">
+          {saveStatus === 'saving' && <span className="save-status">Saving…</span>}
+          {saveStatus === 'saved' && <span className="save-status save-status--saved">✓ Saved</span>}
+          {submitError && <span className="save-status save-status--error">{submitError}</span>}
           <span className="problem-title">{problem.title}</span>
-          <button className="btn btn-outline" onClick={handleSubmit}>
-            Submit
+          <button
+            className="btn btn-outline"
+            onClick={() => setShowConfirmDialog(true)}
+            disabled={isSubmitting || !sessionId}
+          >
+            {isSubmitting ? 'Submitting…' : 'Submit'}
           </button>
         </div>
       </header>
