@@ -111,6 +111,7 @@ function App() {
         return (
             <ReviewPage
                 submission={reviewTarget.submission}
+                allSubmissions={reviewTarget.allSubmissions}
                 problem={reviewTarget.problem}
                 onBack={() => setReviewTarget(null)}
             />
@@ -145,7 +146,7 @@ function App() {
             onDeleteProblem={handleDeleteProblem}
             onProblemsUpdate={setProblems}
             onRefresh={() => loadProblems(user.token)}
-            onReview={(submission, problem) => setReviewTarget({ submission, problem })}
+            onReview={(submission, problem, allSubmissions) => setReviewTarget({ submission, problem, allSubmissions })}
             onLogout={handleLogout}
             user={user}
         />

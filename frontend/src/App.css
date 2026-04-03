@@ -1254,6 +1254,24 @@
 
 /* ── Review Page ──────────────────────────────────────────────────────────── */
 
+.review-submission-select {
+    background-color: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    color: #9cdcfe;
+    font-size: 12px;
+    padding: 4px 8px;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+}
+
+.review-submission-select:hover,
+.review-submission-select:focus {
+    border-color: #569cd6;
+}
+
 .review-meta {
     display: flex;
     align-items: center;

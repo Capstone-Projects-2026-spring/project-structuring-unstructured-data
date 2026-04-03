@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { LANGUAGE_MAP } from '../constants';
 
@@ -7,9 +7,6 @@ import { LANGUAGE_MAP } from '../constants';
  * @module ReviewPage
  */
 
-/**
- * Parse suggestion_log from the session. Accepts a JSON string or an array.
- */
 function parseSuggestionLog(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
@@ -20,71 +17,78 @@ function parseSuggestionLog(raw) {
   }
 }
 
-/**
- * Given the submitted code and suggestion log, return the set of line numbers
- * (1-based) that contain text matching an accepted suggestion label.
- */
 function getHighlightedLines(code, suggestionLog) {
   if (!code || !suggestionLog.length) return new Set();
   const lines = code.split('\n');
   const highlighted = new Set();
   suggestionLog.forEach(({ label }) => {
     if (!label) return;
-    // label is the first line of the suggestion snippet — match it trimmed
     const needle = label.trim().toLowerCase();
     lines.forEach((line, idx) => {
       if (line.trim().toLowerCase().includes(needle)) {
-        highlighted.add(idx + 1); // Monaco lines are 1-based
+        highlighted.add(idx + 1);
       }
     });
   });
   return highlighted;
 }
 
-function ReviewPage({ submission, problem, onBack }) {
-  const { student_name, submitted_at, code = '', suggestion_log: rawLog } = submission;
+function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
   const language = problem.language || 'python';
+
+  // Default to the newest submission (allSubmissions is pre-sorted newest-first)
+  const sorted = allSubmissions.length > 0 ? allSubmissions : [submission];
+  const [activeSubmission, setActiveSubmission] = useState(sorted[0]);
+
+  const { student_name, submitted_at, code = '', suggestion_log: rawLog } = activeSubmission;
   const suggestionLog = parseSuggestionLog(rawLog);
+
   const [activeTab, setActiveTab] = useState('log');
   const editorRef = useRef(null);
+  const monacoRef = useRef(null);
   const decorationsRef = useRef([]);
 
-  const applyDecorations = useCallback((editor, monaco) => {
-    const highlighted = getHighlightedLines(code, suggestionLog);
-    if (!highlighted.size) return;
-
-    const newDecorations = Array.from(highlighted).map((lineNumber) => ({
-      range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-      options: {
-        isWholeLine: true,
-        className: 'ai-highlight-line',
-        glyphMarginClassName: 'ai-highlight-glyph',
-        overviewRuler: {
-          color: 'rgba(192, 139, 48, 0.6)',
-          position: monaco.editor.OverviewRulerLane.Right,
-        },
-      },
-    }));
-
+  const applyDecorations = useCallback((editor, monaco, currentCode, currentLog) => {
+    const highlighted = getHighlightedLines(currentCode, currentLog);
     decorationsRef.current = editor.deltaDecorations(
       decorationsRef.current,
-      newDecorations
+      Array.from(highlighted).map((lineNumber) => ({
+        range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+        options: {
+          isWholeLine: true,
+          className: 'ai-highlight-line',
+          glyphMarginClassName: 'ai-highlight-glyph',
+          overviewRuler: {
+            color: 'rgba(192, 139, 48, 0.6)',
+            position: monaco.editor.OverviewRulerLane.Right,
+          },
+        },
+      }))
     );
-  }, [code, suggestionLog]);
+  }, []);
 
   const handleEditorDidMount = useCallback(
     (editor, monaco) => {
       editorRef.current = editor;
-      applyDecorations(editor, monaco);
+      monacoRef.current = monaco;
+      applyDecorations(editor, monaco, code, suggestionLog);
     },
-    [applyDecorations]
+    [applyDecorations, code, suggestionLog]
   );
+
+  // Re-apply decorations whenever the active submission changes
+  useEffect(() => {
+    if (editorRef.current && monacoRef.current) {
+      applyDecorations(editorRef.current, monacoRef.current, code, suggestionLog);
+    }
+  }, [activeSubmission, applyDecorations, code, suggestionLog]);
 
   const formattedDate = submitted_at
     ? new Date(submitted_at).toLocaleString()
     : 'Unknown';
 
   const testCases = problem.test_cases || [];
+  const multipleSubmissions = sorted.length > 1;
 
   return (
     <div className="app">
@@ -94,6 +98,22 @@ function ReviewPage({ submission, problem, onBack }) {
           <h1 className="logo">AutoSuggestion Quiz</h1>
         </div>
         <div className="header-right">
+          {multipleSubmissions && (
+            <select
+              className="review-submission-select"
+              value={activeSubmission.session_id}
+              onChange={(e) => {
+                const selected = sorted.find(s => s.session_id === Number(e.target.value));
+                if (selected) setActiveSubmission(selected);
+              }}
+            >
+              {sorted.map((s, i) => (
+                <option key={s.session_id} value={s.session_id}>
+                  Submission {sorted.length - i} — {new Date(s.submitted_at).toLocaleString()}
+                </option>
+              ))}
+            </select>
+          )}
           <span className="review-meta">
             <span className="review-student">{student_name}</span>
             <span className="review-sep">·</span>

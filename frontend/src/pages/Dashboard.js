@@ -249,7 +249,12 @@ function SubmissionsModal({ problem, token, onGraded, onReview, onClose }) {
                                                 <button
                                                     className="btn btn-outline"
                                                     style={{ fontSize: '11px', padding: '3px 8px' }}
-                                                    onClick={() => onReview(s, problem)}
+                                                    onClick={() => {
+                                                        const studentSubs = submissions
+                                                            .filter(sub => sub.student_name === s.student_name)
+                                                            .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+                                                        onReview(s, problem, studentSubs);
+                                                    }}
                                                 >
                                                     Review
                                                 </button>
