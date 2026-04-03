@@ -48,7 +48,7 @@ export default function SignUpPage() {
         setLoading(false);
       },
     });
-  }
+  };
 
   return (
     <Flex justify={"center"} align={"center"} mih="100vh">
