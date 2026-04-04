@@ -288,6 +288,18 @@ function registerSocketHandlers(io, socket, services) {
     });
     console.log('code submitted for two-player game');
   }
+    else if (type === GameType.FOURPLAYER) {
+      console.log('verify its a fourplayer game');
+      await prisma.gameResult.update({
+        where: { gameRoomId: roomId },
+        data: {
+          gameRoomId: roomId,
+          team1Code: code,
+          team2Code: code
+        }
+      });
+      console.log('code submitted for four-player game');
+  }
     try {
       // Post results to the code executor
       fetch("http://fake-backend.lol:6969/execute", {
