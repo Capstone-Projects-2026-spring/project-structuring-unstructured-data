@@ -44,6 +44,7 @@ export function Results() {
   const [isProblemVisible, setIsProblemVisible] = useState(true);
   const toggleProblemVisibility = () => setIsProblemVisible((prev) => !prev);
   const [analysisProps, setAnalysisProps] = useState<AnalysisBoxProps | null>(null);
+  const [gameType, setGameType] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.user.id || !gameId) return;
@@ -76,8 +77,19 @@ export function Results() {
       }
     };
 
+    const loadGameType = async () => {
+      try {
+        const response = await fetch(`/api/rooms/type?gameId=${gameId}`);
+        if (!response.ok) return;
+        const data = (await response.json()) as { gameType: string };
+        setGameType(data.gameType);
+      } catch (error) {
+        console.error('Failed to load game type', error);
+      }
+    };
+
     const loadData = async () => {
-      await Promise.all([loadProblem(), retrieveCode()]);
+      await Promise.all([loadProblem(), retrieveCode(), loadGameType()]);
     };
 
     loadData();
@@ -109,6 +121,7 @@ export function Results() {
                 width: isProblemVisible ? "25%" : "50px",
                 minWidth: isProblemVisible ? "250px" : "50px",
                 color: "white",
+                backgroundColor: "#333",
                 padding: "0",
                 overflowY: "auto",
                 display: "flex",
@@ -135,7 +148,7 @@ export function Results() {
 
             <Stack style={{ flex: 2 }} gap="md">
               <AnalysisBox {...analysisProps ?? { team1Code: "" }} />
-              <TestCaseResultsBox gameId={gameId} />
+              <TestCaseResultsBox gameId={gameId} showOtherTeamColumn={gameType === "FOURPLAYER"} />
             </Stack>
 
           </Flex>
