@@ -148,44 +148,6 @@ function PlayGameRoom() {
 
     socketInstance.emit("register", { userId: session.user.id });
 
-    socketInstance.on("gameStarting", () => {
-      posthog.capture("game_spectated", { gameId });
-      setGameState(GameStatus.STARTING);
-    });
-
-    socketInstance.on("gameStarted", ({ start }) => {
-      if (isNaN(start)) return;
-      posthog.capture("game_started", { gameId });
-      if (!endTimeRef.current) {
-        endTimeRef.current = Date.now() + Number(start);
-        setEndTime(endTimeRef.current);
-      }
-      setGameState(GameStatus.ACTIVE);
-    });
-
-    socketInstance.on("gameEnded", () => {
-      posthog.capture("game_ended", { gameId });
-      setGameState(GameStatus.FINISHED);
-      router.push(`/results/${gameId}`);
-    });
-
-    socketInstance.on("roleSwapWarning", () => {
-      if (role) {
-        showRoleSwapWarning(role);
-      } else {
-        showRoleSwapWarning(Role.CODER);
-      }
-    });
-
-    socketInstance.on("roleSwapping", () => {
-      setGameState(GameStatus.FLIPPING);
-    });
-
-    socketInstance.on("roleSwap", () => {
-      setGameState(GameStatus.ACTIVE);
-      setRole((prev) => (prev === Role.SPECTATOR ? Role.SPECTATOR : prev === Role.CODER ? Role.TESTER : Role.CODER));
-    });
-
     // This is so if another person picks while someone is deciding
     socketInstance.on("teamUpdated", ({ teamId, playerCount }) => {
       setTeams((prev) =>
@@ -205,13 +167,68 @@ function PlayGameRoom() {
   }, [gameId, session?.user.id]);
 
   useEffect(() => {
-    // Runs after team gets selected
+    // Runs after team gets selected - join rooms first, then set up room-specific listeners
     if (!socket || !teamSelected || !gameId || !gameType) return;
     socket.emit("joinGame", { gameId, teamId: teamSelected, gameType });
     gameStateCtx.setGameType(gameType);
 
+    // Set up game room event listeners AFTER joining the room
+    const handleGameStarting = () => {
+      posthog.capture("game_spectated", { gameId });
+      setGameState(GameStatus.STARTING);
+    };
+
+    const handleGameStarted = ({ start }: { start: number }) => {
+      if (isNaN(start)) return;
+      posthog.capture("game_started", { gameId });
+      if (!endTimeRef.current) {
+        endTimeRef.current = Date.now() + Number(start);
+        setEndTime(endTimeRef.current);
+      }
+      setGameState(GameStatus.ACTIVE);
+    };
+
+    const handleGameEnded = () => {
+      posthog.capture("game_ended", { gameId });
+      setGameState(GameStatus.FINISHED);
+      router.push(`/results/${gameId}`);
+    };
+
+    const handleRoleSwapWarning = () => {
+      if (role) {
+        showRoleSwapWarning(role);
+      } else {
+        showRoleSwapWarning(Role.CODER);
+      }
+    };
+
+    const handleRoleSwapping = () => {
+      setGameState(GameStatus.FLIPPING);
+    };
+
+    const handleRoleSwap = () => {
+      setGameState(GameStatus.ACTIVE);
+      setRole((prev) => (prev === Role.SPECTATOR ? Role.SPECTATOR : prev === Role.CODER ? Role.TESTER : Role.CODER));
+    };
+
+    socket.on("gameStarting", handleGameStarting);
+    socket.on("gameStarted", handleGameStarted);
+    socket.on("gameEnded", handleGameEnded);
+    socket.on("roleSwapWarning", handleRoleSwapWarning);
+    socket.on("roleSwapping", handleRoleSwapping);
+    socket.on("roleSwap", handleRoleSwap);
+
+    return () => {
+      socket.off("gameStarting", handleGameStarting);
+      socket.off("gameStarted", handleGameStarted);
+      socket.off("gameEnded", handleGameEnded);
+      socket.off("roleSwapWarning", handleRoleSwapWarning);
+      socket.off("roleSwapping", handleRoleSwapping);
+      socket.off("roleSwap", handleRoleSwap);
+    };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socket, teamSelected, gameId, gameType]);
+  }, [socket, teamSelected, gameId, gameType, role]);
 
   useEffect(() => {
     if (!socket || !role || !teamSelected) return;
