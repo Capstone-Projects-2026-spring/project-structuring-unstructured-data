@@ -1,22 +1,24 @@
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Head from "next/head";
 import { Stack, Box, Title, Flex, ActionIcon, Tooltip } from "@mantine/core";
 import Navbar from "@/components/Navbar";
 import { useRouter } from "next/router";
 import { authClient } from "@/lib/auth-client";
 import TestCaseResultsBox from "@/components/TestCaseResultsBox";
-import AnalysisBox from "@/components/Analysisbox";
+import AnalysisBox, { AnalysisBoxProps } from "@/components/Analysisbox";
 import ProblemBox from "@/components/ProblemBox";
 import type { ActiveProblem } from '@/components/ProblemBox';
-import { io, Socket } from 'socket.io-client';
-import { IconEye, IconPlayerPlay, IconPlayerTrackNextFilled, IconPlus } from '@tabler/icons-react';
-import GameTestCase from '@/components/gameTests/GameTestCase';
-import { GameType } from "@prisma/client";
+import { IconEye } from '@tabler/icons-react';
 
 
 interface RoomDetailsResponse {
   problem: ActiveProblem;
+}
+
+interface ResultCodeResponse {
+  team1Code: string | null;
+  team2Code: string | null;
 }
 
 export default function Page() {
@@ -38,40 +40,47 @@ export function Results() {
   const router = useRouter();
   const gameId = router.query.gameID as string;
   const { data: session } = authClient.useSession();
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [loading, setLoading] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
   const [problem, setProblem] = useState<ActiveProblem | null>(null);
-  const [gameType, setGameType] = useState<GameType | null>(null);
   const [isProblemVisible, setIsProblemVisible] = useState(true);
   const toggleProblemVisibility = () => setIsProblemVisible((prev) => !prev);
-  
+  const [analysisProps, setAnalysisProps] = useState<AnalysisBoxProps | null>(null);
+
   useEffect(() => {
+    if (!session?.user.id || !gameId) return;
+
     const loadProblem = async () => {
       try {
         const response = await fetch(`/api/rooms/${gameId}`);
         if (!response.ok) return;
         const data = (await response.json()) as RoomDetailsResponse;
         setProblem(data.problem);
-        setLoading(false);
       } catch (error) {
         console.error('Failed to load room problem', error);
       }
     };
-    loadProblem();
-  }, [gameId, session?.user.id]);
 
-  useEffect(() => {
-    if (!session?.user.id || !gameId || socketRef.current) return;
+    const retrieveCode = async () => {
+      try {
+        const response = await fetch(`/api/rooms/result?gameId=${gameId}`);
+        if (!response.ok) return;
+        const data = (await response.json()) as ResultCodeResponse;
 
-    const fetchGameType = async () => {
-      const res = await fetch(`/api/rooms/type?gameId=${gameId}`);
-      const data = await res.json();
-      if (data.gameType) {
-        setGameType(data.gameType);
+        if (data.team1Code) {
+          setAnalysisProps({
+            team1Code: data.team1Code,
+            team2Code: data.team2Code ?? undefined,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load result code', error);
       }
     };
-    fetchGameType();
+
+    const loadData = async () => {
+      await Promise.all([loadProblem(), retrieveCode()]);
+    };
+
+    loadData();
   }, [gameId, session?.user.id]);
 
   return (
@@ -125,7 +134,7 @@ export function Results() {
             </Box>
 
             <Stack style={{ flex: 2 }} gap="md">
-              <AnalysisBox />
+              <AnalysisBox {...analysisProps ?? { team1Code: "" }} />
               <TestCaseResultsBox />
             </Stack>
 

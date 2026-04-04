@@ -1,16 +1,32 @@
 import { Paper, Text, Group, Box, Badge, Title, Divider } from "@mantine/core";
 
-export default function AnalysisBox() {
+export interface AnalysisBoxProps {
+  team1Code: string;
+  team2Code?: string;
+}
+export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) {
+  const hasAnyCode = Boolean(team1Code || team2Code);
+
   return (
     <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       
       <Box style={{ flex: 1 }}>
         <Title order={4} mb="sm" c="blue.7">Solution Analysis</Title>
         <Text size="sm" c="dimmed" lh={1.6}>
-          Your solution effectively utilizes a hash map to achieve the desired outcome, minimizing redundant iterations. 
-          However, you could optimize the space complexity by mutating the array in place if the problem constraints allow it.
-          Below is a reference to an optimal approach...
+          {hasAnyCode ? 'Code loaded from match result.' : 'Waiting for code'}
         </Text>
+
+        {team1Code ? (
+          <Text mt="sm" size="sm" ff="monospace" lineClamp={6}>
+            {team1Code}
+          </Text>
+        ) : null}
+
+        {team2Code ? (
+          <Text mt="sm" size="sm" ff="monospace" lineClamp={6}>
+            {team2Code}
+          </Text>
+        ) : null}
       </Box>
 
       <Divider my="md" />
