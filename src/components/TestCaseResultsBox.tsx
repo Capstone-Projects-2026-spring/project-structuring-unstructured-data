@@ -1,56 +1,95 @@
-import { Paper, Title, Table, Text } from "@mantine/core";
+import { Paper, Title, Table, Text, Box } from "@mantine/core";
+import { useEffect, useState } from "react";
 
-// Define the structure of a test case for TypeScript
 interface TestCase {
-  id: number;
-  input: string;
-  expected: string;
-  actual: string;
-  passed: boolean;
+  id: string;
+  input: unknown;
+  expected: unknown;
 }
 
-export default function TestCaseResultsBox() {
-  // Mock data - in your real app, this will come from your backend via props
-  const testCases: TestCase[] = [
-    { id: 1, input: "1 2 1 4 5 6", expected: "1 1 2 4 5 6", actual: "1 2 1 4 5 6", passed: true },
-    { id: 2, input: "1 1 1 1 h 5", expected: "1 1 1 1 5", actual: "Error", passed: false },
-    { id: 3, input: "3 2 1", expected: "1 2 3", actual: "1 2 3", passed: true },
-  ];
+interface TestCaseResultsBoxProps {
+  gameId?: string;
+}
+
+export default function TestCaseResultsBox({ gameId }: TestCaseResultsBoxProps) {
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const fetchTests = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/rooms/tests?gameId=${gameId}`);
+        if (!response.ok) return;
+        const data = (await response.json()) as { tests: TestCase[] };
+        setTestCases(data.tests);
+      } catch (error) {
+        console.error("Failed to fetch tests", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTests();
+  }, [gameId]);
+
+  interface Parameter {
+    name: string;
+    type: string;
+    value: unknown;
+    isOutputParameter?: boolean;
+  }
+
+  const formatValue = (value: unknown): string => {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (Array.isArray(value)) {
+      // Check if it's a parameter array
+      if (value.length > 0 && typeof value[0] === 'object' && 'name' in value[0]) {
+        const params = value as Parameter[];
+        return params
+          .filter(p => !p.isOutputParameter)
+          .map(p => `${p.name}: ${p.value}`)
+          .join(', ');
+      }
+      return JSON.stringify(value);
+    }
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
 
   const rows = testCases.map((element) => (
     <Table.Tr key={element.id}>
       <Table.Td>
-        <Text size="sm" fw={500} ff="monospace">{element.input}</Text>
+        <Text size="sm" fw={500} ff="monospace">{formatValue(element.input)}</Text>
       </Table.Td>
       <Table.Td>
-        <Text size="sm" fw={700} c={element.passed ? "teal.6" : "red.6"} ff="monospace">
-          {element.actual}
-        </Text>
+        <Text size="sm" fw={500} c="gray.5" ff="monospace">-</Text>
       </Table.Td>
       <Table.Td>
-        <Text size="sm" fw={700} c={element.passed ? "teal.6" : "red.6"} ff="monospace">
-          {element.expected}
-        </Text>
+        <Text size="sm" fw={500} ff="monospace">{formatValue(element.expected)}</Text>
       </Table.Td>
     </Table.Tr>
   ));
 
   return (
-    <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1 }}>
-      
-      <Title order={4} mb="md" ta="center">Test Case Overview</Title>
+    <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Title order={4} mb="md" ta="center">Test Cases</Title>
 
-      <Table highlightOnHover verticalSpacing="sm">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Input</Table.Th>
-            <Table.Th>Your Result</Table.Th>
-            <Table.Th>Expected Result</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>{rows}</Table.Tbody>
-      </Table>
-      
+      <Box style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <Table highlightOnHover verticalSpacing="sm" striped>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Input</Table.Th>
+              <Table.Th>Actual Result</Table.Th>
+              <Table.Th>Expected Result</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>{loading ? null : rows}</Table.Tbody>
+        </Table>
+      </Box>
     </Paper>
   );
 }

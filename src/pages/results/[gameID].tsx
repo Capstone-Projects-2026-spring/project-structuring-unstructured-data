@@ -135,7 +135,7 @@ export function Results() {
 
             <Stack style={{ flex: 2 }} gap="md">
               <AnalysisBox {...analysisProps ?? { team1Code: "" }} />
-              <TestCaseResultsBox />
+              <TestCaseResultsBox gameId={gameId} />
             </Stack>
 
           </Flex>

@@ -8,25 +8,27 @@ export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) 
   const hasAnyCode = Boolean(team1Code || team2Code);
 
   return (
-    <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       
-      <Box style={{ flex: 1 }}>
+      <Box style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Title order={4} mb="sm" c="blue.7">Solution Analysis</Title>
         <Text size="sm" c="dimmed" lh={1.6}>
           {hasAnyCode ?'' : 'Waiting for code'}
         </Text>
 
-        {team1Code ? (
-          <Code block mt="sm" ff="monospace">
-            {team1Code}
-          </Code>
-        ) : null}
+        <Box style={{ marginTop: '0.75rem', maxHeight: '220px', overflowY: 'auto', overflowX: 'auto', paddingRight: '0.25rem' }}>
+          {team1Code ? (
+            <Code block mt={0} ff="monospace">
+              {team1Code}
+            </Code>
+          ) : null}
 
-        {team2Code ? (
-          <Code mt="sm" ff="monospace">
-            {team2Code}
-          </Code>
-        ) : null}
+          {team2Code ? (
+            <Code block mt="sm" ff="monospace">
+              {team2Code}
+            </Code>
+          ) : null}
+        </Box>
       </Box>
 
       <Divider my="md" />
