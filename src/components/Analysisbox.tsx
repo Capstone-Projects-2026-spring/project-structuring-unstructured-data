@@ -1,4 +1,4 @@
-import { Paper, Text, Group, Box, Badge, Title, Divider } from "@mantine/core";
+import { Paper, Text, Group, Box, Badge, Title, Divider, Code } from "@mantine/core";
 
 export interface AnalysisBoxProps {
   team1Code: string;
@@ -13,19 +13,19 @@ export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) 
       <Box style={{ flex: 1 }}>
         <Title order={4} mb="sm" c="blue.7">Solution Analysis</Title>
         <Text size="sm" c="dimmed" lh={1.6}>
-          {hasAnyCode ? 'Code loaded from match result.' : 'Waiting for code'}
+          {hasAnyCode ?'' : 'Waiting for code'}
         </Text>
 
         {team1Code ? (
-          <Text mt="sm" size="sm" ff="monospace" lineClamp={6}>
+          <Code block mt="sm" ff="monospace">
             {team1Code}
-          </Text>
+          </Code>
         ) : null}
 
         {team2Code ? (
-          <Text mt="sm" size="sm" ff="monospace" lineClamp={6}>
+          <Code mt="sm" ff="monospace">
             {team2Code}
-          </Text>
+          </Code>
         ) : null}
       </Box>
 
