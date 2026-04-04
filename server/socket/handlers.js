@@ -165,9 +165,10 @@ function registerSocketHandlers(io, socket, services) {
       testCases: JSON.stringify(testCases),
       runIDs: JSON.stringify(runIDs)
     };
-    console.log(JSON.stringify(payload));
+    // console.log(JSON.stringify(payload));
     const res = await fetch("http://127.0.0.1:6969/execute", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const json = await res.json();

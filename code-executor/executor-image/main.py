@@ -2,6 +2,7 @@ import os
 import subprocess
 import time
 import base64
+import json
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -28,7 +29,6 @@ def health():
 
 def run_in_sandbox(
     code: str,
-    stdin: str,
     language: str,
     testCase: TestableCase = None
 ):
@@ -82,7 +82,7 @@ def run_in_sandbox(
         )
 
         # get output and stop timer
-        stdout, stderr = process.communicate(stdin or "", timeout=3)
+        stdout, stderr = process.communicate("", timeout=3)
         end_time = time.time()
 
         # return results
@@ -129,7 +129,7 @@ def execute(req: ExecutionRequest):
     # if there arent test cases we can just run it
     if req.testCases is None:
         print("No test cases. Running code")
-        result = run_in_sandbox(code, req.stdin or "", req.language)
+        result = run_in_sandbox(code, req.language)
         return result
 
     # now we need to parse and run against each case
@@ -150,6 +150,33 @@ def execute(req: ExecutionRequest):
             }
         )
 
+    # parse runIDs if provided; accept either a JSON string or an array
+    run_ids_set = None
+    if req.runIDs is not None:
+        run_ids_raw = req.runIDs
+        if isinstance(run_ids_raw, str):
+            try:
+                run_ids_raw = json.loads(run_ids_raw)
+            except Exception:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "runIDs is not valid JSON array"}
+                )
+        if isinstance(run_ids_raw, list):
+            try:
+                run_ids_set = set(int(x) for x in run_ids_raw)
+            except Exception:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "runIDs must be an array of integers"}
+                )
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "runIDs must be an array"}
+            )
+
+    executed_any = False
     for test in testCases:
         # print(test)
         try:
@@ -167,20 +194,42 @@ def execute(req: ExecutionRequest):
         testCaseInputs = [test.value for test in test.functionInput]
         # print(testCaseInputs)
 
+        # decide whether to run this test based on runIDs
+        should_run = (run_ids_set is None) or (test.id in run_ids_set)
+        if not should_run:
+            results.append({
+                "input": testCaseInputs,
+                "expected": test.expectedOutput.value,
+                "actual": None,
+                "passed": None,
+                "stderr": None,
+                "execution_time_ms": None,
+            })
+            continue
+
+        executed_any = True
         result = run_in_sandbox(
             code=code,
-            stdin="",
             language=req.language,
             testCase=test
         )
 
         # check if we passed
-        passed = None
-        if test.expectedOutput.value is not None:
-            passed = (result.get("stdout", "").strip()
-                      == (test.expectedOutput.value or "").strip())
-            if not passed:
-                all_passed = False
+        stdout_val = result.get("stdout", "").strip()
+        expected_val = (test.expectedOutput.value or "").strip() if test.expectedOutput and test.expectedOutput.value is not None else None
+        error_occurred = result.get("exit_code", 0) != 0
+
+        if error_occurred:
+            passed = None
+            # if there's a runtime error, overall cannot be all passed
+            all_passed = False
+        else:
+            if expected_val is not None:
+                passed = (stdout_val == expected_val)
+                if not passed:
+                    all_passed = False
+            else:
+                passed = None
 
         # append how we did to results
         results.append({

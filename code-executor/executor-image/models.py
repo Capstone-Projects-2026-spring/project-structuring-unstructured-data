@@ -1,5 +1,5 @@
 # Mirrors ProblemInputOutput#Parameter
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union
 
 from pydantic import BaseModel
 
@@ -28,3 +28,4 @@ class ExecutionRequest(BaseModel):
     language: str
     code: str
     testCases: str = None
+    runIDs: Union[str, List[int]] = None
