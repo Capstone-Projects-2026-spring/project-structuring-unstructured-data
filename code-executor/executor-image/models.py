@@ -14,7 +14,7 @@ class Parameter(BaseModel):
         "array_array_string",
         "array_array_number"
     ]
-    value: str = None
+    value: Optional[str] = None
 
 # Mirrors GameTestCasesContext.tsx#TestableCase
 class TestableCase(BaseModel):
