@@ -152,24 +152,23 @@ function registerSocketHandlers(io, socket, services) {
    * 
    * @see GameTestCasesContext#TestableCase
    */
+  // TODO: should only send test cases needed. also, the model here needs updated to actually hook up (wtf does that mean??). additionally, this sends base64 for undefined, so somethings broke somewhere.
   socket.on("submitTestCases", async (data) => {
     const {
-      gameId,
-      teamId,
       code,
       testCases,
-      runIDs
     } = data;
 
-    const res = await fetch("http://fake-backend.lol:6969/execute-tests", {
+
+    payload = {
+      language: "javascript",
+      code: btoa(code),
+      testCases: JSON.stringify(testCases),
+    };
+    console.log(JSON.stringify(payload));
+    const res = await fetch("executor:6969/execute", {
       method: "POST",
-      body: {
-        gameId,
-        teamId,
-        code: btoa(code), // convert to base64
-        testCases: JSON.stringify(testCases),
-        runIDs: JSON.stringify(runIDs)
-      },
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
 

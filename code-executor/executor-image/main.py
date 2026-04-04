@@ -2,7 +2,6 @@ import os
 import subprocess
 import time
 import base64
-import json
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -14,7 +13,7 @@ from models import *
 app = FastAPI()
 
 # This seems backwards but we want nsjail to be on by default.
-# So if the env key isn't set, it's still on # TODO: havent implemented thi yet
+# So if the env key isn't set, it's still on # TODO: havent implemented this yet
 use_nsjail = False if os.getenv("USE_NSJAIL") == "false" else True
 node_path = os.getenv("NODE_PATH", "/usr/bin/node")
 
@@ -140,8 +139,10 @@ def execute(req: ExecutionRequest):
     # the test cases are coming in as a json string.
     # decode to python!
     testCases = json.loads(req.testCases)
-    # print(testCases)
-    if type(testCases) != list:
+    # normalize input: allow a single object or a list of objects as frontend usually send json object not list
+    if isinstance(testCases, dict):
+        testCases = [testCases]
+    elif not isinstance(testCases, list):
         return JSONResponse(
             status_code=400,
             content={
@@ -150,7 +151,7 @@ def execute(req: ExecutionRequest):
         )
 
     for test in testCases:
-        print(test)
+        # print(test)
         try:
             test = TestableCase.model_validate(test)
         except ValidationError as e:
@@ -164,7 +165,7 @@ def execute(req: ExecutionRequest):
 
         # unnngggghhhhh list comprehension 🤤
         testCaseInputs = [test.value for test in test.functionInput]
-        print(testCaseInputs)
+        # print(testCaseInputs)
 
         result = run_in_sandbox(
             code=code,
