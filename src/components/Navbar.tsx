@@ -3,7 +3,6 @@ import { Burger, Container, Group, Text, Anchor } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link'; // <-- Import Next.js Link
 import classes from '../styles/comps/Header.module.css';
-import Link from 'next/link';
 import Brand from './Brand';
 
 interface HeaderProps {
@@ -22,7 +21,7 @@ export default function HeaderSimple(props: HeaderProps) {
   const gameInfo = titleParts.slice(1).join('|'); 
 
   const items = props.links.map((link) => (
-    <a
+    <Anchor
       key={link}
       className={classes.link}
       onClick={(event) => {
@@ -31,7 +30,7 @@ export default function HeaderSimple(props: HeaderProps) {
       }}
     >
       {link}
-    </a>
+    </Anchor>
   ));
 
   return (
