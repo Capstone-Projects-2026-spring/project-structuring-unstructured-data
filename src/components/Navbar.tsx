@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Burger, Container, Group, Text, Anchor} from '@mantine/core';
+import { Burger, Container, Group, Text, Anchor } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link'; // <-- Import Next.js Link
 import classes from '../styles/comps/Header.module.css';
+import Link from 'next/link';
+import Brand from './Brand';
 
 interface HeaderProps {
   links: string[],
@@ -35,6 +37,15 @@ export default function HeaderSimple(props: HeaderProps) {
   return (
     <header className={classes.header}>
       <Container size="md" className={classes.inner}>
+
+        <Brand />
+        <Text fw={600} mr="auto">
+          {/* mantine anchor tag instead a <a or whatever else we'd use  */}
+          {/* <Anchor
+            component={Link}
+            href="/"
+            underline="hover"
+            fw={800}
         
         <Text c="blue.6" fw={600} mr="auto">
 
@@ -47,7 +58,7 @@ export default function HeaderSimple(props: HeaderProps) {
             style={{ letterSpacing: '1px' }}
           >
             {brandName}
-          </Anchor>
+          </Anchor> */}
 
           {/* Remaining status text */}
           {gameInfo && <span style={{ opacity: 0.8, fontWeight: 400 }}> | {gameInfo}</span>}
