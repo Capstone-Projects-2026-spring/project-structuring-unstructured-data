@@ -279,7 +279,7 @@ function registerSocketHandlers(io, socket, services) {
     console.log('submitCode received for roomId:', roomId, 'with code length:', code.length, 'and type:', type);
     if( type === GameType.TWOPLAYER) {
     console.log('verify its a twoplayer game');
-    await prisma.gameResult.create({
+    await prisma.gameResult.update({
       data: {
         gameRoomId: roomId,
         team1Code: code

@@ -467,7 +467,9 @@ function PlayGameRoom() {
               {(gameState === GameStatus.ACTIVE || gameState === GameStatus.FLIPPING) && (
                 <Box mb="md" p="1rem" pb={isProblemVisible ? "md" : "1rem"}>
                   <GameTimer endTime={endTime}
-                    onExpire={() => { if (role === Role.CODER) socket.emit("submitCode", { roomId: gameId, code: liveCode }); }} />
+                    onExpire={() => { if (role === Role.CODER) {
+                    socket.emit("submitCode", { roomId: gameId, code: liveCode });
+               } }} />
                 </Box>
               )}
               {/* Conditionally render either the ProblemBox or the "Show" icon */}
