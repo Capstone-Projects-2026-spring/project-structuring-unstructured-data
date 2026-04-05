@@ -146,8 +146,6 @@ function PlayGameRoom() {
     setSocket(socketRef.current);
     gameStateCtx.setSocket(socketRef.current);
 
-    socketInstance.emit("register", { userId: session.user.id });
-
     socketInstance.on("gameStarting", () => {
       posthog.capture("game_spectated", { gameId });
       setGameState(GameStatus.STARTING);
@@ -476,7 +474,11 @@ function PlayGameRoom() {
               {(gameState === GameStatus.ACTIVE || gameState === GameStatus.FLIPPING) && (
                 <Box mb="md" p="1rem" pb={isProblemVisible ? "md" : "1rem"}>
                   <GameTimer endTime={endTime}
-                    onExpire={() => { if (role === Role.CODER) socket.emit("submitCode", { roomId: gameId, code: liveCode }); }} />
+                    onExpire={() => { 
+                      if (role === Role.CODER) {
+                        const teamNumber = teams.findIndex(t => t.teamId === teamSelected) + 1;
+                        socket.emit("submitCode", { roomId: gameId, code: liveCode, teamNumber });} 
+                    }} />
                 </Box>
               )}
               {/* Conditionally render either the ProblemBox or the "Show" icon */}

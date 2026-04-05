@@ -18,10 +18,6 @@ const Parameter = z.object({
   isOutputParameter: z.optional(z.boolean().default(false))
 });
 
-const registerSchema = z.object({
-  userId: z.string(),
-});
-
 const joinGameSchema = z.object({
   gameId: z.string(),
   teamId: z.string(),
@@ -78,24 +74,6 @@ function registerSocketHandlers(io, socket, services) {
   const { gameService, matchmakingService } = services;
 
   console.log(`New connection: ${socket.id}`);
-
-  socket.on('register', async (data) => {
-    const payload = validate(registerSchema, data);
-    if (!payload) {
-      socket.emit('error', { message: 'Invalid payload for register.' });
-      return;
-    }
-
-    const { userId } = payload;
-    socket.userId = userId;
-    try {
-      await gameService.registerSocketToUser(userId, socket.id); // needed before to emit from api to socket leaving in case useful later down the road
-    } catch (e) {
-      console.error('Error registering socket to user in Redis', e);
-      socket.emit('error', { e, message: 'Failed to register socket.' });
-    }
-
-  });
  
   socket.on('joinGame', async (data) => {
     const payload = validate(joinGameSchema, data);
