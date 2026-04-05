@@ -15,8 +15,6 @@ console.log('DEBUG ENV:', {
     SLACK_APP_TOKEN: process.env.SLACK_APP_TOKEN ? 'SET' : 'NOT SET',
 });
 
-const { runModel, postSummaries } = require('../mongo_storage/python');
-const { run } = require('jest');
 const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, userIDToName } = require('./slack_to_DB');
 
 // Shared API client for Mongo storage
