@@ -1,10 +1,11 @@
 import { Paper, Title, Table, Text, Box } from "@mantine/core";
 import { useEffect, useState } from "react";
+import { ParameterType } from "@/lib/ProblemInputOutput";
 
 interface TestCase {
   id: string;
-  input: unknown;
-  expected: unknown;
+  input: ParameterType[];
+  expected: ParameterType[];
 }
 
 interface TestCaseResultsBoxProps {
@@ -38,27 +39,25 @@ export default function TestCaseResultsBox({ gameId, team1Results, team2Results,
     fetchTests();
   }, [gameId]);
 
-  interface Parameter {
-    name: string;
-    type: string;
-    value: unknown;
-    isOutputParameter?: boolean;
-  }
 
   const formatValue = (value: unknown): string => {
+    if (value === undefined || value === null) return '-';
+
     if (typeof value === 'string') return value;
     if (typeof value === 'number') return String(value);
+    if (typeof value === 'boolean') return String(value);
+
     if (Array.isArray(value)) {
       // Check if it's a parameter array
-      if (value.length > 0 && typeof value[0] === 'object' && 'name' in value[0]) {
-        const params = value as Parameter[];
+      if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'value' in value[0]) {
+        const params = value as ParameterType[];
         return params
-          .filter(p => !p.isOutputParameter)
-          .map(p => `${p.name}: ${p.value}`)
+          .map(p => `${p.name}: ${p.value || ''}`)
           .join(', ');
       }
       return JSON.stringify(value);
     }
+
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
   };
