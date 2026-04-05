@@ -23,6 +23,7 @@ export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) 
             <Box style={{
               flex: 1,
               minHeight: 0,
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
               border: '1px solid #e0e0e0',
@@ -37,7 +38,7 @@ export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) 
                 overflowX: 'auto',
                 paddingRight: '0.25rem'
               }}>
-                <Code block mt={0} ff="monospace" style={{ background: 'transparent', padding: 0 }}>
+                <Code block mt={0} ff="monospace" style={{ background: 'transparent', padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {team1Code}
                 </Code>
               </Box>
@@ -49,6 +50,7 @@ export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) 
             <Box style={{
               flex: 1,
               minHeight: 0,
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
               border: '1px solid #e0e0e0',
@@ -63,7 +65,7 @@ export default function AnalysisBox({ team1Code, team2Code }: AnalysisBoxProps) 
                 overflowX: 'auto',
                 paddingRight: '0.25rem'
               }}>
-                <Code block mt={0} ff="monospace" style={{ background: 'transparent', padding: 0 }}>
+                <Code block mt={0} ff="monospace" style={{ background: 'transparent', padding: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {team2Code}
                 </Code>
               </Box>
