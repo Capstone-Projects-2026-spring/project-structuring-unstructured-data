@@ -119,8 +119,9 @@ function PlayGameRoom() {
 
   const endTimeRef = useRef<number | null>(null);
   const [endTime, setEndTime] = useState(0);
-  const [isProblemVisible, setIsProblemVisible] = useState(true); // State to manage problem box visibility
-  const toggleProblemVisibility = () => setIsProblemVisible((prev) => !prev); // Function to toggle visibility
+  const [isProblemVisible, setIsProblemVisible] = useState(true);
+  const toggleProblemVisibility = () => setIsProblemVisible((prev) => !prev);
+  const [editorFocused, setEditorFocused] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -593,6 +594,7 @@ function PlayGameRoom() {
             </Group>
           ))}
           <Button
+            className={styles.spectatorButton}
             data-testid="exit-spectator"
             size="sm"
             onClick={() => {
@@ -724,6 +726,7 @@ function PlayGameRoom() {
                 {effectiveRole === Role.CODER && (
                   <>
                     <Button
+                      className={styles.runButton}
                       size="xs"
                       color="cyan"
                       disabled={isSpectator || isWaitingForOtherTeam}
@@ -813,6 +816,7 @@ function PlayGameRoom() {
                     <Stack style={{ minHeight: 0, flex: 1 }}>
                       <Group justify="space-between">
                         <Tabs
+                          className={styles.testTabs}
                           value={String(activeTestId)}
                           onChange={(val) => {
                             setActiveTestId(+(val ?? 0));
@@ -822,6 +826,7 @@ function PlayGameRoom() {
                           <Tabs.List>
                             {(testCaseCtx.cases ?? []).map((test, idx) => (
                               <Tabs.Tab
+                                className={styles.testTab}
                                 key={idx}
                                 value={String(test.id)}
                               >

@@ -1,6 +1,8 @@
 import { Paper, Title, Table, Text, Box } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { ParameterType } from "@/lib/ProblemInputOutput";
+import { IconCheck, IconX } from "@tabler/icons-react";
+import styles from '@/styles/comps/TestCaseResultsBox.module.css';
 
 interface TestCase {
   id: string;

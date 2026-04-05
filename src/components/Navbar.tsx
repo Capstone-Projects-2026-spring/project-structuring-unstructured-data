@@ -24,6 +24,7 @@ export default function HeaderSimple(props: HeaderProps) {
     <Anchor
       key={link}
       className={classes.link}
+      data-active={active === link || undefined}
       onClick={(event) => {
         event.preventDefault();
         setActive(link);
@@ -78,6 +79,7 @@ export default function HeaderSimple(props: HeaderProps) {
           onClick={toggle}
           hiddenFrom="xs"
           size="sm"
+          className={classes.burger}
         />
       </Container>
     </header>
