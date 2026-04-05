@@ -95,7 +95,7 @@ def execute(req: ExecutionRequest):
                 }
             )
 
-        # unnngggghhhhh list comprehension 🤤
+        # yayyyyyyyyyyy list comprehension 🤤
         testCaseInputs = [test.value for test in test.functionInput]
         # print(testCaseInputs)
 
