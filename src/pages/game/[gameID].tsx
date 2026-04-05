@@ -565,7 +565,7 @@ function PlayGameRoom() {
 
           <Navbar
             links={["Timer", "Players", "Tournament"]}
-            title={`CODE BATTLEGROUNDS | GAMEMODE: TIMER | YOUR ROLE: ${effectiveRole?.toUpperCase() ?? ""}`}
+            title={`CODE BATTLEGROUNDS | GAMEMODE: TIMER | YOUR ROLE: ${effectiveRole?.toUpperCase() ?? "UNKNOWN"}`}
             isSpectator={isSpectator}
           />
 
