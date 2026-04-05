@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { Stack, Box, Title, Flex, ActionIcon, Tooltip } from "@mantine/core";
@@ -41,7 +40,8 @@ export function Results() {
   const router = useRouter();
   const gameId = router.query.gameID as string;
   const { data: session } = authClient.useSession();
-  const [problem, setProblem] = useState<ActiveProblem | null>(null);  const posthog = usePostHog();
+  const [problem, setProblem] = useState<ActiveProblem | null>(null);
+  const posthog = usePostHog();
 
   useEffect(() => {
     posthog.capture("results_viewed");

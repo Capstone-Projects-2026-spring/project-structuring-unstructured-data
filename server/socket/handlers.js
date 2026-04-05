@@ -288,7 +288,9 @@ function registerSocketHandlers(io, socket, services) {
 
     if(type === GameType.TWOPLAYER) {
       console.log('verify its a twoplayer game');
-      await prisma.gameResult.update({
+      await 
+        
+        .gameResult.update({
         where: { gameRoomId: roomId },
         data: {
           gameRoomId: roomId,
@@ -457,7 +459,9 @@ function registerSocketHandlers(io, socket, services) {
         socket.emit('error', { e, message: 'Failed to cleanup on disconnect.' });
       }
     }
-
+    if (socket.userId) {
+        await matchmakingService.leaveAllQueues(socket.userId);
+    }
   });
 }
 

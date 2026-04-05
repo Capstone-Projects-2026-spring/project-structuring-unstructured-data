@@ -313,7 +313,6 @@ function PlayGameRoom() {
     return null;
   };
 
-
   const submitFinalCode = () => {
     //Send bother Coder and Tester to the results page
     //Store submission and evaluate results on the backend
@@ -600,9 +599,10 @@ function PlayGameRoom() {
                           const team = getTeamLabel();
                           socket.emit("submitCode", {
                             roomId: gameId,
-                            code: gameStateCtx.code, type: gameType, team,
+                            code: gameStateCtx.code, 
+                            type: gameType, 
+                            team,
                           });
-
                         }
                       }}
                     />
