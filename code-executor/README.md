@@ -11,3 +11,10 @@ The executor runs this code in nsjail with a pivoted rootfs, with minimal depend
 The utils.py file has the source code for how things are run in the sandbox, as well as the formatting functions (which I hold as some of the ugliest code I've ever written - sorry). We have to format the arguments and literally paste them into the params of a console.log(function(PARAMS)) statement in the file that gets run in the rootjail. We also use the formatter to format the expected output so we can compare it to the output.
 
 The image is built into an Alpine container and pushed to our Artifact Registry, so developers can run the docker-compose and avoid the environment issues around nsjail.
+
+The idea of this is to keep the addition of new languages as simple as possible. To implement a new language:
+- run `ldd $(which python)` for python or whatever language. Copy all dependencies and to the rootfs and the binary itself in the usr path.
+- update the Language class with the file extension and the command to run files.
+- write parsers for the testCase functionInput and expectedOutput. This is the meat of a new language implementation.
+- update the if statement in write_code_to_file to include your language's printing of the solution(PARAMS), with the params being formatted to be valid by the parsers.
+- update the if statement in the /execute endpoint to use your parser for the expectedOutput before comparing it to the actual output.
