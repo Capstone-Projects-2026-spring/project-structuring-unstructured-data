@@ -11,14 +11,17 @@ from typing import Any
 from  models import *
 
 class Languages:
-    map = {
+    map_exts = {
         "javascript": "js",
         # "python": ".py",
+    }
+    map_commands = {
+        "javascript": ["/usr/bin/node", "--max-old-space-size=64"]
     }
 
     @classmethod
     def is_supported(cls, language: str) -> bool:
-        return language in cls.map
+        return language in cls.map_exts
 
 def run_in_sandbox(
         code: str,
@@ -57,12 +60,9 @@ def run_in_sandbox(
             "--user", "99999",
             "--group", "99999",
             "--",
-            "/usr/bin/node",
-            # "/Users/samir/.nvm/versions/node/v24.11.1/bin/node",
-            # TODO: a quick mapping in languages to map language strings to executables and args
-            "--max-old-space-size=64",
-            f"/{host_code_path}",
         ]
+        cmd += Languages.map_commands[language]
+        cmd.append(f"/{host_code_path}")
 
         # ensure we pipe
         process = subprocess.Popen(
@@ -99,11 +99,11 @@ def run_in_sandbox(
         try:
             if host_code_path and os.path.exists(host_code_path):
                 os.remove(host_code_path)
-                # os.remove(os.path.join("./rootfs", host_code_path)) # TODO: this line doesnt remove the file copied into the tmp rootfs. why? not touching it rn, got too much chit to do
+                # os.remove(os.path.join("./rootfs", host_code_path)) # this line doesnt remove the file copied into the tmp rootfs. why? not touching it rn as it is only in the container which is disposable
         except Exception:
             pass
 
-def _format_js_args(params: List[Parameter]): # TODO: this is potentially the ugliest python function i've ever written. how can we clean up?
+def _format_js_args(params: List[Parameter]): # TODO: this is potentially the ugliest python function i've ever written. how can we clean up? leaving it for now as i have not had issues with it so far and busy busy
     res = []
     for p in params:
         match p.type:
@@ -133,7 +133,7 @@ def format_js_args(arg: Any):
 
 def write_code_to_file(content: str, language: str, testCase: TestableCase = None):
     try:
-        lang_ext = Languages.map[language]
+        lang_ext = Languages.map_exts[language]
     except KeyError:
         return None
     name = ''.join(random.choices(string.ascii_letters + string.digits, k=16))

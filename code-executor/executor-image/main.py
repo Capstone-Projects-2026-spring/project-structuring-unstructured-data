@@ -9,11 +9,6 @@ from models import *
 
 app = FastAPI()
 
-# This seems backwards but we want nsjail to be on by default.
-# So if the env key isn't set, it's still on # TODO: havent implemented this yet
-use_nsjail = False if os.getenv("USE_NSJAIL") == "false" else True
-node_path = os.getenv("NODE_PATH", "/usr/bin/node")
-
 @app.get("/", response_class=PlainTextResponse)
 def root():
     return "Runner is up. Use POST /execute with JSON { language, code, stdin?, testCases? }"
@@ -30,7 +25,7 @@ def execute(req: ExecutionRequest):
         return JSONResponse(
             status_code=400,
             content={"error": f"Language '{req.language}' is not supported",
-                     "supported": list(Languages.map.keys())},
+                     "supported": list(Languages.map_exts.keys())},
         )
 
     # The code is coming in as base 64. Decode it!
@@ -90,7 +85,7 @@ def execute(req: ExecutionRequest):
     for test in testCases:
         # print(test)
         try:
-            test = TestableCase.model_validate(test)
+            test = TestableCase.model_validate(test) # esnure structure is valid
         except ValidationError as e:
             print(e)
             return JSONResponse(
@@ -106,7 +101,7 @@ def execute(req: ExecutionRequest):
 
         # decide whether to run this test based on runIDs
         should_run = (run_ids_set is None) or (test.id in run_ids_set)
-        if not should_run:
+        if not should_run: # we still need to return the test to the backend, but without any outputs
             results.append({
                 "input": testCaseInputs,
                 "expected": test.expectedOutput.value,
@@ -117,7 +112,7 @@ def execute(req: ExecutionRequest):
             })
             continue
 
-        executed_any = True
+        # run the code!
         result = run_in_sandbox(
             code=code,
             language=req.language,
@@ -126,9 +121,10 @@ def execute(req: ExecutionRequest):
 
         # check if we passed
         stdout_val = result.get("stdout", "").strip()
-        # note we are formatting the expected as well, so if it's an array output we're chill. TODO: check language before formatting
-        expected_val = format_js_args(test.expectedOutput)
-        # expected_val = (test.expectedOutput.value or "").strip() if test.expectedOutput and test.expectedOutput.value is not None else None
+        # note we are formatting the expected as well, so if it's an array output we're chill
+        expected_val = None
+        if req.language == "javascript":
+            expected_val = format_js_args(test.expectedOutput)
         error_occurred = result.get("exit_code", 0) != 0
 
         if error_occurred:
