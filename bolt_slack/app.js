@@ -1,6 +1,8 @@
 const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
 const config = require('./config');
+const autoSavedMessages = new Map();
+const userAutoSavePreference = new Map();
 const {
   publishHomeTab,
   HOME_CHANNEL_SELECT_ACTION_ID,
@@ -606,36 +608,20 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
 // Message Listeners
 // ====================
 
-// Store pending message confirmations
-const pendingMessages = new Map();
-
 // Listen for messages in channels (not from bots)
 app.message(async ({ message, client, logger }) => {
   try {
-    // Skip if no user (system messages)
-    if (!message.user) {
-      return;
-    }
+    if (!message.user) return;
+    if (message.subtype === 'bot_message' || message.bot_id) return;
+    if (BOT_USER_ID && message.user === BOT_USER_ID) return;
 
-    // Skip bot messages (including our own)
-    if (message.subtype === 'bot_message' || message.bot_id) {
-      return;
-    }
-
-    // Skip if message is from this bot (double check)
-    if (BOT_USER_ID && message.user === BOT_USER_ID) {
-      return;
-    }
-
-    // Skip direct messages
+    // Handle DMs to the bot
     if (message.channel_type === 'im') {
-      // Handle direct messages to the bot
       const text = message.text.toLowerCase();
-      
       if (text.includes('help') || text === 'hi' || text === 'hello') {
         await client.chat.postMessage({
           channel: message.channel,
-          text: `👋 Hi! I'm your Slack API bot.\n\n*What I can do:*\n• Store channel messages to database\n• Retrieve messages from database\n• Provide channel information\n\n*How to use:*\n• I'll ask you privately if you want to save your messages\n• Click "✅ Yes, Save" to save to database\n• Click "❌ No, Skip" to skip\n\nYou can also use slash commands like \`/messages\`, \`/store-messages\`, or \`/channel-info\`!`
+          text: `👋 Hi! I'm your Slack bot.\n\n*How saving works:*\n• Your messages are automatically saved to the database\n• You have 30 minutes to unsave any message\n• Use \`/autosave-off\` to stop auto-saving your messages\n• Use \`/autosave-on\` to turn it back on\n\n*Slash Commands:*\n• \`/messages\` - View saved messages\n• \`/store-messages\` - Bulk save channel messages\n• \`/channel-info\` - Get channel info`
         });
       } else {
         await client.chat.postMessage({
@@ -646,66 +632,116 @@ app.message(async ({ message, client, logger }) => {
       return;
     }
 
-    // Only handle messages in channels where bot is present
+    // Only handle channel/group messages
     if (message.channel_type === 'channel' || message.channel_type === 'group') {
-      // Post an EPHEMERAL message (only visible to the message author)
-      const result = await client.chat.postEphemeral({
-        channel: message.channel,
-        user: message.user, // Only visible to this user!
-        text: '💾 Would you like to save this message to the database?',
-        blocks: [
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: '💾 *Would you like to save this message to the database?*'
-            }
-          },
-          {
-            type: 'actions',
-            block_id: 'save_message_actions',
-            elements: [
-              {
-                type: 'button',
-                text: {
-                  type: 'plain_text',
-                  text: '✅ Yes, Save',
-                  emoji: true
-                },
-                style: 'primary',
-                value: `save_${message.channel}_${message.ts}_${message.user}`,
-                action_id: 'save_message_confirm'
-              },
-              {
-                type: 'button',
-                text: {
-                  type: 'plain_text',
-                  text: '❌ No, Skip',
-                  emoji: true
-                },
-                style: 'danger',
-                value: `skip_${message.channel}_${message.ts}_${message.user}`,
-                action_id: 'save_message_deny'
+
+      // Check if user has turned off autosave
+      if (userAutoSavePreference.get(message.user) === false) {
+        // Still offer a manual save button if they have autosave off
+        await client.chat.postEphemeral({
+          channel: message.channel,
+          user: message.user,
+          text: '💾 Auto-save is off. Want to save this message?',
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: '💾 *Auto-save is off for you.* Want to save this message manually?'
               }
-            ]
-          }
-        ]
-      });
+            },
+            {
+              type: 'actions',
+              block_id: 'manual_save_actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: '✅ Save this message', emoji: true },
+                  style: 'primary',
+                  value: `manualsave_${message.channel}_${message.ts}_${message.user}`,
+                  action_id: 'manual_save_message'
+                },
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: '🔁 Turn Auto-Save Back On', emoji: true },
+                  value: `autosaveon_${message.user}`,
+                  action_id: 'enable_autosave'
+                }
+              ]
+            }
+          ]
+        });
+        return;
+      }
 
-      // Store message info for later use when button is clicked
-      const key = `${message.channel}-${message.ts}`;
-      pendingMessages.set(key, {
-        channel: message.channel,
-        timestamp: message.ts,
-        text: message.text,
-        user: message.user,
-        expiresAt: Date.now() + 300000 // 5 minutes
-      });
+      // AUTO-SAVE: immediately save the message to the database
+      try {
+        const channelInfo = await client.conversations.info({ channel: message.channel });
+        const channelName = channelInfo.channel.name;
 
-      // Clean up old pending messages
-      setTimeout(() => {
-        pendingMessages.delete(key);
-      }, 300000); // 5 minutes
+        const messageToStore = {
+          user: message.user,
+          type: 'message',
+          text: message.text,
+          ts: message.ts
+        };
+
+        await insertSingleMessageToDB(channelName, messageToStore);
+
+        // Store in unsave window map for 30 minutes
+        const key = `${message.channel}-${message.ts}`;
+        autoSavedMessages.set(key, {
+          channel: message.channel,
+          channelName: channelName,
+          timestamp: message.ts,
+          text: message.text,
+          user: message.user,
+          savedAt: Date.now()
+        });
+
+        // Auto-remove from unsave window after 30 minutes
+        setTimeout(() => {
+          autoSavedMessages.delete(key);
+        }, 1800000); // 30 minutes
+
+        // Notify user privately with unsave option
+        const expiresAt = new Date(Date.now() + 1800000).toLocaleTimeString();
+        await client.chat.postEphemeral({
+          channel: message.channel,
+          user: message.user,
+          text: `✅ Your message was auto-saved. You can unsave it until ${expiresAt}.`,
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `✅ *Your message was saved to the database.*\nYou can unsave it any time in the next 30 minutes _(until ${expiresAt})_.\nTo stop auto-saving, use \`/autosave-off\`.`
+              }
+            },
+            {
+              type: 'actions',
+              block_id: 'unsave_actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: '↩️ Unsave This Message', emoji: true },
+                  style: 'danger',
+                  value: `unsave_${message.channel}_${message.ts}_${message.user}`,
+                  action_id: 'unsave_message'
+                }
+              ]
+            }
+          ]
+        });
+
+      } catch (saveError) {
+        logger.error('Auto-save failed:', saveError);
+        await client.chat.postEphemeral({
+          channel: message.channel,
+          user: message.user,
+          text: `⚠️ Auto-save failed for your message: ${saveError.message}`
+        });
+      }
     }
   } catch (error) {
     logger.error('Error handling message:', error);
@@ -716,198 +752,138 @@ app.message(async ({ message, client, logger }) => {
 // Button Action Handlers
 // ====================
 
-// Handle "Yes, Save" button click
-app.action('save_message_confirm', async ({ ack, body, client, logger, respond }) => {
-  // Acknowledge the action and update the message to remove buttons
+// Handle "Unsave" button — removes message from DB within 30-min window
+app.action('unsave_message', async ({ ack, body, client, logger, respond }) => {
   await ack();
-  
   try {
-    // Parse the button value to get channel, timestamp, and original user
-    const [action, channel, timestamp, originalUser] = body.actions[0].value.split('_');
+    const parts = body.actions[0].value.split('_');
+    // value format: unsave_CHANNEL_TIMESTAMP_USER
+    const channel = parts[1];
+    const timestamp = parts[2];
+    const originalUser = parts[3];
     const key = `${channel}-${timestamp}`;
-    
-    // Verify the button clicker is the original message author
+
     if (body.user.id !== originalUser) {
-      // Use respond to update the ephemeral message
-      await respond({
-        text: '⚠️ Only the message author can save their own message.',
-        replace_original: true,
-        delete_original: false
-      });
-      
-      // Auto-clear the warning after 1 minute
-      setTimeout(async () => {
-        try {
-          await respond({
-            text: '',
-            replace_original: true,
-            delete_original: true
-          });
-        } catch (error) {
-          logger.error('Error clearing warning:', error);
-        }
-      }, 60000);
-      
+      await respond({ text: '⚠️ Only the message author can unsave this message.', replace_original: true });
       return;
     }
-    
-    const pendingMessage = pendingMessages.get(key);
 
-    if (!pendingMessage) {
-      // Message expired or not found - update the ephemeral message
+    const savedMessage = autoSavedMessages.get(key);
+
+    if (!savedMessage) {
       await respond({
-        text: '⚠️ This save request has expired (5 minute timeout).',
+        text: '⏰ The 30-minute unsave window has expired. This message is now permanently saved.',
         replace_original: true
       });
-      
-      // Auto-clear after 1 minute
-      setTimeout(async () => {
-        try {
-          await respond({
-            text: '',
-            replace_original: true,
-            delete_original: true
-          });
-        } catch (error) {
-          logger.error('Error clearing expired message:', error);
-        }
-      }, 60000);
-      
       return;
     }
 
-    // Update the message to show "Processing..."
+    // Remove from unsave map
+    autoSavedMessages.delete(key);
+
+    // Actually delete from MongoDB
+    try {
+      const channelKey = await buildChannelKey(savedMessage.channelName);
+      await apiClient.delete(`/api/messages/${encodeURIComponent(channelKey)}/${savedMessage.timestamp}`);
+    } catch (deleteErr) {
+      logger.error('Failed to delete message from DB:', deleteErr);
+    }
+
     await respond({
-      text: '⏳ Saving message to database...',
+      text: '↩️ *Message unsaved.* It has been removed from the database.',
       replace_original: true
     });
 
-    // Get channel info to get channel name
-    const channelInfo = await client.conversations.info({
-      channel: channel
-    });
-    const channelName = channelInfo.channel.name;
-
-    // Create a message object to store
-    const messageToStore = {
-      user: pendingMessage.user,
-      type: 'message',
-      text: pendingMessage.text,
-      ts: pendingMessage.timestamp
-    };
-
-    try {
-      // Use the database function to store the message
-      const result = await insertSingleMessageToDB(channelName, messageToStore);
-
-      // Update with success message
-      await respond({
-        text: '✅ *Message saved to database successfully!*',
-        replace_original: true
-      });
-
-      // Auto-clear success message after 1 minute
-      setTimeout(async () => {
-        try {
-          await respond({
-            text: '',
-            replace_original: true,
-            delete_original: true
-          });
-        } catch (error) {
-          logger.error('Error clearing success message:', error);
-        }
-      }, 60000);
-
-      // Remove from pending messages
-      pendingMessages.delete(key);
-
-      logger.info(`Message stored to database for channel: ${channelName} by user: ${body.user.id}`);
-    } catch (error) {
-      logger.error('Error storing message to database:', error);
-      
-      // Update with error message
-      await respond({
-        text: `❌ *Error storing message*\n${error.message}`,
-        replace_original: true
-      });
-
-      // Auto-clear error message after 1 minute
-      setTimeout(async () => {
-        try {
-          await respond({
-            text: '',
-            replace_original: true,
-            delete_original: true
-          });
-        } catch (error) {
-          logger.error('Error clearing error message:', error);
-        }
-      }, 60000);
-    }
+    logger.info(`User ${body.user.id} unsaved message ${timestamp} from channel ${channel}`);
   } catch (error) {
-    logger.error('Error handling save confirmation:', error);
+    logger.error('Error handling unsave:', error);
   }
 });
 
-// Handle "No, Skip" button click
-app.action('save_message_deny', async ({ ack, body, client, logger, respond }) => {
+// Handle manual save button (for users with autosave off)
+app.action('manual_save_message', async ({ ack, body, client, logger, respond }) => {
   await ack();
-  
   try {
-    // Parse the button value to get channel, timestamp, and original user
-    const [action, channel, timestamp, originalUser] = body.actions[0].value.split('_');
-    const key = `${channel}-${timestamp}`;
+    const parts = body.actions[0].value.split('_');
+    const channel = parts[1];
+    const timestamp = parts[2];
+    const originalUser = parts[3];
 
-    // Verify the button clicker is the original message author
     if (body.user.id !== originalUser) {
-      await respond({
-        text: '⚠️ Only the message author can respond to this prompt.',
-        replace_original: true
-      });
-      
-      // Auto-clear the warning after 1 minute
-      setTimeout(async () => {
-        try {
-          await respond({
-            text: '',
-            replace_original: true,
-            delete_original: true
-          });
-        } catch (error) {
-          logger.error('Error clearing warning:', error);
-        }
-      }, 60000);
-      
+      await respond({ text: '⚠️ Only the message author can save this message.', replace_original: true });
       return;
     }
 
-    // Update the ephemeral message to show skip confirmation
-    await respond({
-      text: '🚫 Message will not be saved to database.',
-      replace_original: true
+    const channelInfo = await client.conversations.info({ channel });
+    const channelName = channelInfo.channel.name;
+
+    // We need to fetch the message text from Slack since we didn't store it
+    const history = await client.conversations.history({
+      channel,
+      latest: timestamp,
+      limit: 1,
+      inclusive: true
     });
 
-    // Auto-clear skip confirmation after 1 minute
-    setTimeout(async () => {
-      try {
-        await respond({
-          text: '',
-          replace_original: true,
-          delete_original: true
-        });
-      } catch (error) {
-        logger.error('Error clearing skip message:', error);
-      }
-    }, 60000);
+    const msg = history.messages?.[0];
+    if (!msg) {
+      await respond({ text: '⚠️ Could not find the original message.', replace_original: true });
+      return;
+    }
 
-    // Remove from pending messages
-    pendingMessages.delete(key);
+    await insertSingleMessageToDB(channelName, {
+      user: originalUser,
+      type: 'message',
+      text: msg.text,
+      ts: timestamp
+    });
 
-    logger.info(`User ${body.user.id} chose not to store message`);
+    await respond({
+      text: '✅ *Message saved to database successfully!*',
+      replace_original: true
+    });
   } catch (error) {
-    logger.error('Error handling save denial:', error);
+    logger.error('Error handling manual save:', error);
+    await respond({ text: `❌ Error saving message: ${error.message}`, replace_original: true });
   }
+});
+
+// Handle "Turn Auto-Save Back On" button
+app.action('enable_autosave', async ({ ack, body, respond, logger }) => {
+  await ack();
+  try {
+    userAutoSavePreference.set(body.user.id, true);
+    await respond({
+      text: '✅ *Auto-save is back on.* Your messages will be saved automatically going forward.',
+      replace_original: true
+    });
+  } catch (error) {
+    logger.error('Error enabling autosave:', error);
+  }
+});
+
+// ====================
+// Auto-Save Slash Commands
+// ====================
+
+// /autosave-off - User opts out of auto-saving
+app.command('/autosave-off', async ({ command, ack, respond }) => {
+  await ack();
+  userAutoSavePreference.set(command.user_id, false);
+  await respond({
+    response_type: 'ephemeral',
+    text: `🔕 *Auto-save turned off.* Your messages will no longer be saved automatically.\nUse \`/autosave-on\` to turn it back on, or click the save button that appears after each message.`
+  });
+});
+
+// /autosave-on - User opts back into auto-saving
+app.command('/autosave-on', async ({ command, ack, respond }) => {
+  await ack();
+  userAutoSavePreference.set(command.user_id, true);
+  await respond({
+    response_type: 'ephemeral',
+    text: `✅ *Auto-save turned on.* Your messages will be saved automatically with a 30-minute unsave window.`
+  });
 });
 
 // ====================
