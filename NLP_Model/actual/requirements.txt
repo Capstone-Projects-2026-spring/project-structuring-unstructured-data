@@ -1,0 +1,7 @@
+# Dependencies required to run NLP_Model/actual/model.py and its local modules
+# Tested with Python 3.14
+
+pandas==3.0.2
+python-dotenv==1.2.2
+pymongo==4.16.0
+google-genai==1.70.0

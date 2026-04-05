@@ -37,11 +37,11 @@ class MongoConnect:
         # Establishes connection
         client = self.connect(self.user,self.password)
 
-        # Extracts all collections within the database
+        # Extracts collection of raw messages within the channel database
         db_inst = Database(client,database)
         coll_names = db_inst.list_collection_names()
 
-        test = db_inst.get_collection('all-structuring-data')
+        test = db_inst.get_collection('raw_messages')
 
         docs = []
         with test.find() as cursor:
@@ -96,6 +96,30 @@ class MongoConnect:
             db_inst[day].insert_many(filt_df.to_dict('records'))  # add 'records'
 
      return 1
+
+    def upsert_day_summaries(self, database, summaries):
+        client = self.connect(self.user, self.password)
+        db_inst = Database(client, database)
+        summaries_coll = db_inst.get_collection('summaries')
+
+        upserted_count = 0
+        for summary_doc in summaries:
+            week_of = summary_doc.get('week_of')
+            day_name = summary_doc.get('day_name')
+
+            if week_of is None or day_name is None:
+                continue
+
+            result = summaries_coll.replace_one(
+                {'week_of': week_of, 'day_name': day_name},
+                summary_doc,
+                upsert=True,
+            )
+
+            if result.upserted_id is not None or result.modified_count > 0:
+                upserted_count += 1
+
+        return upserted_count
 
 
     def clear_folder(self):
