@@ -27,91 +27,6 @@ def root():
 def health():
     return {"status": "ok"}
 
-def run_in_sandbox(
-    code: str,
-    language: str,
-    testCase: TestableCase = None
-):
-    # write code to a random temp file with the correct extension
-
-    host_code_path = write_code_to_file(code, language, testCase)
-    if host_code_path is None:  # we verify on /execute but nice to be sure
-        return {
-            "stdout": "",
-            "stderr": f"Language '{language}' is not supported",
-            "exit_code": -2,
-            "execution_time_ms": 0,
-        }
-
-    try:
-        # get absolute paths
-        project_root = os.path.dirname(os.path.abspath(__file__))
-        rootfs_path = os.path.join(project_root, "rootfs")
-
-        start_time = time.time()
-
-        # build nsjail command
-        cmd = [
-            "nsjail",
-            "-Mo",
-            "--quiet",
-            "--disable_proc",
-            "--disable_clone_newnet",
-            "--time_limit", "5",
-            "--rlimit_as", "2048",  # 2GB to avoid oom
-            "--rlimit_cpu", "2",
-            "--chroot", rootfs_path,
-            "--bindmount_ro", f"{host_code_path}:/{host_code_path}",
-            "--user", "99999",
-            "--group", "99999",
-            "--",
-            "/usr/bin/node",
-            # "/Users/samir/.nvm/versions/node/v24.11.1/bin/node",
-            # TODO: a quick mapping in languages to map language strings to executables and args
-            "--max-old-space-size=64",
-            f"/{host_code_path}",
-        ]
-
-        # ensure we pipe
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-
-        # get output and stop timer
-        stdout, stderr = process.communicate("", timeout=3)
-        end_time = time.time()
-
-        # return results
-        return {
-            "stdout": stdout,
-            "stderr": stderr,
-            "exit_code": process.returncode,
-            "execution_time_ms": int((end_time - start_time) * 1000),
-        }
-
-    # kill if it times out, we aren't letting code run
-    except subprocess.TimeoutExpired:
-        process.kill()
-        return {
-            "stdout": "",
-            "stderr": "Time Limit Exceeded",
-            "exit_code": -1,
-            "execution_time_ms": 2000,
-        }
-    finally:
-        # clean up tmp file
-        try:
-            if host_code_path and os.path.exists(host_code_path):
-                os.remove(host_code_path)
-                # os.remove(os.path.join("./rootfs", host_code_path)) # TODO: this line doesnt remove the file copied into the tmp rootfs. why? not touching it rn, got too much chit to do
-        except Exception:
-            pass
-
-
 @app.post("/execute")
 def execute(req: ExecutionRequest):
     # validate language support
@@ -176,7 +91,6 @@ def execute(req: ExecutionRequest):
                 content={"error": "runIDs must be an array"}
             )
 
-    executed_any = False
     for test in testCases:
         # print(test)
         try:
