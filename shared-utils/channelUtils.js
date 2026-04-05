@@ -23,7 +23,7 @@ const normalizeChannelName = (channelName) => {
 };
 
 /**
- * Builds a unique channel key by combining the channel ID and normalized name
+ * Builds a unique channel key by combining the channel ID and normalized name -- used for database naming in mongo_storage
  * @param {string} channelName - The Slack channel name
  * @param {string} channelId - The Slack channel ID
  * @returns {string} The unique channel key
