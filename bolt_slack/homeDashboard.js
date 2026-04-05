@@ -10,6 +10,19 @@ const channelCache = {
   expiresAt: 0
 };
 
+async function checkIfUserIsAdmin(client, userId) {
+  console.log('ADMIN_OVERRIDE value:', process.env.ADMIN_OVERRIDE);
+  
+  if (process.env.ADMIN_OVERRIDE === 'true') {
+    console.log('Admin override is active!');
+    return true;
+  }
+
+  const result = await client.users.info({ user: userId });
+  console.log('Slack admin check result:', result.user.is_admin, result.user.is_owner);
+  return result.user.is_admin || result.user.is_owner;
+}
+
 function formatSummaryTimestamp(ts) {
   if (!ts) {
     return 'unknown time';
@@ -327,7 +340,8 @@ function buildSampleHomeView({
   apiStatus,
   dbName,
   summaries,
-  errorMessage
+  errorMessage,
+  isAdmin
 }) {
   const generatedAt = new Date().toLocaleString();
   const selectedOption = channelOptions.find((option) => option.value === selectedChannelName);
@@ -347,6 +361,15 @@ function buildSampleHomeView({
         type: 'mrkdwn',
         text: `Welcome <@${userId}>! Here you can access and manage summaries and structured data for all the conversations in this workspace.`
       }
+    },
+
+    {
+      type: 'context',
+      elements: [
+        {type: 'mrkdwn',
+          text: isAdmin ? '🔑 *Admin view*' : '👤 *Standard view*'
+        }
+      ]
     },
     {
       type: 'actions',
@@ -467,6 +490,8 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
 
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
 
+    const isAdmin = await checkIfUserIsAdmin(client, userId);
+
     const {
       apiStatus,
       dbName,
@@ -493,7 +518,8 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       apiStatus,
       dbName,
       summaries,
-      errorMessage
+      errorMessage,
+      isAdmin
     });
 
     await client.views.publish({
@@ -515,5 +541,6 @@ module.exports = {
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   buildSampleHomeView,
   publishHomeTab,
-  encodeDashboardState
+  encodeDashboardState,
+  checkIfUserIsAdmin
 };
