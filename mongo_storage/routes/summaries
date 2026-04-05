@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 // const { runModel } = require('../python');
-const { buildChannelKey } = require('../../bolt_slack/slack_to_DB');
+const { buildDatabaseKeyFromName } = require('../../shared-utils/channelUtils');
 
 const router = express.Router();
 
@@ -40,15 +40,27 @@ router.get('/api/summaries/all', async (_req, res) => {
 router.get('/api/summaries/:channelName', async (req, res) => {
   try {
     const { channelName } = req.params;
-    const dbName = await buildChannelKey(channelName);
+    const normalizedName = buildDatabaseKeyFromName(channelName);
 
     // runModel(dbName);
 
     const client = mongoose.connection.client;
-    const db = client.db(dbName);
+    
+    // List all databases to find one matching the channel pattern
+    const dbs = await client.db().admin().listDatabases();
+    const matchingDb = dbs.databases.find(db => 
+      db.name.startsWith(normalizedName + '_') && 
+      (db.name.endsWith('_cw') || db.name.endsWith('_pw'))
+    );
+
+    if (!matchingDb) {
+      return res.status(404).json({ error: `No database found for channel: ${channelName}` });
+    }
+
+    const db = client.db(matchingDb.name);
     const summaries = await db.collection('summaries').find({}).toArray();
 
-    res.status(200).json({ dbName, summaries });
+    res.status(200).json({ dbName: matchingDb.name, summaries });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

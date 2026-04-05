@@ -1,39 +1,12 @@
 const axios = require('axios');
 const app = require('./boltApp');
 const config = require('./config');
+const { buildChannelKey, normalizeChannelName } = require('../shared-utils/channelUtils');
 
 const apiClient = axios.create({
   baseURL: config.apiBaseUrl,
   timeout: 10000,
 });
-
-// Normalizes channel names to create consistent database keys
-const normalizeChannelName = (channelName) => {
-  const sanitized = String(channelName || '')
-    .trim()
-    .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9_]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  if (!sanitized) {
-    throw new Error('A valid channel name is required');
-  }
-
-  return sanitized;
-};
-
-// Builds a unique channel key by combining the channel ID and normalized name
-async function buildChannelKey(channelName) {
-  const normalizedName = normalizeChannelName(channelName);
-  const channelId = await channelNameToID(channelName);
-
-  if (!channelId) {
-    throw new Error(`Channel ID not found for channel name: ${channelName}`);
-  }
-
-  return `${normalizedName}_${channelId}`;
-}
 
 
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
@@ -78,7 +51,8 @@ async function insertMessageModels(channelName) {
           throw new Error('channelName is required to insert messages');
         }
 
-        const channelKey = await buildChannelKey(channelName);
+        const channelId = await channelNameToID(channelName);
+        const channelKey = buildChannelKey(channelName, channelId);
         const history = await getConversationHistory(channelName);
         console.log(`History: ${history.length}.`);
         if (!history || history.length === 0) {
@@ -104,7 +78,8 @@ async function insertSingleMessageToDB(channelName, messageData) {
           throw new Error('messageData must be a non-null object');
         }
 
-        const channelKey = await buildChannelKey(channelName);
+        const channelId = await channelNameToID(channelName);
+        const channelKey = buildChannelKey(channelName, channelId);
         const response = await apiClient.post(`/api/messages/${encodeURIComponent(channelKey)}`, messageData);
         return response.data;
     } catch (error) {
@@ -157,7 +132,8 @@ async function insertUserModels(channelName) {
           member_id: member.id
         }));
 
-        const channelKey = await buildChannelKey(channelName);
+        const channelId = await channelNameToID(channelName);
+        const channelKey = buildChannelKey(channelName, channelId);
 
         const response = await apiClient.post(`/api/users/${encodeURIComponent(channelKey)}`, transformedMembers);
         console.log(response.data.message || `Member data from channel ${channelName} successfully posted to API.`);
@@ -195,4 +171,19 @@ async function userIDToName(userId) {
     }
 }
 
-module.exports = { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, channelNameToID, userIDToName };
+module.exports = { 
+  insertMessageModels, 
+  insertSingleMessageToDB, 
+  insertUserModels, 
+  buildChannelKey: async (channelName) => {
+    // Wrapper function to maintain backward compatibility with async API
+    const channelId = await channelNameToID(channelName);
+    if (!channelId) {
+      throw new Error(`Channel ID not found for channel name: ${channelName}`);
+    }
+    return buildChannelKey(channelName, channelId);
+  },
+  channelNameToID, 
+  userIDToName,
+  normalizeChannelName 
+};
