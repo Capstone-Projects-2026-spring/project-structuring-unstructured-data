@@ -608,6 +608,14 @@ app.action('unsave_message', async ({ ack, body, client, logger, respond }) => {
     // Remove from unsave map
     autoSavedMessages.delete(key);
 
+    // Actually delete from MongoDB
+    try {
+      const channelKey = await buildChannelKey(savedMessage.channelName);
+      await apiClient.delete(`/api/messages/${encodeURIComponent(channelKey)}/${savedMessage.timestamp}`);
+    } catch (deleteErr) {
+      logger.error('Failed to delete message from DB:', deleteErr);
+    }
+
     await respond({
       text: '↩️ *Message unsaved.* It has been removed from the database.',
       replace_original: true

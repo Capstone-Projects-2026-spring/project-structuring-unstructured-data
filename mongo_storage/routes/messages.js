@@ -191,6 +191,25 @@ router.post('/api/messages/:channelName', async (req, res) => {
   }
 });
 
+// DELETE /api/messages/:channelName/:ts - Remove a single message by timestamp
+router.delete('/api/messages/:channelName/:ts', async (req, res) => {
+  try {
+    const { channelName, ts } = req.params;
+    const MessageModel = getMessageModel(channelName);
+
+    const result = await MessageModel.deleteOne({ ts: ts });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    console.log(`Message with ts ${ts} deleted from ${channelName}`);
+    return res.status(200).json({ message: 'Message deleted successfully' });
+  } catch (err) {
+    console.error('Delete error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/api/summary/all', async (req, res) => {
     try {
