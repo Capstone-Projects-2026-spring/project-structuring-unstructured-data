@@ -103,6 +103,7 @@ def execute(req: ExecutionRequest):
         should_run = (run_ids_set is None) or (test.id in run_ids_set)
         if not should_run: # we still need to return the test to the backend, but without any outputs
             results.append({
+                "id": test.id,
                 "input": testCaseInputs,
                 "expected": test.expectedOutput.value,
                 "actual": None,
@@ -141,6 +142,7 @@ def execute(req: ExecutionRequest):
 
         # append how we did to results
         results.append({
+            "id": test.id,
             "input": testCaseInputs,
             "expected": test.expectedOutput.value,
             "actual": result.get("stdout", ""),
