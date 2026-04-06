@@ -4,6 +4,7 @@ const { buildChannelKey } = require('../shared-utils/channelUtils');
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
+const HOME_ADMIN_STORE_MEMBERS = 'home_admin_store_members';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
 const CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000; // Increased from 5 to 30 minutes to reduce API calls
 const MAX_STATIC_SELECT_OPTIONS = 100;
@@ -277,7 +278,6 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
       errorMessage: ''
     };
   }
-
   try {
     if (logger) {
       logger.info(`[fetchWeeklySummariesForChannel] Starting for channel: ${channelName}`);
@@ -369,6 +369,37 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
       summaryRecords: 0,
       messagesSummarized: 0,
       errorMessage: error.message || 'Unknown API error'
+    };
+  }
+}
+
+async function getUnstoredMessages(client, apiClient, channelName, channelId) {
+  try {
+    const slackResult = await client.conversations.history({
+      channel: channelId,
+      limit: 1000
+    });
+    const slackMessages = slackResult.messages || [];
+
+    const response = await apiClient.get(`/api/messages/${channelName}`);
+    const storedMessages = response.data || [];
+
+    const storedTimestamps = new Set(storedMessages.map(msg => msg.ts));
+    const unstoredCount = slackMessages.filter(msg => !storedTimestamps.has(msg.ts)).length;
+
+    return {
+      channelName,
+      total: slackMessages.length,
+      stored: storedMessages.length,
+      unstored: unstoredCount
+    };
+  } catch (error) {
+    return {
+      channelName,
+      total: 'N/A',
+      stored: 'N/A',
+      unstored: 'N/A',
+      notInChannel: error.data?.error === 'not_in_channel'
     };
   }
 }
@@ -532,7 +563,8 @@ function buildSampleHomeView({
   dbName,
   summaries,
   errorMessage,
-  isAdmin
+  isAdmin,
+  channelStorageStats=[]
 }) {
   const generatedAt = new Date().toLocaleString();
   const selectedOption = channelOptions.find((option) => option.value === selectedChannelName);
@@ -551,15 +583,6 @@ function buildSampleHomeView({
         type: 'mrkdwn',
         text: `Welcome <@${userId}>! Here you can access and manage summaries and structured data for all the conversations in this workspace.`
       }
-    },
-
-    {
-      type: 'context',
-      elements: [
-        {type: 'mrkdwn',
-          text: isAdmin ? '🔑 *Admin view*' : '👤 *Standard view*'
-        }
-      ]
     },
     {
       type: 'actions',
@@ -665,6 +688,58 @@ function buildSampleHomeView({
     });
   }
 
+  if (isAdmin) {
+    blocks.splice(3,0, {
+      type: 'divider'
+    },
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: '🔑 Admin Controls'
+      }
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: 'Store Members In All Channels',
+            emoji: true
+          },
+          style: 'primary',
+          action_id: HOME_ADMIN_STORE_MEMBERS
+        }
+      ]
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Channel Storage Overview*'
+      }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: channelStorageStats.length === 0
+          ? '_No channel data available._'
+          : channelStorageStats.map(ch => {
+              const allStored = ch.unstored === 0;
+              const status = allStored ? '✅' : `*${ch.unstored} unstored*`;
+              return `*#${ch.channelName}*   ${ch.total} in Slack · ${ch.stored} stored · ${status}`;
+            }).join('\n')
+      }
+    },
+    {
+      type: 'divider'
+    }
+  )
+  }
+
   const view = {
     type: 'home',
     callback_id: 'home_dashboard_v1',
@@ -701,6 +776,14 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
     }
 
     const isAdmin = await checkIfUserIsAdmin(client, userId);
+    let channelStorageStats = [];
+    if (isAdmin) {
+      channelStorageStats = await Promise.all(
+        channels.slice(0, 10).map(channel =>
+          getUnstoredMessages(client, apiClient, channel.name, channel.id)
+        )
+      );
+    }
 
     const {
       apiStatus,
@@ -735,7 +818,8 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       dbName,
       summaries,
       errorMessage,
-      isAdmin
+      isAdmin,
+      channelStorageStats
     });
 
     if (logger) {
@@ -782,6 +866,7 @@ module.exports = {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_ADMIN_STORE_MEMBERS,
   buildSampleHomeView,
   publishHomeTab,
   encodeDashboardState,

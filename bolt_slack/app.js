@@ -13,7 +13,9 @@ const {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
-  encodeDashboardState
+  HOME_ADMIN_STORE_MEMBERS,
+  encodeDashboardState,
+  checkIfUserIsAdmin
 } = require('./homeDashboard');
 
 console.log('DEBUG ENV:', {
@@ -775,6 +777,52 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);
     });
+});
+
+//Home tab ADMIN controls
+//Stores the members of every conversation the bot is in
+app.action(HOME_ADMIN_STORE_MEMBERS, async ({ ack, body, client, logger }) => {
+  await ack();
+  try {
+    const isAdmin = await checkIfUserIsAdmin(client, body.user.id);
+    if (!isAdmin) {
+      logger.warn(`Non-admin user ${body.user.id} attempted to store members.`);
+      return;
+    }
+    const channels = [];
+    let cursor;
+    do {
+      const response = await client.conversations.list({
+        types: 'public_channel,private_channel',
+        exclude_archived: true,
+        limit: 200,
+        cursor
+      });
+      for (const channel of response.channels || []) {
+        if (channel.id && channel.name) {
+          channels.push(channel.name);
+        }
+      }
+      cursor = response.response_metadata?.next_cursor;
+    } while (cursor);
+    console.log(`Admin ${body.user.id} triggered store members for ${channels.length} channels`);
+    for (const channelName of channels) {
+      try {
+        await insertUserModels(channelName);
+        console.log(`Stored members for #${channelName}`);
+      } catch (error) {
+        console.error(`Failed to store members for #${channelName}:`, error.message);
+      }
+    }
+    publishHomeTab({
+      client,
+      userId: body.user.id,
+      logger,
+      apiClient
+    }).catch((error) => logger.error('Error refreshing home tab:', error));
+  } catch (error) {
+    logger.error('Error handling admin store members:', error);
+  }
 });
 
 // ====================
