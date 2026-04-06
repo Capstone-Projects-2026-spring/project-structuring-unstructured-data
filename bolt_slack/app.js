@@ -1047,8 +1047,9 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
           }
           
           console.log('[OAuth] ✅ Successfully exchanged code for token');
+          console.log('[OAuth] Response data:', { team_id: response.data.team_id, team_name: response.data.team_name });
           
-          // Optionally store the token or workspace info
+          // Store the token or workspace info
           const { access_token, team_id, team_name, incoming_webhook } = response.data;
           
           // Success response
@@ -1058,8 +1059,8 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
               <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
                 <h1>✅ Success!</h1>
                 <p>You have successfully authorized the Slack app.</p>
-                <p>Team: <strong>${team_name}</strong></p>
-                <p>You can close this window.</p>
+                <p>Team: <strong>${team_name || 'Your Workspace'}</strong> (ID: ${team_id})</p>
+                <p>You can close this window and the bot is now ready to use in your workspace.</p>
               </body>
             </html>
           `);
