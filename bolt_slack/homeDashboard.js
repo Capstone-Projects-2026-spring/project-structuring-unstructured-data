@@ -128,6 +128,11 @@ async function getBotChannels(client) {
 
 async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }) {
   if (!channelName) {
+    if (logger) {
+      logger.warn('[fetchWeeklySummariesForChannel] No channel name provided');
+    } else {
+      console.warn('[fetchWeeklySummariesForChannel] No channel name provided');
+    }
     return {
       apiStatus: 'No channel selected',
       dbName: '',
@@ -140,8 +145,19 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
   }
 
   try {
+    if (logger) {
+      logger.info(`[fetchWeeklySummariesForChannel] Starting for channel: ${channelName}`);
+    } else {
+      console.log(`[fetchWeeklySummariesForChannel] Starting for channel: ${channelName}`);
+    }
+
     const channelId = await channelNameToID(channelName);
     if (!channelId) {
+      if (logger) {
+        logger.warn(`[fetchWeeklySummariesForChannel] Channel ID not found for: ${channelName}`);
+      } else {
+        console.warn(`[fetchWeeklySummariesForChannel] Channel ID not found for: ${channelName}`);
+      }
       return {
         apiStatus: 'Channel not found',
         dbName: '',
@@ -152,18 +168,36 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
         errorMessage: `Channel ID not found for channel name: ${channelName}`
       };
     }
+
     const databaseKey = buildChannelKey(channelName, channelId);
+    if (logger) {
+      logger.info(`[fetchWeeklySummariesForChannel] Built database key: ${databaseKey}`);
+    } else {
+      console.log(`[fetchWeeklySummariesForChannel] Built database key: ${databaseKey}`);
+    }
 
     const response = await apiClient.get(`/api/summaries/${encodeURIComponent(databaseKey)}`);
     const summaries = response.data && Array.isArray(response.data.summaries)
       ? response.data.summaries
       : [];
 
+    if (logger) {
+      logger.info(`[fetchWeeklySummariesForChannel] API Response received. Summaries count: ${summaries.length}`);
+    } else {
+      console.log(`[fetchWeeklySummariesForChannel] API Response received. Summaries count: ${summaries.length}`);
+    }
+
     const messagesSummarized = summaries.reduce((sum, summary) => {
       const count = Number(summary && summary.message_count);
       return sum + (Number.isFinite(count) ? count : 0);
     }, 0);
     const availableWeeks = getAvailableWeeks(summaries);
+
+    if (logger) {
+      logger.info(`[fetchWeeklySummariesForChannel] Processed summaries - Records: ${summaries.length}, Messages: ${messagesSummarized}`);
+    } else {
+      console.log(`[fetchWeeklySummariesForChannel] Processed summaries - Records: ${summaries.length}, Messages: ${messagesSummarized}`);
+    }
 
     return {
       apiStatus: 'Online',
@@ -479,10 +513,22 @@ function buildSampleHomeView({
 
 async function publishHomeTab({ client, userId, logger, apiClient, selectedChannelName, selectedWeek = null }) {
   try {
+    if (logger) {
+      logger.info(`[publishHomeTab] Starting for user ${userId}`);
+    } else {
+      console.log(`[publishHomeTab] Starting for user ${userId}`);
+    }
+
     const channels = await getBotChannels(client);
     const channelOptions = buildChannelOptions(channels);
 
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
+
+    if (logger) {
+      logger.info(`[publishHomeTab] Fetching summaries for channel: ${resolvedChannelName}`);
+    } else {
+      console.log(`[publishHomeTab] Fetching summaries for channel: ${resolvedChannelName}`);
+    }
 
     const {
       apiStatus,
@@ -497,6 +543,12 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       channelName: resolvedChannelName,
       logger
     });
+
+    if (logger) {
+      logger.info(`[publishHomeTab] Summaries fetched - Records: ${summaryRecords}, Messages: ${messagesSummarized}, Status: ${apiStatus}`);
+    } else {
+      console.log(`[publishHomeTab] Summaries fetched - Records: ${summaryRecords}, Messages: ${messagesSummarized}, Status: ${apiStatus}`);
+    }
 
     const viewPayload = buildSampleHomeView({
       userId,
@@ -517,6 +569,12 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       user_id: userId,
       view: viewPayload
     });
+
+    if (logger) {
+      logger.info(`[publishHomeTab] Home tab published successfully for user ${userId}`);
+    } else {
+      console.log(`[publishHomeTab] Home tab published successfully for user ${userId}`);
+    }
   } catch (error) {
     if (logger) {
       logger.error('Error publishing Home tab:', error);
