@@ -126,7 +126,7 @@ function PlayGameRoom() {
 
   // ONLY HAPPENS ON PAGE LAUNCH
   useEffect(() => {
-    if (!session?.user.id || !gameId || socketRef.current) return;
+    if (!session?.user.id || !gameId || socketRef.current || !teamSelected) return;
 
     gameStateCtx.setGameId(gameId);
 
