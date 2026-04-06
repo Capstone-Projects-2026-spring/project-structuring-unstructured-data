@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
  * - Problem details
  * - Game type (TWOPLAYER or FOURPLAYER)
  * - Team submission codes
+ * - Current user's team number
  */
 interface RoomDetailsResponse {
   problem: {
@@ -21,6 +22,7 @@ interface RoomDetailsResponse {
   gameType: string;
   team1Code: string | null;
   team2Code: string | null;
+  userTeamNumber: 1 | 2;
 }
 
 interface ErrorResponse {
@@ -50,7 +52,7 @@ export default async function handler(
   }
 
   try {
-    // Fetch the room, problem, and result data in a single query
+    // Fetch the room, problem, and player/team data in a single query
     const room = await prisma.gameRoom.findUnique({
       where: { id: gameId },
       include: {
@@ -63,12 +65,43 @@ export default async function handler(
             topics: true,
           },
         },
+        teams: {
+          include: {
+            players: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
       },
     });
 
     // Either the room does not exist or it has no linked problem.
     if (!room || !room.problem) {
       return res.status(404).json({ message: "Room not found" });
+    }
+
+    // Determine which team the current user is on (1 or 2 based on creation order)
+    let userTeamNumber: 1 | 2 = 1;
+    console.log("User ID:", session.user.id);
+    console.log("Teams count:", room.teams.length);
+    console.log("Teams:", JSON.stringify(room.teams, null, 2));
+
+    for (let i = 0; i < room.teams.length; i++) {
+      const team = room.teams[i];
+      console.log(`Team ${i}:`, team.id, "Players:", team.players.map(p => p.userId));
+      const userIsOnThisTeam = team.players.some(
+        (p) => p.userId === session.user.id
+      );
+      if (userIsOnThisTeam) {
+        userTeamNumber = (i + 1) as 1 | 2;
+        console.log(`User is on team ${userTeamNumber}`);
+        break;
+      }
     }
 
     // Fetch the game result codes
@@ -92,6 +125,7 @@ export default async function handler(
       gameType: room.gameType,
       team1Code: gameResult?.team1Code ?? null,
       team2Code: gameResult?.team2Code ?? null,
+      userTeamNumber,
     });
   } catch (error: unknown) {
     // Surface a useful message while preserving a fallback for unknown errors.

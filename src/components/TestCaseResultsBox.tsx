@@ -14,11 +14,16 @@ interface TestCaseResultsBoxProps {
   team2Results?: unknown[];
   showOtherTeamColumn?: boolean;
   gameType?: "TWOPLAYER" | "FOURPLAYER";
+  userTeamNumber?: 1 | 2;
 }
 
-export default function TestCaseResultsBox({ gameId, team1Results, team2Results, showOtherTeamColumn = true, gameType = "FOURPLAYER" }: TestCaseResultsBoxProps) {
+export default function TestCaseResultsBox({ gameId, team1Results, team2Results, showOtherTeamColumn = true, gameType = "FOURPLAYER", userTeamNumber = 1 }: TestCaseResultsBoxProps) {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // TEMP: Hardcoded test results for verification
+  const team1TestResults = team1Results || ["[1,2]", "[1,2,3]", "[1,2,3,4,5]"];
+  const team2TestResults = team2Results || ["[1,2,2]", "[1,2,2,3]", "[1,2,2,3,4,5]"];
 
   useEffect(() => {
     if (!gameId) return;
@@ -63,24 +68,30 @@ export default function TestCaseResultsBox({ gameId, team1Results, team2Results,
     return String(value);
   };
 
-  const rows = testCases.map((element, index) => (
-    <Table.Tr key={element.id}>
-      <Table.Td>
-        <Text size="sm" fw={500} ff="monospace">{formatValue(element.input)}</Text>
-      </Table.Td>
-      <Table.Td>
-        <Text size="sm" fw={500} ff="monospace">{team1Results && team1Results[index] !== undefined ? formatValue(team1Results[index]) : '-'}</Text>
-      </Table.Td>
-      {showOtherTeamColumn && (
+  const rows = testCases.map((element, index) => {
+    // Determine which results to show based on user's team
+    const yourResults = userTeamNumber === 2 ? team2TestResults : team1TestResults;
+    const otherTeamResults = userTeamNumber === 2 ? team1TestResults : team2TestResults;
+
+    return (
+      <Table.Tr key={element.id}>
         <Table.Td>
-          <Text size="sm" fw={500} ff="monospace">{team2Results && team2Results[index] !== undefined ? formatValue(team2Results[index]) : '-'}</Text>
+          <Text size="sm" fw={500} ff="monospace">{formatValue(element.input)}</Text>
         </Table.Td>
-      )}
-      <Table.Td>
-        <Text size="sm" fw={500} ff="monospace">{formatValue(element.expected)}</Text>
-      </Table.Td>
-    </Table.Tr>
-  ));
+        <Table.Td>
+          <Text size="sm" fw={500} ff="monospace">{yourResults && yourResults[index] !== undefined ? formatValue(yourResults[index]) : '-'}</Text>
+        </Table.Td>
+        {showOtherTeamColumn && (
+          <Table.Td>
+            <Text size="sm" fw={500} ff="monospace">{otherTeamResults && otherTeamResults[index] !== undefined ? formatValue(otherTeamResults[index]) : '-'}</Text>
+          </Table.Td>
+        )}
+        <Table.Td>
+          <Text size="sm" fw={500} ff="monospace">{formatValue(element.expected)}</Text>
+        </Table.Td>
+      </Table.Tr>
+    );
+  });
 
   return (
     <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
