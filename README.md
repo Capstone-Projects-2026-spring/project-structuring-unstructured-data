@@ -70,10 +70,12 @@ Then edit `backend/.env`:
 | Variable | Description | Required |
 |---|---|---|
 | `OPENAI_API_KEY` | OpenAI API key for AI code suggestions | **Yes** |
-| `DATABASE_URL` | SQLite path — default: `sqlite:///./quiz.db` | No |
+| `DATABASE_URL` | PostgreSQL connection string for the backend database | **Yes** |
 | `DEBUG` | Set to `True` in development | No |
 | `SUPABASE_URL` | Your Supabase project URL | Only for OTP login |
 | `SUPABASE_SERVICE_KEY` | Your Supabase anon/service key | Only for OTP login |
+| `JUDGE0_URL` | Judge0 base URL, for example `http://localhost:2358` | For code execution |
+| `JUDGE0_AUTH_TOKEN` | Optional auth token for a protected Judge0 instance | No |
 
 **Start the server**
 
@@ -82,6 +84,30 @@ uvicorn main:app --reload
 ```
 
 The API runs at `http://localhost:8000`. The database is **created and seeded automatically** on first startup — no manual migration needed. A seed teacher (`seed@autoquiz.dev`) and a sample problem (access code `123456`) are added when the database is empty.
+
+### Self-Hosted Compiler With Docker
+
+The backend uses a local Judge0 CE instance for code execution. This keeps the existing `/code/execute` backend endpoint the same while moving compilation and execution onto your machine.
+
+Start Judge0 locally:
+
+```bash
+./scripts/start_judge0.sh
+```
+
+Then set `JUDGE0_URL=http://localhost:2358` in `backend/.env` and start the backend normally.
+
+Stop Judge0 when you are done:
+
+```bash
+./scripts/stop_judge0.sh
+```
+
+Notes:
+
+- The bootstrap script downloads the official Judge0 CE release into `.judge0/` and starts it with `docker compose`.
+- If Judge0 is already running on port `2358`, the bootstrap script exits successfully instead of starting a duplicate stack.
+- On macOS this runs through Docker Desktop Linux containers. Judge0 is primarily documented for Linux, so local Docker testing is fine, but production should be treated as a Linux deployment.
 
 ---
 

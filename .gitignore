@@ -33,6 +33,7 @@ lerna-debug.log*
 *.swp
 *.swo
 *~
+.judge0/
 
 # Python
 __pycache__/

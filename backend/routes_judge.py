@@ -24,22 +24,27 @@ class CodeExecutionResponse(BaseModel):
     error: str = ""
 
 
+def build_judge0_headers() -> dict[str, str]:
+    headers = {"content-type": "application/json"}
+
+    auth_token = os.getenv("JUDGE0_AUTH_TOKEN")
+    if auth_token:
+        headers["X-Auth-Token"] = auth_token
+
+    return headers
+
+
 @router.post("/execute", response_model=CodeExecutionResponse)
 async def execute_code(req: CodeExecutionRequest) -> CodeExecutionResponse:
     if req.language not in LANGUAGE_IDS:
         raise HTTPException(status_code=400, detail="Unsupported language")
 
-    judge0_url = os.getenv("JUDGE0_URL")
-    api_key = os.getenv("JUDGE0_API_KEY")
-    if not judge0_url or not api_key:
-        raise HTTPException(status_code=500, detail="Judge0 configuration missing")
+    judge0_url = os.getenv("JUDGE0_URL", "").strip()
+    if not judge0_url:
+        raise HTTPException(status_code=500, detail="JUDGE0_URL is not configured")
 
-    submit_url = f"{judge0_url}/submissions?base64_encoded=false&wait=true"
-    headers = {
-        "content-type": "application/json",
-        "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-        "x-rapidapi-key": api_key,
-    }
+    submit_url = f"{judge0_url.rstrip('/')}/submissions?base64_encoded=false&wait=true"
+    headers = build_judge0_headers()
     payload = {
         "source_code": req.code,
         "language_id": LANGUAGE_IDS[req.language],
@@ -61,5 +66,8 @@ async def execute_code(req: CodeExecutionRequest) -> CodeExecutionResponse:
                 output=stdout,
                 error=(stderr or compile_output or message),
             )
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.strip() or str(exc)
+            raise HTTPException(status_code=502, detail=f"Judge0 request failed: {detail}")
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Failed to execute code: {str(exc)}")
