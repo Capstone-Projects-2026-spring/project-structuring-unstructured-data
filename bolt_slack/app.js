@@ -1011,13 +1011,65 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
         res.status(200).json({ status: 'ok' });
       });
       
+      // OAuth redirect endpoint
+      expressApp.get('/slack/oauth_redirect', async (req, res) => {
+        console.log('[OAuth] Received redirect request with code:', req.query.code ? 'present' : 'missing');
+        
+        const code = req.query.code;
+        const state = req.query.state;
+        
+        if (!code) {
+          console.error('[OAuth] Error: Missing code parameter');
+          return res.status(400).send('Error: Missing code parameter');
+        }
+        
+        try {
+          // Exchange code for token using Slack's oauth.v2.access endpoint
+          const response = await axios.post('https://slack.com/api/oauth.v2.access', null, {
+            params: {
+              client_id: process.env.SLACK_CLIENT_ID,
+              client_secret: process.env.SLACK_CLIENT_SECRET,
+              code: code,
+              redirect_uri: process.env.SLACK_REDIRECT_URI || 'https://project-structuring-unstructured-data.onrender.com/slack/oauth_redirect'
+            }
+          });
+          
+          if (!response.data.ok) {
+            console.error('[OAuth] Error from Slack:', response.data.error);
+            return res.status(400).send(`Error: ${response.data.error}`);
+          }
+          
+          console.log('[OAuth] ✅ Successfully exchanged code for token');
+          
+          // Optionally store the token or workspace info
+          const { access_token, team_id, team_name, incoming_webhook } = response.data;
+          
+          // Success response
+          res.status(200).send(`
+            <html>
+              <head><title>Slack Authorization</title></head>
+              <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1>✅ Success!</h1>
+                <p>You have successfully authorized the Slack app.</p>
+                <p>Team: <strong>${team_name}</strong></p>
+                <p>You can close this window.</p>
+              </body>
+            </html>
+          `);
+        } catch (error) {
+          console.error('[OAuth] Error exchanging code:', error.message);
+          res.status(500).send(`Error: ${error.message}`);
+        }
+      });
+      
       // Start the Express server
       // ExpressReceiver already added /slack/events route to expressApp
       expressApp.listen(port, '0.0.0.0', () => {
         console.log('⚡️ Slack Bot is running in HTTP Mode!');
         console.log(`📡 Listening on 0.0.0.0:${port}`);
         console.log(`📨 Slack events: POST /slack/events (auto-configured by ExpressReceiver)`);
-        console.log(`🔗 Health: GET /health`);
+        console.log(`� OAuth redirect: GET /slack/oauth_redirect`);
+        console.log(`�🔗 Health: GET /health`);
       });
     }
 
