@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
  * Room details API endpoint.
  *
  * Purpose:
- * Returns the problem assigned to a specific game room so gameplay UI
- * components can render the exact prompt selected during room creation.
+ * Returns complete game information for the results page including:
+ * - Problem details
+ * - Game type (TWOPLAYER or FOURPLAYER)
+ * - Team submission codes
  */
 interface RoomDetailsResponse {
   problem: {
@@ -16,6 +18,9 @@ interface RoomDetailsResponse {
     difficulty: "EASY" | "MEDIUM" | "HARD";
     topics: string[];
   };
+  gameType: string;
+  team1Code: string | null;
+  team2Code: string | null;
 }
 
 interface ErrorResponse {
@@ -45,7 +50,7 @@ export default async function handler(
   }
 
   try {
-    // Fetch the room and only the fields needed by ProblemBox.
+    // Fetch the room, problem, and result data in a single query
     const room = await prisma.gameRoom.findUnique({
       where: { id: gameId },
       include: {
@@ -66,7 +71,16 @@ export default async function handler(
       return res.status(404).json({ message: "Room not found" });
     }
 
-    // Return a stable shape that the game page can pass directly to the UI.
+    // Fetch the game result codes
+    const gameResult = await prisma.gameResult.findUnique({
+      where: { gameRoomId: gameId },
+      select: {
+        team1Code: true,
+        team2Code: true,
+      },
+    });
+
+    // Return complete game data
     return res.status(200).json({
       problem: {
         id: room.problem.id,
@@ -75,6 +89,9 @@ export default async function handler(
         difficulty: room.problem.difficulty,
         topics: room.problem.topics,
       },
+      gameType: room.gameType,
+      team1Code: gameResult?.team1Code ?? null,
+      team2Code: gameResult?.team2Code ?? null,
     });
   } catch (error: unknown) {
     // Surface a useful message while preserving a fallback for unknown errors.

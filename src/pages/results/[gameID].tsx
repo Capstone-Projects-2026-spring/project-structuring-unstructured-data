@@ -14,9 +14,7 @@ import { IconEye } from '@tabler/icons-react';
 
 interface RoomDetailsResponse {
   problem: ActiveProblem;
-}
-
-interface ResultCodeResponse {
+  gameType: string;
   team1Code: string | null;
   team2Code: string | null;
 }
@@ -55,51 +53,28 @@ export function Results() {
   useEffect(() => {
     if (!session?.user.id || !gameId) return;
 
-    const loadProblem = async () => {
+    const loadGameData = async () => {
       try {
         const response = await fetch(`/api/rooms/${gameId}`);
         if (!response.ok) return;
         const data = (await response.json()) as RoomDetailsResponse;
-        setProblem(data.problem);
-      } catch (error) {
-        console.error('Failed to load room problem', error);
-      }
-    };
 
-    const retrieveCode = async () => {
-      try {
-        const response = await fetch(`/api/rooms/result?gameId=${gameId}`);
-        if (!response.ok) return;
-        const data = (await response.json()) as ResultCodeResponse;
+        setProblem(data.problem);
+        setGameType(data.gameType);
 
         if (data.team1Code) {
           setAnalysisProps({
             team1Code: data.team1Code,
             team2Code: data.team2Code ?? undefined,
-            gameType: gameType as "TWOPLAYER" | "FOURPLAYER",
+            gameType: data.gameType as "TWOPLAYER" | "FOURPLAYER",
           });
         }
       } catch (error) {
-        console.error('Failed to load result code', error);
+        console.error('Failed to load game data', error);
       }
     };
 
-    const loadGameType = async () => {
-      try {
-        const response = await fetch(`/api/rooms/type?gameId=${gameId}`);
-        if (!response.ok) return;
-        const data = (await response.json()) as { gameType: string };
-        setGameType(data.gameType);
-      } catch (error) {
-        console.error('Failed to load game type', error);
-      }
-    };
-
-    const loadData = async () => {
-      await Promise.all([loadProblem(), retrieveCode(), loadGameType()]);
-    };
-
-    loadData();
+    loadGameData();
   }, [gameId, session?.user.id]);
 
   return (
