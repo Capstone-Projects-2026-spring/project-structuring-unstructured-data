@@ -126,7 +126,7 @@ function PlayGameRoom() {
 
   // ONLY HAPPENS ON PAGE LAUNCH
   useEffect(() => {
-    if (!session?.user.id || !gameId || socketRef.current || !teamSelected) return;
+    if (!session?.user.id || !gameId || socketRef.current) return;
 
     gameStateCtx.setGameId(gameId);
 
@@ -181,14 +181,6 @@ function PlayGameRoom() {
 
     socketInstance.emit("register", { userId: session.user.id });
 
-    // Emit the default test cases ONCE to the socket
-    // so that they're at least synced and ready to go should somebody
-    // hit the run button or attempt to make a new case.
-    socketInstance.emit("updateTestCases", {
-      teamId: teamSelected,
-      testCases: DEFAULT_TEST_CASES
-    });
-
     // This is so if another person picks while someone is deciding
     socketInstance.on("teamUpdated", ({ teamId, playerCount }) => {
       setTeams((prev) =>
@@ -205,7 +197,19 @@ function PlayGameRoom() {
       socketInstance.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, session?.user.id, teamSelected]);
+  }, [gameId, session?.user.id]);
+
+  useEffect(() => {
+    if(!socket || !teamSelected) return;
+    // Emit the default test cases ONCE to the socket
+    // so that they're at least synced and ready to go should somebody
+    // hit the run button or attempt to make a new case.
+    console.log("Syncing default test cases :3");
+    socket.emit("updateTestCases", {
+      teamId: teamSelected,
+      testCases: DEFAULT_TEST_CASES
+    });
+  }, [socket, teamSelected]);
 
   useEffect(() => {
     // Runs after team gets selected - join rooms first, then set up room-specific listeners
