@@ -12,7 +12,7 @@ RELEASE_URL="https://github.com/judge0/judge0/releases/download/v${VERSION}/${AR
 INSTALL_DIR="$STATE_DIR/judge0-v${VERSION}"
 CONF_FILE="$INSTALL_DIR/judge0.conf"
 
-if [[ "$(uname -m)" == "arm64" && -z "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
+if [[ "$(uname -m)" == "arm64" && "${JUDGE0_FORCE_AMD64:-false}" == "true" && -z "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
   export DOCKER_DEFAULT_PLATFORM="linux/amd64"
 fi
 

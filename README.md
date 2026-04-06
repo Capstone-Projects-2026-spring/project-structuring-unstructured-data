@@ -103,11 +103,30 @@ Stop Judge0 when you are done:
 ./scripts/stop_judge0.sh
 ```
 
-Notes:
+For Mac OS users when setting up Judge0 in terminal:
+You will need docker to run this, the scripts will automatically set up docker, however, docker and judge0 has some incompatibility issues that will need adressing in the system files.
 
-- The bootstrap script downloads the official Judge0 CE release into `.judge0/` and starts it with `docker compose`.
-- If Judge0 is already running on port `2358`, the bootstrap script exits successfully instead of starting a duplicate stack.
-- On macOS this runs through Docker Desktop Linux containers. Judge0 is primarily documented for Linux, so local Docker testing is fine, but production should be treated as a Linux deployment.
+To start, close docker and every instance of it currently running.
+
+You will need to locate the settings-store.json for docker in order to use the deprecatedCgroupv1.
+
+In command prompt: ‘ open -a TextEdit "/Users/[Your Computer Name]/Library/Group Containers/group.com.docker/settings-store.json" ‘
+
+And then paste this in place:
+{
+  "AutoStart": false,
+  "DisplayedOnboarding": true,
+  "DockerAppLaunchPath": "/Applications/Docker.app",
+  "EnableDockerAI": true,
+  "LastContainerdSnapshotterEnable": 1773866500,
+  "LicenseTermsVersion": 2,
+  "SettingsVersion": 43,
+  "ShowInstallScreen": false,
+  "UseContainerdSnapshotter": true,
+  "deprecatedCgroupv1": true
+}
+
+Reopen docker, and the website should be able to read Judge0
 
 ---
 
