@@ -1025,12 +1025,19 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
         
         try {
           // Exchange code for token using Slack's oauth.v2.access endpoint
-          const response = await axios.post('https://slack.com/api/oauth.v2.access', null, {
-            params: {
-              client_id: process.env.SLACK_CLIENT_ID,
-              client_secret: process.env.SLACK_CLIENT_SECRET,
-              code: code,
-              redirect_uri: process.env.SLACK_REDIRECT_URI || 'https://project-structuring-unstructured-data.onrender.com/slack/oauth_redirect'
+          const bodyData = new URLSearchParams({
+            client_id: process.env.SLACK_CLIENT_ID,
+            client_secret: process.env.SLACK_CLIENT_SECRET,
+            code: code,
+            redirect_uri: process.env.SLACK_REDIRECT_URI || 'https://project-structuring-unstructured-data.onrender.com/slack/oauth_redirect'
+          });
+
+          console.log('[OAuth] Exchanging code with client_id:', process.env.SLACK_CLIENT_ID ? '✓ Set' : '✗ NOT SET');
+          console.log('[OAuth] Exchanging code with client_secret:', process.env.SLACK_CLIENT_SECRET ? '✓ Set' : '✗ NOT SET');
+
+          const response = await axios.post('https://slack.com/api/oauth.v2.access', bodyData, {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
             }
           });
           
