@@ -1,9 +1,9 @@
 <div align="center">
 
 # Autosuggestion Quiz
-[![Report Issue on Jira](https://img.shields.io/badge/Report%20Issues-Jira-0052CC?style=flat&logo=jira-software)](https://temple-cis-projects-in-cs.atlassian.net/jira/software/c/projects/DT/issues)
-[![Deploy Docs](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml/badge.svg)](https://github.com/ApplebaumIan/tu-cis-4398-docs-template/actions/workflows/deploy.yml)
-[![Documentation Website Link](https://img.shields.io/badge/-Documentation%20Website-brightgreen)](https://applebaumian.github.io/tu-cis-4398-docs-template/)
+[![Report Issue on Jira](https://img.shields.io/badge/Report%20Issues-Jira-0052CC?style=flat&logo=jira-software)](https://temple-cis-projects-in-cs.atlassian.net/jira/software/c/projects/ASQ/issues)
+[![Deploy Docs](https://github.com/Capstone-Projects-2026-spring/project-auto-suggestion-quiz/actions/workflows/deploy.yml/badge.svg)](https://github.com/Capstone-Projects-2026-spring/project-auto-suggestion-quiz/actions/workflows/deploy.yml)
+[![Documentation Website Link](https://img.shields.io/badge/-Documentation%20Website-brightgreen)](https://capstone-projects-2026-spring.github.io/project-auto-suggestion-quiz/)
 
 
 </div>
@@ -23,9 +23,7 @@ Describe the requirements – i.e., what the product does and how it does it fro
 
 ## Conceptual Design
 
-The frontend of the application will be developed using JavaScript, React, HTML, and CSS. React will be used to build reusable user interface components and manage application state, while HTML and CSS will be used to structure and style the user interface. The frontend will allow users to select quiz topics, start quizzes, submit answers, and view results in real time.
-The backend will be implemented using Python and Django, which will handle user authentication, quiz generation logic, scoring, and data management. The system will store user data, quiz attempts, and performance metrics in a relational database such as SQLite. The backend will also support algorithms that generate or suggest quiz questions based on predefined rules or user interaction history.
-The application will be accessible through a standard web browser and designed to support multiple users concurrently, ensuring reliability and responsiveness.
+The frontend is built with React (Create React App), providing a Monaco editor-based coding environment where students write and run Python code directly in the browser using Pyodide. The backend is implemented in Python using FastAPI, which handles teacher authentication, problem management, AI suggestion generation, and submission storage. The database is PostgreSQL hosted on Supabase. AI code suggestions are generated via the OpenAI API (GPT-4o mini). OTP-based teacher authentication is handled through Supabase's email auth service.
 
 ## Background
 
@@ -41,106 +39,14 @@ ASQ also supports teachers by allowing them to upload problems and give students
 - Internet access
 - [Node.js](https://nodejs.org) v16+
 - [Python](https://www.python.org) 3.10+
+- A free [Supabase](https://supabase.com) account (PostgreSQL database and OTP auth)
 - An [OpenAI API key](https://platform.openai.com/api-keys) for AI code suggestions
 
 ---
 
 ## Running Locally
 
-### Backend
-
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate        # macOS/Linux
-# venv\Scripts\activate         # Windows
-pip install -r requirements.txt
-```
-
-**Environment variables**
-
-Copy the template and fill in your values:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Then edit `backend/.env`:
-
-| Variable | Description | Required |
-|---|---|---|
-| `OPENAI_API_KEY` | OpenAI API key for AI code suggestions | **Yes** |
-| `DATABASE_URL` | SQLite path — default: `sqlite:///./quiz.db` | No |
-| `DEBUG` | Set to `True` in development | No |
-| `SUPABASE_URL` | Your Supabase project URL | Only for OTP login |
-| `SUPABASE_SERVICE_KEY` | Your Supabase anon/service key | Only for OTP login |
-
-**Start the server**
-
-```bash
-uvicorn main:app --reload
-```
-
-The API runs at `http://localhost:8000`. The database is **created and seeded automatically** on first startup — no manual migration needed. A seed teacher (`seed@autoquiz.dev`) and a sample problem (access code `123456`) are added when the database is empty.
-
----
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-```
-
-> **Optional:** If your backend is not on the default port, create `frontend/.env` and set `REACT_APP_API_URL=http://localhost:<your_port>`. Otherwise no `.env` is needed.
-
-**Start the app**
-
-```bash
-npm start
-```
-
-The app opens at `http://localhost:3000`.
-
----
-
-### Supabase / OTP Login
-
-All Supabase communication happens on the **backend** — the frontend does not need any Supabase credentials. To enable OTP email login:
-
-1. Create a free account at [supabase.com](https://supabase.com).
-2. Create a new project.
-3. Go to **Project Settings → API**.
-4. Copy the **Project URL** → paste as `SUPABASE_URL` in `backend/.env`.
-5. Copy the **anon / public** key → paste as `SUPABASE_SERVICE_KEY` in `backend/.env`.
-
-**Dev bypass — no Supabase account needed**
-
-On the login page, enter `dev` as the email and click **Send OTP**. This skips Supabase entirely and signs you in as the seed teacher (`seed@autoquiz.dev`) without sending any email. This only works when `DEBUG=True` is set in `backend/.env`.
-
----
-
-## Testing
-
-### Backend
-
-Make sure the virtual environment is activated, then run:
-
-```bash
-cd backend
-source venv/bin/activate        # macOS/Linux
-# venv\Scripts\activate         # Windows
-pytest backUnitTest/
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm test
-```
-
-Press `a` to run all tests.
+For full setup instructions including Supabase configuration, schema SQL, environment variables, and how to run all tests, see [LOCAL_SETUP.md](./LOCAL_SETUP.md).
 
 ---
 
@@ -160,13 +66,8 @@ Live app: https://autosuggestions.onrender.com/
 Bwosley
 Temi Raymond
 Yong Huang
-Ethan Freidman
+Ethan Friedman
 Henry Le
 Aidan McCammitt
 
-<div align="center">
 
-[//]: # (Replace with your collaborators)
-[Ian Tyler Applebaum](https://github.com/ApplebaumIan) • [Kyle Dragon Lee](https://github.com/leekd99)
-
-</div>
