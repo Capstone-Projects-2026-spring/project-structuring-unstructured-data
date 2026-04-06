@@ -1,7 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 // const { runModel } = require('../python');
-const { buildDatabaseKeyFromName } = require('../../shared-utils/channelUtils');
 
 const router = express.Router();
 
@@ -36,25 +35,21 @@ router.get('/api/summaries/all', async (_req, res) => {
   }
 });
 
-// GET /api/summaries/:channelName - Retrieve all summary documents from a given channel database.
-router.get('/api/summaries/:channelName', async (req, res) => {
+// GET /api/summaries/:databaseKey - Retrieve all summary documents from a given channel database. NOTE: databaseKey includes channel name AND channelId retrieved from the Slack API
+router.get('/api/summaries/:databaseKey', async (req, res) => {
   try {
-    const { channelName } = req.params;
-    const normalizedName = buildDatabaseKeyFromName(channelName);
+    const { databaseKey } = req.params;
 
     // runModel(dbName);
 
     const client = mongoose.connection.client;
-    
-    // List all databases to find one matching the channel pattern
+
+    // List all databases to find one with the exact requested name.
     const dbs = await client.db().admin().listDatabases();
-    const matchingDb = dbs.databases.find(db => 
-      db.name.startsWith(normalizedName + '_') && 
-      (db.name.endsWith('_cw') || db.name.endsWith('_pw'))
-    );
+    const matchingDb = dbs.databases.find((db) => db.name === databaseKey);
 
     if (!matchingDb) {
-      return res.status(404).json({ error: `No database found for channel: ${channelName}` });
+      return res.status(404).json({ error: `No database found for channelKey: ${databaseKey}` });
     }
 
     const db = client.db(matchingDb.name);

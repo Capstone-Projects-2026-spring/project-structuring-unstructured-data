@@ -1,3 +1,6 @@
+const { channelNameToID } = require('./slack_to_DB');
+const { buildChannelKey } = require('../shared-utils/channelUtils');
+
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
@@ -137,7 +140,21 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
   }
 
   try {
-    const response = await apiClient.get(`/api/summaries/${encodeURIComponent(channelName)}`);
+    const channelId = await channelNameToID(channelName);
+    if (!channelId) {
+      return {
+        apiStatus: 'Channel not found',
+        dbName: '',
+        summaries: [],
+        availableWeeks: [],
+        summaryRecords: 0,
+        messagesSummarized: 0,
+        errorMessage: `Channel ID not found for channel name: ${channelName}`
+      };
+    }
+    const databaseKey = buildChannelKey(channelName, channelId);
+
+    const response = await apiClient.get(`/api/summaries/${encodeURIComponent(databaseKey)}`);
     const summaries = response.data && Array.isArray(response.data.summaries)
       ? response.data.summaries
       : [];
