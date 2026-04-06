@@ -302,9 +302,7 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
     text: {
       type: 'plain_text',
       text: 'Weekly Summaries'
-    },
-    level: 2
-
+    }
   });
 
   blocks.push({
@@ -389,8 +387,7 @@ function buildSampleHomeView({
       text: {
         type: 'plain_text',
         text: 'SUD Dashboard'
-      },
-      level: 1
+      }
     },
     {
       type: 'section',
@@ -420,11 +417,10 @@ function buildSampleHomeView({
     },
     {
       type: 'header',
-        text: {
-          type: 'plain_text',        
-          text: 'Channel Overview'
-      },
-      level: 2
+      text: {
+        type: 'plain_text',
+        text: 'Channel Overview'
+      }
     },
     {
       type: 'section',
@@ -504,11 +500,20 @@ function buildSampleHomeView({
     });
   }
 
-  return {
+  const view = {
     type: 'home',
     callback_id: 'home_dashboard_v1',
     blocks
   };
+
+  console.log('[buildSampleHomeView] View payload structure:', {
+    type: view.type,
+    callback_id: view.callback_id,
+    blocksCount: view.blocks.length,
+    blockTypes: view.blocks.map(b => b.type)
+  });
+
+  return view;
 }
 
 async function publishHomeTab({ client, userId, logger, apiClient, selectedChannelName, selectedWeek = null }) {
@@ -565,10 +570,31 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       errorMessage
     });
 
-    await client.views.publish({
-      user_id: userId,
-      view: viewPayload
-    });
+    if (logger) {
+      logger.info(`[publishHomeTab] Publishing view with ${viewPayload.blocks.length} blocks`);
+    } else {
+      console.log(`[publishHomeTab] Publishing view with ${viewPayload.blocks.length} blocks`);
+    }
+
+    try {
+      const result = await client.views.publish({
+        user_id: userId,
+        view: viewPayload
+      });
+      
+      if (logger) {
+        logger.info(`[publishHomeTab] View published. Response status: ${result.ok ? 'OK' : 'FAILED'}`);
+      } else {
+        console.log(`[publishHomeTab] View published. Response: ${JSON.stringify(result)}`);
+      }
+    } catch (publishError) {
+      if (logger) {
+        logger.error(`[publishHomeTab] Failed to publish view:`, publishError);
+      } else {
+        console.error(`[publishHomeTab] Failed to publish view:`, publishError);
+      }
+      throw publishError;
+    }
 
     if (logger) {
       logger.info(`[publishHomeTab] Home tab published successfully for user ${userId}`);
