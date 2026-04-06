@@ -104,6 +104,7 @@ if (!config.socketMode) {
     socketMode: false,
     receiver: receiver,
   });
+  console.log('✅ Slack App initialized in HTTP mode with ExpressReceiver');
 } else {
   // Socket Mode: No receiver needed, uses WebSocket
   app = new App({
@@ -112,6 +113,7 @@ if (!config.socketMode) {
     socketMode: true,
     appToken: config.slackAppToken,
   });
+  console.log('✅ Slack App initialized in Socket mode');
 }
 
 // API endpoint configuration
@@ -245,14 +247,24 @@ app.event('app_mention', async ({ event, client, logger }) => {
 
 // Publish Home tab when a user opens the app's Home.
 app.event('app_home_opened', async ({ event, client, logger }) => {
-  await publishHomeTab({
-    client,
-    userId: event.user,
-    logger,
-    apiClient,
-    buildChannelKey
-  });
+  console.log('🏠 [app_home_opened] Event triggered for user:', event.user);
+  try {
+    console.log('🏠 [app_home_opened] Calling publishHomeTab...');
+    await publishHomeTab({
+      client,
+      userId: event.user,
+      logger,
+      apiClient
+    });
+    console.log('🏠 [app_home_opened] publishHomeTab completed successfully');
+  } catch (error) {
+    console.error('❌ [app_home_opened] Error publishing home tab:', error);
+    if (logger) {
+      logger.error('Error in app_home_opened event handler:', error);
+    }
+  }
 });
+console.log('📋 Registered: app_home_opened event handler');
 
 // ====================
 // Slash Commands
