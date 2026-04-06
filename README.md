@@ -49,7 +49,15 @@ This project requires significant backround research on existing LLMs that devel
 [Fares Hagos](https://github.com/FaresHagostu)
 </div>
 
-## Quick Start (Slack Bot + Mongo API)
+## Quick Start (Recommended)
+Add the slack bot by clicking the button  
+<a href="https://slack.com/oauth/v2/authorize?client_id=10472452206738.10715593272068&scope=reactions:write,app_mentions:read,channels:history,channels:read,chat:write,commands,im:history,im:read,im:write,reactions:read,users:read,groups:read,mpim:read&user_scope="><img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x" /></a>
+
+Or by clicking this link  
+[Click Here](https://slack.com/oauth/v2/authorize?client_id=10472452206738.10715593272068&scope=reactions:write,app_mentions:read,channels:history,channels:read,chat:write,commands,im:history,im:read,im:write,reactions:read,users:read,groups:read,mpim:read&user_scope=)
+
+
+## Manual Setup (Slack Bot + Mongo API)
 
 Follow these steps to install dependencies, configure environment variables, and run both services locally. Commands are PowerShell-friendly for Windows.
 
