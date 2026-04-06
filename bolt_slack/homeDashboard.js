@@ -5,7 +5,7 @@ const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
-const CHANNEL_CACHE_TTL_MS = 5 * 60 * 1000;
+const CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000; // Increased from 5 to 30 minutes to reduce API calls
 const MAX_STATIC_SELECT_OPTIONS = 100;
 
 const channelCache = {
@@ -102,6 +102,8 @@ async function getBotChannels(client) {
 
   const channels = [];
   let cursor;
+  let pageCount = 0;
+  const maxPages = 2; // Limit to 2 pages (400 channels) for performance
 
   do {
     const response = await client.conversations.list({
@@ -119,6 +121,15 @@ async function getBotChannels(client) {
     }
 
     cursor = response.response_metadata && response.response_metadata.next_cursor;
+    pageCount++;
+    
+    // Stop paginating after maxPages to improve performance
+    if (pageCount >= maxPages) {
+      if (cursor) {
+        console.log(`[getBotChannels] Stopped after ${pageCount} pages (${channels.length} channels fetched). More channels exist but not fetched for performance.`);
+      }
+      break;
+    }
   } while (cursor);
 
   channels.sort((a, b) => a.name.localeCompare(b.name));

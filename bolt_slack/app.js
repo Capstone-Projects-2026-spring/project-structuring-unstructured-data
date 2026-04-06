@@ -248,21 +248,88 @@ app.event('app_mention', async ({ event, client, logger }) => {
 // Publish Home tab when a user opens the app's Home.
 app.event('app_home_opened', async ({ event, client, logger }) => {
   console.log('🏠 [app_home_opened] Event triggered for user:', event.user);
+  const userId = event.user;
+  
+  // Publish a loading view immediately (within Slack's 3-second timeout)
   try {
-    console.log('🏠 [app_home_opened] Calling publishHomeTab...');
-    await publishHomeTab({
-      client,
-      userId: event.user,
-      logger,
-      apiClient
+    console.log('🏠 [app_home_opened] Publishing loading view immediately...');
+    await client.views.publish({
+      user_id: userId,
+      view: {
+        type: 'home',
+        callback_id: 'home_dashboard_v1',
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: 'SUD Dashboard'
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '⏳ Loading your dashboard...'
+            }
+          }
+        ]
+      }
     });
-    console.log('🏠 [app_home_opened] publishHomeTab completed successfully');
+    console.log('🏠 [app_home_opened] Loading view published successfully');
   } catch (error) {
-    console.error('❌ [app_home_opened] Error publishing home tab:', error);
-    if (logger) {
-      logger.error('Error in app_home_opened event handler:', error);
-    }
+    console.error('❌ [app_home_opened] Error publishing loading view:', error);
   }
+
+  // Fetch and publish the full dashboard in the background (no timeout constraint)
+  console.log('🏠 [app_home_opened] Scheduling full dashboard load in background...');
+  setImmediate(async () => {
+    try {
+      console.log('🏠 [app_home_opened] Background: Calling publishHomeTab...');
+      await publishHomeTab({
+        client,
+        userId,
+        logger,
+        apiClient
+      });
+      console.log('🏠 [app_home_opened] Background: publishHomeTab completed successfully');
+    } catch (error) {
+      console.error('❌ [app_home_opened] Background: Error publishing home tab:', error);
+      
+      // Publish an error view
+      try {
+        await client.views.publish({
+          user_id: userId,
+          view: {
+            type: 'home',
+            callback_id: 'home_dashboard_v1',
+            blocks: [
+              {
+                type: 'header',
+                text: {
+                  type: 'plain_text',
+                  text: 'SUD Dashboard'
+                }
+              },
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `❌ Error loading dashboard: ${error.message}`
+                }
+              }
+            ]
+          }
+        });
+      } catch (publishError) {
+        console.error('❌ [app_home_opened] Failed to publish error view:', publishError);
+      }
+      
+      if (logger) {
+        logger.error('Error in app_home_opened background task:', error);
+      }
+    }
+  });
 });
 console.log('📋 Registered: app_home_opened event handler');
 
