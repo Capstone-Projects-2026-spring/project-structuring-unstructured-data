@@ -130,7 +130,7 @@ export function Results() {
 
             <Stack style={{ flex: 2 }} gap="md">
               <AnalysisBox {...analysisProps ?? { team1Code: "", gameType: gameType as "TWOPLAYER" | "FOURPLAYER" }} />
-              <TestCaseResultsBox gameId={gameId} showOtherTeamColumn={gameType === "FOURPLAYER"} gameType={gameType} />
+              <TestCaseResultsBox gameId={gameId} showOtherTeamColumn={gameType === "FOURPLAYER"} gameType={gameType as "TWOPLAYER" | "FOURPLAYER"} />
             </Stack>
 
           </Flex>
