@@ -230,7 +230,7 @@ function PlayGameRoom() {
       if (role) {
         showRoleSwapWarning(role);
       } else {
-        showRoleSwapWarning(Role.CODER);
+        showRoleSwapWarning(Role.SPECTATOR);
       }
     };
 
