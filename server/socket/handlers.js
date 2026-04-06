@@ -188,8 +188,30 @@ function registerSocketHandlers(io, socket, services) {
     // json.testCases should realistically only modify a single property
     // on the existing testCases object: `computedOutput`. Syncing this
     // back to the frontend is handled over there :)
-    console.log(JSON.stringify(json));
-    socket.emit("receiveTestCaseSync", json.testCases);
+    console.log(JSON.stringify(json, null, 2));
+
+    /* 
+      export interface TestableCase {
+        id: number;
+        functionInput: ParameterType[];
+        expectedOutput: ParameterType;
+        computedOutput?: string | null;
+      }
+    */
+
+    const toReceive = [];
+    for (const result of json.results) {
+      const matched = testCases.find(t => t.id === result.id);
+      if(!matched) continue;
+      toReceive.push({
+        id: matched.id,
+        functionInput: matched.functionInput,
+        expectedOutput: matched.expectedOutput,
+        computedOutput: result.actual
+      });
+    }
+
+    socket.emit("receiveTestCaseSync", toReceive);
   });
 
   socket.on('requestTeamUpdate', async ({ gameId, teamId, playerCount }) => {
