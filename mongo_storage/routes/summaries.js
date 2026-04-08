@@ -90,6 +90,13 @@ router.get('/api/summaries/all', async (_req, res) => {
 
 // GET /api/summaries/:databaseKey - Retrieve all summary documents from a given channel database. 
 // NOTE: databaseKey includes channel name AND channelId retrieved from the Slack API
+// Optional query params:
+// - weekStart: Date or ISO timestamp used to retrieve exactly one week of summaries.
+//   The value is normalized to UTC Sunday 00:00:00Z and used as a 7-day range query on summary_day_utc.
+//   Examples:
+//   - GET /api/summaries/myChannel_C123
+//   - GET /api/summaries/myChannel_C123?weekStart=2026-04-05
+//   - GET /api/summaries/myChannel_C123?weekStart=2026-04-05T00:00:00Z
 router.get('/api/summaries/:databaseKey', async (req, res) => {
   try {
     const { databaseKey } = req.params;
@@ -145,6 +152,16 @@ router.get('/api/summaries/:databaseKey', async (req, res) => {
 
 // POST /api/summaries/:databaseKey - Insert a summary document into the appropriate channel database using Gemini Python model. 
 // NOTE: databaseKey includes channel name AND channelId retrieved from the Slack API
+// Optional query params:
+// - week: Integer 0..53. Generates summaries from messages that match this week number.
+// - weekStart: Date or ISO timestamp. Converted to its UTC Sunday week start and used to choose the target week.
+// Rules:
+// - If neither is provided, the model infers the latest available week.
+// - Provide only one of week or weekStart (sending both returns 400).
+// Examples:
+// - POST /api/summaries/myChannel_C123
+// - POST /api/summaries/myChannel_C123?week=14
+// - POST /api/summaries/myChannel_C123?weekStart=2026-04-05
 router.post('/api/summaries/:databaseKey', async (req, res) => {
   try {
     const { databaseKey } = req.params;

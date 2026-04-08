@@ -26,6 +26,92 @@ function formatSummaryTimestamp(ts) {
   return new Date(parsed).toLocaleString();
 }
 
+function formatSummaryDate(ts, fallback = 'Unknown date') {
+  if (!ts) {
+    return fallback;
+  }
+
+  const parsed = Date.parse(ts);
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+
+  return new Date(parsed).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+function normalizeToUtcSundayStartIso(inputTs) {
+  if (!inputTs) {
+    return '';
+  }
+
+  const parsed = new Date(inputTs);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+
+  const utcDateOnly = new Date(Date.UTC(
+    parsed.getUTCFullYear(),
+    parsed.getUTCMonth(),
+    parsed.getUTCDate(),
+    0,
+    0,
+    0,
+    0
+  ));
+
+  const daysSinceSunday = utcDateOnly.getUTCDay();
+  utcDateOnly.setUTCDate(utcDateOnly.getUTCDate() - daysSinceSunday);
+  return utcDateOnly.toISOString().replace('.000Z', 'Z');
+}
+
+function formatWeekRangeLabel(weekStartIso) {
+  const start = new Date(weekStartIso);
+  if (Number.isNaN(start.getTime())) {
+    return '';
+  }
+
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+
+  const startText = start.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+  const endText = end.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  return `${startText} - ${endText}`;
+}
+
+function getWeekInfo(summary) {
+  const explicitWeekStart = normalizeToUtcSundayStartIso(summary && summary.week_start_utc);
+  if (explicitWeekStart) {
+    const rangeLabel = formatWeekRangeLabel(explicitWeekStart);
+    return {
+      key: `ws:${explicitWeekStart}`,
+      weekStartIso: explicitWeekStart,
+      label: rangeLabel || explicitWeekStart,
+      kind: 'week-start'
+    };
+  }
+
+  return {
+    key: 'unknown',
+    weekStartIso: '',
+    label: 'Unknown week',
+    kind: 'unknown'
+  };
+}
+
 function truncateText(text, maxLength) {
   const normalizedText = String(text || '').trim();
 
@@ -41,35 +127,59 @@ function truncateText(text, maxLength) {
 }
 
 function encodeDashboardState({ channelName, selectedWeek }) {
-  const normalizedSelectedWeek = Number.parseInt(selectedWeek, 10);
+  const normalizedSelectedWeek = typeof selectedWeek === 'string' && selectedWeek.trim()
+    ? selectedWeek.trim()
+    : null;
 
   return JSON.stringify({
     channelName: channelName || '',
-    selectedWeek: Number.isFinite(normalizedSelectedWeek) ? normalizedSelectedWeek : null
+    selectedWeek: normalizedSelectedWeek
   });
 }
 
 function getAvailableWeeks(summaries) {
-  const uniqueWeeks = new Set();
+  const bucketsByKey = new Map();
 
   for (const summary of summaries) {
-    const week = Number(summary && summary.week_of);
-    if (Number.isFinite(week)) {
-      uniqueWeeks.add(week);
+    const weekInfo = getWeekInfo(summary);
+    if (weekInfo.key === 'unknown') {
+      continue;
+    }
+
+    const sortValue = weekInfo.weekStartIso
+      ? Date.parse(weekInfo.weekStartIso)
+      : Number((summary && summary.week_of) || 0);
+
+    if (!bucketsByKey.has(weekInfo.key)) {
+      bucketsByKey.set(weekInfo.key, {
+        ...weekInfo,
+        sortValue: Number.isFinite(sortValue) ? sortValue : 0
+      });
     }
   }
 
-  return Array.from(uniqueWeeks).sort((left, right) => right - left);
+  return Array.from(bucketsByKey.values())
+    .sort((left, right) => right.sortValue - left.sortValue)
+    .map((bucket) => bucket.key);
 }
 
 function buildWeekOptions(availableWeeks) {
-  return availableWeeks.slice(0, MAX_STATIC_SELECT_OPTIONS).map((week) => ({
+  return availableWeeks.slice(0, MAX_STATIC_SELECT_OPTIONS).map((weekKey) => {
+    const weekInfo = getWeekInfo({
+      week_start_utc: weekKey.startsWith('ws:') ? weekKey.slice(3) : null,
+      week_of: weekKey.startsWith('wk:') ? weekKey.slice(3) : null
+    });
+
+    return {
     text: {
       type: 'plain_text',
-      text: `Week ${week}`
+      text: weekInfo.kind === 'week-start'
+        ? `${weekInfo.label}`
+        : weekInfo.label
     },
-    value: String(week)
-  }));
+    value: weekKey
+  };
+  });
 }
 
 function buildChannelOptions(channels) {
@@ -187,6 +297,8 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
       console.log(`[fetchWeeklySummariesForChannel] Built database key: ${databaseKey}`);
     }
 
+    // Always fetch all summaries so the week dropdown can show every available
+    // week option. Week-specific filtering is applied in the Home view renderer.
     const response = await apiClient.get(`/api/summaries/${encodeURIComponent(databaseKey)}`);
     const summaries = response.data && Array.isArray(response.data.summaries)
       ? response.data.summaries
@@ -220,10 +332,20 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
       errorMessage: ''
     };
   } catch (error) {
+    const connectionRefused = error && (error.code === 'ECONNREFUSED' || (error.cause && error.cause.code === 'ECONNREFUSED'));
+    const requestBaseUrl = error && error.config && error.config.baseURL ? error.config.baseURL : 'unknown';
+    const requestUrl = error && error.config && error.config.url ? error.config.url : 'unknown';
+
     if (logger) {
       logger.error('Error fetching weekly summaries for Home tab:', error);
+      if (connectionRefused) {
+        logger.error(`[fetchWeeklySummariesForChannel] Connection refused for ${requestBaseUrl}${requestUrl}. Ensure mongo_storage API server is running.`);
+      }
     } else {
       console.error('Error fetching weekly summaries for Home tab:', error);
+      if (connectionRefused) {
+        console.error(`[fetchWeeklySummariesForChannel] Connection refused for ${requestBaseUrl}${requestUrl}. Ensure mongo_storage API server is running.`);
+      }
     }
 
     return {
@@ -239,7 +361,8 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
 }
 
 function buildSummaryDetailsMarkdown(summary) {
-  const weekOf = summary.week_of != null ? summary.week_of : 'n/a';
+  const weekInfo = getWeekInfo(summary);
+  const summaryDate = formatSummaryDate(summary.summary_day_utc, 'Unknown date');
   const messageCount = summary.message_count != null ? summary.message_count : 'n/a';
   const distinctUsers = summary.distinct_users != null ? summary.distinct_users : 'n/a';
   const generatedAt = formatSummaryTimestamp(summary.generated_at_utc);
@@ -247,7 +370,11 @@ function buildSummaryDetailsMarkdown(summary) {
   return [
     {
       type: 'mrkdwn',
-      text: `*Week*\n${weekOf}`
+      text: `*Summary Date*\n${summaryDate}`
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Week Range*\n${weekInfo.label}`
     },
     {
       type: 'mrkdwn',
@@ -291,21 +418,25 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
 
   const sortedSummaries = summaries
     .slice()
-    .sort((left, right) => Date.parse(right.generated_at_utc || '') - Date.parse(left.generated_at_utc || ''));
+    .sort((left, right) => {
+      const leftDate = Date.parse(left.summary_day_utc || left.generated_at_utc || '');
+      const rightDate = Date.parse(right.summary_day_utc || right.generated_at_utc || '');
+      return rightDate - leftDate;
+    });
 
   const availableWeeks = getAvailableWeeks(sortedSummaries);
-  const parsedSelectedWeek = Number.parseInt(selectedWeek, 10);
-  const resolvedSelectedWeek = availableWeeks.includes(parsedSelectedWeek)
-    ? parsedSelectedWeek
+  const selectedWeekKey = typeof selectedWeek === 'string' ? selectedWeek : '';
+  const resolvedSelectedWeek = availableWeeks.includes(selectedWeekKey)
+    ? selectedWeekKey
     : (availableWeeks[0] || null);
 
   const weekOptions = buildWeekOptions(availableWeeks);
   const selectedWeekOption = resolvedSelectedWeek == null
     ? null
-    : weekOptions.find((option) => option.value === String(resolvedSelectedWeek));
+    : weekOptions.find((option) => option.value === resolvedSelectedWeek);
   const visibleSummaries = resolvedSelectedWeek == null
     ? sortedSummaries
-    : sortedSummaries.filter((summary) => Number(summary && summary.week_of) === resolvedSelectedWeek);
+    : sortedSummaries.filter((summary) => getWeekInfo(summary).key === resolvedSelectedWeek);
   const blocks = [];
 
   blocks.push({
@@ -343,13 +474,17 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
         type: 'mrkdwn',
         text: resolvedSelectedWeek == null
           ? `Showing all ${visibleSummaries.length} daily updates.`
-          : `Showing ${visibleSummaries.length} daily updates for *Week ${resolvedSelectedWeek}*.`
+          : `Showing ${visibleSummaries.length} daily updates for *${(getWeekInfo({
+            week_start_utc: resolvedSelectedWeek.startsWith('ws:') ? resolvedSelectedWeek.slice(3) : null,
+            week_of: resolvedSelectedWeek.startsWith('wk:') ? resolvedSelectedWeek.slice(3) : null
+          }).label)}*.`
       }
     ]
   });
 
   for (const [index, summary] of visibleSummaries.entries()) {
-    const summaryTitle = `${summary.day_name || 'Unknown day'} · Week ${summary.week_of != null ? summary.week_of : 'n/a'}`;
+    const summaryDate = formatSummaryDate(summary.summary_day_utc, 'Unknown date');
+    const summaryTitle = summaryDate;
     const summaryText = truncateText(summary.summary_text, MAX_SUMMARY_TEXT_LENGTH);
     const cardNumber = index + 1;
 
@@ -570,7 +705,7 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       userId,
       channelOptions,
       selectedChannelName: resolvedChannelName,
-      selectedWeek: availableWeeks.includes(Number(selectedWeek)) ? Number(selectedWeek) : availableWeeks[0],
+      selectedWeek: availableWeeks.includes(selectedWeek) ? selectedWeek : availableWeeks[0],
       activeChannels: channels.length,
       selectableChannels: channelOptions.length,
       summaryRecords,

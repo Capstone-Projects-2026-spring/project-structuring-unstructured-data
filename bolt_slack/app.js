@@ -45,11 +45,13 @@ function parseDashboardState(rawValue) {
 
   try {
     const parsed = JSON.parse(rawValue);
-    const parsedSelectedWeek = Number.parseInt(parsed.selectedWeek, 10);
+    const parsedSelectedWeek = typeof parsed.selectedWeek === 'string'
+      ? parsed.selectedWeek.trim()
+      : '';
 
     return {
       channelName: typeof parsed.channelName === 'string' ? parsed.channelName : '',
-      selectedWeek: Number.isFinite(parsedSelectedWeek) ? parsedSelectedWeek : null
+      selectedWeek: parsedSelectedWeek || null
     };
   } catch (_error) {
     return {
@@ -651,7 +653,6 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     ? body.actions[0].selected_option.value
     : '';
   const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
-  const selectedWeek = Number.parseInt(selectedWeekRaw, 10);
 
   publishHomeTab({
     client,
@@ -659,7 +660,7 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     logger,
     apiClient,
     selectedChannelName,
-    selectedWeek: Number.isFinite(selectedWeek) ? selectedWeek : null
+    selectedWeek: selectedWeekRaw || null
   })
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);

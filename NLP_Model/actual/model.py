@@ -42,22 +42,6 @@ def parse_args(argv):
     return db_name, week_num, week_start
 
 
-def parse_week_start_to_week_num(week_start_arg):
-    if not week_start_arg:
-        return None
-
-    normalized = week_start_arg.replace('Z', '+00:00')
-
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError:
-        print(f'Invalid week-start value: {week_start_arg}. Falling back to inferred week.')
-        return None
-
-    parsed_utc = parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-    return int(parsed_utc.strftime('%U'))
-
-
 def derive_summary_day_utc(day_df):
     if day_df.empty or 'ts' not in day_df.columns:
         return None
@@ -89,6 +73,18 @@ def week_start_from_summary_day(summary_day_utc):
         microsecond=0,
     )
     return week_start.isoformat().replace('+00:00', 'Z')
+
+
+def summary_day_label(summary_day_utc):
+    if not summary_day_utc:
+        return 'Unknown day'
+
+    try:
+        parsed = datetime.fromisoformat(summary_day_utc.replace('Z', '+00:00'))
+    except ValueError:
+        return 'Unknown day'
+
+    return parsed.strftime('%A')
 
 
 def resolve_week_num(data_process, proc_df, requested_week=None):
@@ -124,7 +120,6 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
                 'channel_db': db_name,
                 'summary_day_utc': summary_day_utc,
                 'week_start_utc': week_start_utc,
-                'day_name': day_name,
                 'summary_text': day_summary,
                 'message_count': message_count,
                 'distinct_users': users,
@@ -137,11 +132,6 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
 
 # Import arguments from command line
 dbName, week_num, week_start_arg = parse_args(sys.argv)
-
-if week_start_arg is not None:
-    week_from_week_start = parse_week_start_to_week_num(week_start_arg)
-    if week_from_week_start is not None:
-        week_num = week_from_week_start
 
 # Connect and extract collections
 load_dotenv()
@@ -163,15 +153,24 @@ if missing_cols:
 dp_inst = DataProcess()
 proc_df = dp_inst.normal_preprocess(chan_df)
 
-resolved_week_num = resolve_week_num(dp_inst, proc_df, week_num)
-if resolved_week_num is None:
-    print('Unable to determine a week number from the available messages.')
-    sys.exit(1)
+cproc_df = None
+resolved_week_num = None
 
-if week_num is not None and resolved_week_num != week_num:
-    print(f'No messages found for requested week {week_num}; using inferred week {resolved_week_num} instead.')
+if week_start_arg is not None:
+    cproc_df = dp_inst.filter_by_week_start(proc_df, week_start_arg)
+    if cproc_df.empty:
+        print(f'No content found for channel "{dbName}" in requested weekStart {week_start_arg}.')
+        sys.exit(0)
+else:
+    resolved_week_num = resolve_week_num(dp_inst, proc_df, week_num)
+    if resolved_week_num is None:
+        print('Unable to determine a week number from the available messages.')
+        sys.exit(1)
 
-cproc_df = dp_inst.filter_by_week(proc_df, resolved_week_num)
+    if week_num is not None and resolved_week_num != week_num:
+        print(f'No messages found for requested week {week_num}; using inferred week {resolved_week_num} instead.')
+
+    cproc_df = dp_inst.filter_by_week(proc_df, resolved_week_num)
 #text = ' '.join(proc_df['text'].dropna().astype(str).tolist())
 
 # Summarizer initalizer
@@ -183,13 +182,16 @@ sum_inst = Summarizer()
 day_chunks = dp_inst.chunk_text_by_day(cproc_df)
 
 if not day_chunks:
-    print(f'No content found for channel "{dbName}" in week {resolved_week_num}.')
+    if week_start_arg is not None:
+        print(f'No content found for channel "{dbName}" in requested weekStart {week_start_arg}.')
+    else:
+        print(f'No content found for channel "{dbName}" in week {resolved_week_num}.')
     sys.exit(0)
 
 summary_docs = build_day_summary_docs(dbName, cproc_df, day_chunks, sum_inst, dp_inst)
 
 for doc in summary_docs:
-    print(f"\n--- {doc['day_name']} ({doc.get('summary_day_utc')}) ---")
+    print(f"\n--- {summary_day_label(doc.get('summary_day_utc'))} ({doc.get('summary_day_utc')}) ---")
     print(doc['summary_text'])
 
 # Daily summaries are saved into the selected channel database under the `summaries` collection.
