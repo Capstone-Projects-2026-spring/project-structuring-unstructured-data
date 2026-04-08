@@ -104,14 +104,13 @@ class MongoConnect:
 
         upserted_count = 0
         for summary_doc in summaries:
-            week_of = summary_doc.get('week_of')
-            day_name = summary_doc.get('day_name')
+            summary_day_utc = summary_doc.get('summary_day_utc')
 
-            if week_of is None or day_name is None:
+            if summary_day_utc is None:
                 continue
 
             result = summaries_coll.replace_one(
-                {'week_of': week_of, 'day_name': day_name},
+                {'summary_day_utc': summary_day_utc},
                 summary_doc,
                 upsert=True,
             )

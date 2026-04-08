@@ -477,7 +477,7 @@ app.command('/channel-info', async ({ command, ack, respond }) => {
   }
 });
 
-// summary - Get channel summary
+// summary - Create channel summary
 app.command('/summary', async ({ command, ack, respond, client }) => {
     await ack();
 
@@ -485,59 +485,42 @@ app.command('/summary', async ({ command, ack, respond, client }) => {
         const channel_id = command.channel_id;
         const channel_name = command.channel_name;
 
+        const databaseKey = await buildChannelKey(channel_name);
+
+        if (!databaseKey) {
+            throw new Error(`Failed to build database key for channel: ${channel_name}`);
+        }
+
         await respond({
             response_type: 'ephemeral',
             text: 'Fetching summaries...'
         });
 
         // Fetch all summaries from the API
-        const response = await apiClient.get('/api/summary/all');
+        const response = await apiClient.get(`/api/summaries/${databaseKey}`); // Assuming this returns all summaries for the channel
         const allSummaries = response.data;
 
-        const weeks = [
-            { suffix: 'cw', label: 'Current Week' },
-            { suffix: 'pw', label: 'Past Week' }
-        ];
-
-        for (const week of weeks) {
-            const db_name = `${channel_name}_S_${week.suffix}`;
-            const weekData = allSummaries[db_name];
-
-            if (!weekData || Object.keys(weekData).length === 0) {
-                await client.chat.postMessage({
-                    channel: channel_id,
-                    text: `No summaries found for *${week.label}* in *#${channel_name}*.`
-                });
-                continue;
-            }
-
-            // Post week header
-            await client.chat.postMessage({
-                channel: channel_id,
-                text: `*${week.label} Summaries for #${channel_name}*`
+        if (allSummaries && allSummaries.summaries && allSummaries.summaries.length > 0) {
+            const summaryText = allSummaries.summaries.map((summary, idx) => 
+                `${idx + 1}. ${summary.text || '(no text)'} _created at ${new Date(summary.createdAt).toLocaleString()}_`
+            ).join('\n');
+            await respond({
+                response_type: 'in_channel',
+                text: `📝 *Channel Summaries*:\n\n${summaryText}\n\n_Use \`/store-messages\` to update summaries with new messages.`
             });
-
-            // Each key is a day
-            for (const day in weekData) {
-                const docs = weekData[day];
-                if (!docs || docs.length === 0) continue;
-
-                await client.chat.postMessage({
-                    channel: channel_id,
-                    text: `*${day}*`
-                });
-
-                for (const doc of docs) {
-                    if (!doc.sum_text || doc.sum_text === '()') continue;
-
-                    await client.chat.postMessage({
-                        channel: channel_id,
-                        text: `*User:* ${doc.user}\n*Summary:* ${doc.sum_text}`
-                    });
-                }
-            }
+        } else {
+            await respond({
+                response_type: 'ephemeral',
+                text: `No summaries found in database for channel *${channel_name}*. Use \`/store-messages\` first.`
+            });
         }
-
+        const messages = await fetchMessagesFromAPI(databaseKey);
+        return {
+            success: true,
+            dbName: databaseKey,
+            message: `Model executed successfully for ${databaseKey}`,
+            results: messages
+        };
     } catch(err) {
         console.error('Error in /summary command:', err);
         await respond({

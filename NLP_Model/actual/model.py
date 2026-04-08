@@ -5,13 +5,14 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 # Type py -3.14 model.py to run
 
 
 def parse_args(argv):
     db_name = 'slack'  # default database name
     week_num = None  # derive from data unless explicitly provided
+    week_start = None
 
     i = 1
     while i < len(argv):
@@ -23,17 +24,71 @@ def parse_args(argv):
             except ValueError:
                 print(f"Invalid week value: {argv[i + 1]}. Falling back to week {week_num}.")
             i += 1
+        elif arg == '--week-start' and i + 1 < len(argv):
+            week_start = argv[i + 1]
+            i += 1
         elif arg.startswith('--week='):
             try:
                 week_num = int(arg.split('=', 1)[1])
             except ValueError:
                 print(f"Invalid week value: {arg.split('=', 1)[1]}. Falling back to week {week_num}.")
+        elif arg.startswith('--week-start='):
+            week_start = arg.split('=', 1)[1]
         elif not arg.startswith('--'):
             db_name = arg
 
         i += 1
 
-    return db_name, week_num
+    return db_name, week_num, week_start
+
+
+def parse_week_start_to_week_num(week_start_arg):
+    if not week_start_arg:
+        return None
+
+    normalized = week_start_arg.replace('Z', '+00:00')
+
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        print(f'Invalid week-start value: {week_start_arg}. Falling back to inferred week.')
+        return None
+
+    parsed_utc = parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return int(parsed_utc.strftime('%U'))
+
+
+def derive_summary_day_utc(day_df):
+    if day_df.empty or 'ts' not in day_df.columns:
+        return None
+
+    ts_series = pd.to_datetime(day_df['ts'], errors='coerce').dropna()
+    if ts_series.empty:
+        return None
+
+    first_ts = ts_series.min()
+    if getattr(first_ts, 'tzinfo', None) is None:
+        first_ts = first_ts.tz_localize('UTC')
+    else:
+        first_ts = first_ts.tz_convert('UTC')
+
+    day_start = first_ts.floor('D')
+    return day_start.isoformat().replace('+00:00', 'Z')
+
+
+def week_start_from_summary_day(summary_day_utc):
+    if not summary_day_utc:
+        return None
+
+    parsed = datetime.fromisoformat(summary_day_utc.replace('Z', '+00:00'))
+    days_since_sunday = (parsed.weekday() + 1) % 7
+    week_start = (parsed - timedelta(days=days_since_sunday)).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    return week_start.isoformat().replace('+00:00', 'Z')
 
 
 def resolve_week_num(data_process, proc_df, requested_week=None):
@@ -56,7 +111,8 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
 
     for day_name, day_text in day_chunks.items():
         day_df = week_df[week_df['day_name'] == day_name]
-        week_of = data_process.infer_week_of(day_df)
+        summary_day_utc = derive_summary_day_utc(day_df)
+        week_start_utc = week_start_from_summary_day(summary_day_utc)
         users = int(day_df['user'].nunique()) if 'user' in day_df.columns else 0
         message_count = int(len(day_df))
 
@@ -66,7 +122,8 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
         summary_docs.append(
             {
                 'channel_db': db_name,
-                'week_of': week_of,
+                'summary_day_utc': summary_day_utc,
+                'week_start_utc': week_start_utc,
                 'day_name': day_name,
                 'summary_text': day_summary,
                 'message_count': message_count,
@@ -79,7 +136,12 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
 
 
 # Import arguments from command line
-dbName, week_num = parse_args(sys.argv)
+dbName, week_num, week_start_arg = parse_args(sys.argv)
+
+if week_start_arg is not None:
+    week_from_week_start = parse_week_start_to_week_num(week_start_arg)
+    if week_from_week_start is not None:
+        week_num = week_from_week_start
 
 # Connect and extract collections
 load_dotenv()
@@ -127,7 +189,7 @@ if not day_chunks:
 summary_docs = build_day_summary_docs(dbName, cproc_df, day_chunks, sum_inst, dp_inst)
 
 for doc in summary_docs:
-    print(f"\n--- {doc['day_name']} (week {doc['week_of']}) ---")
+    print(f"\n--- {doc['day_name']} ({doc.get('summary_day_utc')}) ---")
     print(doc['summary_text'])
 
 # Daily summaries are saved into the selected channel database under the `summaries` collection.

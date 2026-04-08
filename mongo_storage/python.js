@@ -2,20 +2,43 @@ const mongoose = require('mongoose');
 const { PythonShell } = require('python-shell');
 
 
-async function runModel(dbName) {
-    let options = {
-    pythonPath: 'py',
-    pythonOptions: ['-3.14','-u'],
-    scriptPath: '../NLP_Model/actual',
-    args: [dbName]
+async function runModel(dbName, runOptions = {}) {
+    const args = [dbName];
+
+    if (runOptions.weekStart) {
+        args.push(`--week-start=${runOptions.weekStart}`);
+    } else if (Number.isInteger(runOptions.week)) {
+        args.push(`--week=${runOptions.week}`);
+    }
+
+    const pythonOptions = {
+        pythonPath: 'py',
+        pythonOptions: ['-3.14','-u'],
+        scriptPath: '../NLP_Model/actual',
+        args
     };
 
-    PythonShell.run('model.py', options).then(messages => {
-    // messages is an array of messages collected during execution
-    console.log('results: %j', messages);
-    }).catch(err => {
-      console.error(err);
-    });
+    try {
+        const messages = await PythonShell.run('model.py', pythonOptions);
+        // messages is an array of messages collected during execution
+        console.log(`[runModel] Successfully executed model for database: ${dbName}`);
+        console.log(`[runModel] Results: %j`, messages);
+        
+        return {
+            success: true,
+            dbName: dbName,
+            message: `Model execution completed successfully for ${dbName}`,
+            results: messages
+        };
+    } catch (err) {
+        console.error(`[runModel] Error executing model for database ${dbName}:`, err);
+        return {
+            success: false,
+            dbName: dbName,
+            message: `Model execution failed for ${dbName}`,
+            error: err.message
+        };
+    }
 }
 
 async function postSummaries(channel_id, channel_name) {
