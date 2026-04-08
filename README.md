@@ -89,6 +89,8 @@ The API runs at `http://localhost:8000`. The database is **created and seeded au
 
 The backend uses a local Judge0 CE instance for code execution. This keeps the existing `/code/execute` backend endpoint the same while moving compilation and execution onto your machine.
 
+Docker Desktop must already be installed and running before you start Judge0. The helper scripts manage the local Judge0 stack, but they do not install Docker for you.
+
 Start Judge0 locally:
 
 ```bash
@@ -103,16 +105,33 @@ Stop Judge0 when you are done:
 ./scripts/stop_judge0.sh
 ```
 
-For Mac OS users when setting up Judge0 in terminal:
-You will need docker to run this, the scripts will automatically set up docker, however, docker and judge0 has some incompatibility issues that will need adressing in the system files.
+If Judge0 starts successfully but code execution still fails, reset the local Judge0 volumes and start again:
+
+```bash
+./scripts/stop_judge0.sh
+cd .judge0/judge0-v1.13.1 && docker compose down -v
+cd ../..
+./scripts/start_judge0.sh
+```
+
+## Mac
+
+For macOS users setting up Judge0:
+You may need to change a Docker settings file if Docker and Judge0 are incompatible on your machine.
 
 To start, close docker and every instance of it currently running.
 
 You will need to locate the settings-store.json for docker in order to use the deprecatedCgroupv1.
 
-In command prompt: ‘ open -a TextEdit "/Users/[Your Computer Name]/Library/Group Containers/group.com.docker/settings-store.json" ‘
+In Terminal:
 
-And then paste this in place:
+```bash
+open -a TextEdit "/Users/[Your Computer Name]/Library/Group Containers/group.com.docker/settings-store.json"
+```
+
+Then replace the file contents with:
+
+```json
 {
   "AutoStart": false,
   "DisplayedOnboarding": true,
@@ -125,8 +144,9 @@ And then paste this in place:
   "UseContainerdSnapshotter": true,
   "deprecatedCgroupv1": true
 }
+```
 
-Reopen docker, and the website should be able to read Judge0
+Reopen Docker, and the app should be able to reach Judge0.
 
 ---
 

@@ -334,7 +334,8 @@ function ProblemPage({ problem, onBack, studentName }) {
         }
         setOutput(outputText || 'Code executed successfully (no output)\n');
       } catch (error) {
-        setOutput(`Error executing ${language} code:\n${error.message}\n`);
+        const errorMessage = error?.message || String(error) || 'Unknown error';
+        setOutput(`Error executing ${language} code:\n${errorMessage}\n`);
       } finally {
         setIsRunning(false);
       }
@@ -394,7 +395,8 @@ _stderr = _stderr_buf.getvalue()
 
       setOutput(result || 'Code executed successfully (no output)\n');
     } catch (error) {
-      setOutput(`Error executing Python code:\n${error.message}\n`);
+      const errorMessage = error?.message || String(error) || 'Unknown error';
+      setOutput(`Error executing Python code:\n${errorMessage}\n`);
     } finally {
       setIsRunning(false);
     }

@@ -1,7 +1,10 @@
+import base64
+import binascii
+import os
+
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import os
-import httpx
 
 router = APIRouter(prefix="/code", tags=["code"])
 
@@ -34,6 +37,20 @@ def build_judge0_headers() -> dict[str, str]:
     return headers
 
 
+def decode_judge0_field(value: str | None) -> str:
+    if not value:
+        return ""
+
+    try:
+        return base64.b64decode(value).decode("utf-8", errors="replace")
+    except (binascii.Error, ValueError):
+        return value
+
+
+def encode_judge0_field(value: str) -> str:
+    return base64.b64encode(value.encode("utf-8")).decode("ascii")
+
+
 @router.post("/execute", response_model=CodeExecutionResponse)
 async def execute_code(req: CodeExecutionRequest) -> CodeExecutionResponse:
     if req.language not in LANGUAGE_IDS:
@@ -43,12 +60,12 @@ async def execute_code(req: CodeExecutionRequest) -> CodeExecutionResponse:
     if not judge0_url:
         raise HTTPException(status_code=500, detail="JUDGE0_URL is not configured")
 
-    submit_url = f"{judge0_url.rstrip('/')}/submissions?base64_encoded=false&wait=true"
+    submit_url = f"{judge0_url.rstrip('/')}/submissions?base64_encoded=true&wait=true"
     headers = build_judge0_headers()
     payload = {
-        "source_code": req.code,
+        "source_code": encode_judge0_field(req.code),
         "language_id": LANGUAGE_IDS[req.language],
-        "stdin": req.input,
+        "stdin": encode_judge0_field(req.input),
     }
 
     async with httpx.AsyncClient() as client:
@@ -57,14 +74,19 @@ async def execute_code(req: CodeExecutionRequest) -> CodeExecutionResponse:
             response.raise_for_status()
             result = response.json()
 
-            stdout = result.get("stdout", "") or ""
-            stderr = result.get("stderr", "") or ""
-            compile_output = result.get("compile_output", "") or ""
-            message = result.get("message", "") or ""
+            stdout = decode_judge0_field(result.get("stdout"))
+            stderr = decode_judge0_field(result.get("stderr"))
+            compile_output = decode_judge0_field(result.get("compile_output"))
+            message = decode_judge0_field(result.get("message"))
+            status_description = ((result.get("status") or {}).get("description") or "").strip()
+
+            error_text = stderr or compile_output or message
+            if not error_text and status_description and status_description != "Accepted":
+                error_text = status_description
 
             return CodeExecutionResponse(
                 output=stdout,
-                error=(stderr or compile_output or message),
+                error=error_text,
             )
         except httpx.HTTPStatusError as exc:
             detail = exc.response.text.strip() or str(exc)

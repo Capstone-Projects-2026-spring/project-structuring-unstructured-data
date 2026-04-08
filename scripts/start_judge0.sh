@@ -39,6 +39,37 @@ replace_or_append_conf() {
   fi
 }
 
+get_conf_value() {
+  local file="$1"
+  local key="$2"
+
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+
+  awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$file"
+}
+
+ensure_conf_secret() {
+  local file="$1"
+  local key="$2"
+  local provided_value="$3"
+  local existing_value
+
+  existing_value="$(get_conf_value "$file" "$key" || true)"
+
+  if [[ -n "$provided_value" ]]; then
+    replace_or_append_conf "$file" "$key" "$provided_value"
+    return 0
+  fi
+
+  if [[ -n "$existing_value" ]]; then
+    return 0
+  fi
+
+  replace_or_append_conf "$file" "$key" "$(openssl rand -hex 16)"
+}
+
 mkdir -p "$STATE_DIR"
 
 if [[ ! -d "$INSTALL_DIR" ]]; then
@@ -48,8 +79,8 @@ if [[ ! -d "$INSTALL_DIR" ]]; then
 fi
 
 if [[ -f "$CONF_FILE" ]]; then
-  replace_or_append_conf "$CONF_FILE" "REDIS_PASSWORD" "${JUDGE0_REDIS_PASSWORD:-$(openssl rand -hex 16)}"
-  replace_or_append_conf "$CONF_FILE" "POSTGRES_PASSWORD" "${JUDGE0_POSTGRES_PASSWORD:-$(openssl rand -hex 16)}"
+  ensure_conf_secret "$CONF_FILE" "REDIS_PASSWORD" "${JUDGE0_REDIS_PASSWORD:-}"
+  ensure_conf_secret "$CONF_FILE" "POSTGRES_PASSWORD" "${JUDGE0_POSTGRES_PASSWORD:-}"
 fi
 
 pushd "$INSTALL_DIR" >/dev/null
