@@ -832,7 +832,6 @@ function PlayGameRoom() {
                                     <Button
                                       size="compact-sm"
                                       variant="filled"
-                                      color="green"
                                       disabled={isSpectator || runningAllTests || isWaitingForOtherTeam}
                                       loading={runningAllTests}
                                       onClick={handleRunAllTests}
@@ -843,25 +842,6 @@ function PlayGameRoom() {
                                       Run All
                                     </Button>
                                   </Group>
-                                </Group>
-                                <Group gap="xs">
-                                  <NewParameterButton
-                                    onNewParameter={handleNewParameter}
-                                  />
-                                  <Button
-                                    size="compact-sm"
-                                    variant="filled"
-                                    disabled={isSpectator || runningAllTests}
-                                    loading={runningAllTests}
-                                    onClick={handleRunAllTests}
-                                    rightSection={
-                                      <IconPlayerTrackNextFilled
-                                        size="var(--mantine-font-size-lg)"
-                                      />
-                                    }
-                                  >
-                                    Run All
-                                  </Button>
                                 </Group>
 
                                 {(() => {
