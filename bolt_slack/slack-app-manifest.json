@@ -41,7 +41,7 @@
                 "should_escape": false
             },
             {
-                "command": "/summary",
+                "command": "/summarize-week",
                 "description": "This creates a summary of messages from the current week and past week",
                 "should_escape": false
             }

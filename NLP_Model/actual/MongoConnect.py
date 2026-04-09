@@ -109,13 +109,11 @@ class MongoConnect:
             if summary_day_utc is None:
                 continue
 
-            result = summaries_coll.replace_one(
-                {'summary_day_utc': summary_day_utc},
-                summary_doc,
-                upsert=True,
-            )
+            # Remove all older duplicates for the same day, then store only the newest summary.
+            summaries_coll.delete_many({'summary_day_utc': summary_day_utc})
+            result = summaries_coll.insert_one(summary_doc)
 
-            if result.upserted_id is not None or result.modified_count > 0:
+            if result.inserted_id is not None:
                 upserted_count += 1
 
         return upserted_count

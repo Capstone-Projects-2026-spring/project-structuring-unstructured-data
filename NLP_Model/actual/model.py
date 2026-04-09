@@ -5,8 +5,15 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import sys
+import json
 from datetime import datetime, timezone, timedelta
 # Type py -3.14 model.py to run
+
+MODEL_RESULT_PREFIX = '__MODEL_RESULT__'
+
+
+def emit_model_result(payload):
+    print(f"{MODEL_RESULT_PREFIX}{json.dumps(payload)}")
 
 
 def parse_args(argv):
@@ -160,6 +167,15 @@ if week_start_arg is not None:
     cproc_df = dp_inst.filter_by_week_start(proc_df, week_start_arg)
     if cproc_df.empty:
         print(f'No content found for channel "{dbName}" in requested weekStart {week_start_arg}.')
+        emit_model_result(
+            {
+                'saved_count': 0,
+                'summary_count': 0,
+                'week_start_utc': week_start_arg,
+                'database': dbName,
+                'status': 'no-content',
+            }
+        )
         sys.exit(0)
 else:
     resolved_week_num = resolve_week_num(dp_inst, proc_df, week_num)
@@ -184,8 +200,26 @@ day_chunks = dp_inst.chunk_text_by_day(cproc_df)
 if not day_chunks:
     if week_start_arg is not None:
         print(f'No content found for channel "{dbName}" in requested weekStart {week_start_arg}.')
+        emit_model_result(
+            {
+                'saved_count': 0,
+                'summary_count': 0,
+                'week_start_utc': week_start_arg,
+                'database': dbName,
+                'status': 'no-content',
+            }
+        )
     else:
         print(f'No content found for channel "{dbName}" in week {resolved_week_num}.')
+        emit_model_result(
+            {
+                'saved_count': 0,
+                'summary_count': 0,
+                'requested_week': resolved_week_num,
+                'database': dbName,
+                'status': 'no-content',
+            }
+        )
     sys.exit(0)
 
 summary_docs = build_day_summary_docs(dbName, cproc_df, day_chunks, sum_inst, dp_inst)
@@ -197,6 +231,16 @@ for doc in summary_docs:
 # Daily summaries are saved into the selected channel database under the `summaries` collection.
 saved_count = inst.upsert_day_summaries(dbName, summary_docs)
 print(f"\nSaved {saved_count} day summaries to '{dbName}.summaries'.")
+emit_model_result(
+    {
+        'saved_count': saved_count,
+        'summary_count': len(summary_docs),
+        'week_start_utc': summary_docs[0].get('week_start_utc') if summary_docs else week_start_arg,
+        'requested_week': resolved_week_num,
+        'database': dbName,
+        'status': 'ok',
+    }
+)
 
 
 

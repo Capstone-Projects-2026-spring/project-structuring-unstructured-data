@@ -103,8 +103,6 @@ router.get('/api/summaries/:databaseKey', async (req, res) => {
     const { weekStart } = req.query;
     console.log(`[GET /api/summaries/:databaseKey] Received request for databaseKey: ${databaseKey}`);
 
-    // runModel(dbName);
-
     const client = mongoose.connection.client;
 
     // List all databases to find one with the exact requested name.
@@ -198,6 +196,8 @@ router.post('/api/summaries/:databaseKey', async (req, res) => {
       message: 'Summary processing completed successfully',
       requestedWeek: parsedWeek.value,
       requestedWeekStart: resolvedWeekStart,
+      savedCount: modelResult.savedCount,
+      modelMetadata: modelResult.modelResult,
       modelResults: modelResult.results,
     });
   } catch (err) {

@@ -479,8 +479,8 @@ app.command('/channel-info', async ({ command, ack, respond }) => {
   }
 });
 
-// summary - Create channel summary
-app.command('/summary', async ({ command, ack, respond, client }) => {
+// summarize-week - Send channel summary for most recent week into channel
+app.command('/summarize-week', async ({ command, ack, respond, client }) => {
     await ack();
 
     try {
@@ -495,36 +495,47 @@ app.command('/summary', async ({ command, ack, respond, client }) => {
 
         await respond({
             response_type: 'ephemeral',
-            text: 'Fetching summaries...'
+            text: 'Structuring summaries... (this may take up to a minute)'
         });
 
-        // Fetch all summaries from the API
-        const response = await apiClient.get(`/api/summaries/${databaseKey}`); // Assuming this returns all summaries for the channel
-        const allSummaries = response.data;
+        // Use a command-specific timeout because Gemini summary generation can exceed default API timeout.
+        const response = await apiClient.post(
+          `/api/summaries/${databaseKey}`,
+          null,
+          { timeout: 120000 }
+        );
+        const savedCount = response.data?.savedCount || 0;
+        const weekStart = response.data?.weekStart || 'N/A';
 
-        if (allSummaries && allSummaries.summaries && allSummaries.summaries.length > 0) {
-            const summaryText = allSummaries.summaries.map((summary, idx) => 
-                `${idx + 1}. ${summary.text || '(no text)'} _created at ${new Date(summary.createdAt).toLocaleString()}_`
-            ).join('\n');
+        if (savedCount > 0) {
             await respond({
                 response_type: 'in_channel',
-                text: `📝 *Channel Summaries*:\n\n${summaryText}\n\n_Use \`/store-messages\` to update summaries with new messages.`
-            });
+            text: `✅ Created ${savedCount} summaries for *${channel_name}*!`
+              });
         } else {
             await respond({
-                response_type: 'ephemeral',
-                text: `No summaries found in database for channel *${channel_name}*. Use \`/store-messages\` first.`
-            });
+                response_type: 'in_channel',
+                text: `⚠️ No summaries were created for *${channel_name}*.`
+              });
         }
-        const messages = await fetchMessagesFromAPI(databaseKey);
+        
         return {
             success: true,
             dbName: databaseKey,
-            message: `Model executed successfully for ${databaseKey}`,
-            results: messages
+            message: `Model executed successfully for ${databaseKey}, summaries created for week starting ${weekStart}`,
+            results: response.data?.modelResults || []
         };
+
     } catch(err) {
-        console.error('Error in /summary command:', err);
+        if (err.code === 'ECONNABORTED') {
+          await respond({
+            response_type: 'ephemeral',
+            text: '⏳ Summary generation is still running and exceeded the request wait time. Please check the Home dashboard or re-run /summarize-week shortly.'
+          });
+          return;
+        }
+
+        console.error('Error in /summarize-week command:', err);
         await respond({
             response_type: 'ephemeral',
             text: `Error fetching summaries: ${err.message}`

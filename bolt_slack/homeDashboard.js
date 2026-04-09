@@ -370,10 +370,6 @@ function buildSummaryDetailsMarkdown(summary) {
   return [
     {
       type: 'mrkdwn',
-      text: `*Summary Date*\n${summaryDate}`
-    },
-    {
-      type: 'mrkdwn',
       text: `*Week Range*\n${weekInfo.label}`
     },
     {
