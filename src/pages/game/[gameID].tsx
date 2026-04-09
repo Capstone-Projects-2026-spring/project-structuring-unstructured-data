@@ -777,16 +777,16 @@ function PlayGameRoom() {
                       />
 
                       {/* Bottom Section: Test Cases / Console */}
-                      <Panel defaultSize={25} minSize={20}>
-                        <Box
-                          style={{
-                            height: '100%',
-                            display: "flex",
-                            flexDirection: "column",
-                            minHeight: 0,
-                          }}
-                        >
-                          {effectiveRole === Role.TESTER && (
+                      {effectiveRole === Role.TESTER && (
+                        <Panel defaultSize={25} minSize={20}>
+                          <Box
+                            style={{
+                              height: '100%',
+                              display: "flex",
+                              flexDirection: "column",
+                              minHeight: 0,
+                            }}
+                          >
                             <Box p="xs" style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
                               <Stack style={{ minHeight: 0, flex: 1 }}>
                                 <Group justify="space-between">
@@ -861,9 +861,9 @@ function PlayGameRoom() {
                                 })()}
                               </Stack>
                             </Box>
-                          )}
-                        </Box>
-                      </Panel>
+                          </Box>
+                        </Panel>
+                      )}
                     </PanelGroup>
                   </Box>
                 </Box>
