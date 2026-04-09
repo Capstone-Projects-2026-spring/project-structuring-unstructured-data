@@ -62,13 +62,20 @@ function parseDashboardState(rawValue) {
 }
 
 function getSelectedOptionValueFromViewState(viewState, actionId) {
-  const values = viewState && viewState.values ? Object.values(viewState.values) : [];
+  const valueGroups = viewState && viewState.values ? Object.values(viewState.values) : [];
 
-  for (const valueGroup of values) {
+  for (const valueGroup of valueGroups) {
     if (!valueGroup || typeof valueGroup !== 'object') {
       continue;
     }
 
+    // In Slack Home view state, action_id is usually the key in valueGroup.
+    const keyedState = valueGroup[actionId];
+    if (keyedState && keyedState.selected_option && keyedState.selected_option.value) {
+      return keyedState.selected_option.value;
+    }
+
+    // Fallback for payload variations that include action_id on state objects.
     for (const actionState of Object.values(valueGroup)) {
       if (!actionState || actionState.type !== 'static_select' || actionState.action_id !== actionId) {
         continue;
@@ -612,6 +619,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
     const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
       ? body.actions[0].selected_option.value
       : '';
+    const selectedWeekRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
 
     publishHomeTab({
       client,
@@ -619,7 +627,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       logger,
       apiClient,
       selectedChannelName,
-      selectedWeek: null
+      selectedWeek: selectedWeekRaw || null
     })
       .catch((error) => {
         logger.error('Error handling Home channel selection:', error);
