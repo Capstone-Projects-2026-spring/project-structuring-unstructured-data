@@ -1,3 +1,4 @@
+const path = require('path');
 const mongoose = require('mongoose');
 const { PythonShell } = require('python-shell');
 
@@ -36,15 +37,28 @@ async function runModel(dbName, runOptions = {}) {
         args.push(`--week=${runOptions.week}`);
     }
 
-    const pythonOptions = {
-        pythonPath: 'py',
-        pythonOptions: ['-3.14','-u'],
-        scriptPath: '../NLP_Model/actual',
+    const isWindows = process.platform === 'win32';
+    const configuredPythonPath = process.env.PYTHON_PATH || process.env.PYTHON || '';
+    const pythonPath = configuredPythonPath || (isWindows ? 'py' : 'python3');
+    const pythonOptions = ['-u'];
+
+    // Windows can use the Python launcher (py) with a version selector.
+    // Non-Windows environments (e.g., Render Linux) should invoke python directly.
+    if (isWindows && pythonPath === 'py') {
+        pythonOptions.unshift(process.env.PYTHON_WINDOWS_SELECTOR || '-3');
+    }
+
+    const scriptPath = path.resolve(__dirname, '../NLP_Model/actual');
+
+    const pythonShellOptions = {
+        pythonPath,
+        pythonOptions,
+        scriptPath,
         args
     };
 
     try {
-        const messages = await PythonShell.run('model.py', pythonOptions);
+        const messages = await PythonShell.run('model.py', pythonShellOptions);
         const modelResult = parseModelResult(messages);
         // messages is an array of messages collected during execution
         console.log(`[runModel] Successfully executed model for database: ${dbName}`);
