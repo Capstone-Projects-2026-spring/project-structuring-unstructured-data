@@ -1,5 +1,6 @@
 const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
+const mongoose = require('mongoose');
 const config = require('./config');
 const autoSavedMessages = new Map();
 const userAutoSavePreference = new Map();
@@ -1118,9 +1119,15 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
             try {
               const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
               
-              // Ensure we have a mongoose connection
-              if (!mongoose.connection.readyState) {
-                console.warn('[OAuth] ⚠️  MongoDB not connected yet, token may not persist');
+              // Check if MongoDB is connected
+              const readyState = mongoose.connection.readyState;
+              console.log('[OAuth] MongoDB connection state:', readyState, '(0=disconnected, 1=connected, 2=connecting, 3=disconnecting)');
+              
+              if (readyState !== 1) {
+                console.error('[OAuth] ❌ MongoDB is not connected. Current state:', readyState);
+                console.error('[OAuth] MONGODB_USER:', process.env.MONGODB_USER ? 'SET' : 'NOT SET');
+                console.error('[OAuth] MONGODB_PASSWORD:', process.env.MONGODB_PASSWORD ? 'SET' : 'NOT SET');
+                throw new Error(`MongoDB not connected (state: ${readyState}). Check environment variables MONGODB_USER and MONGODB_PASSWORD on Render.`);
               }
               
               const savedToken = await WorkspaceToken.findOneAndUpdate(
@@ -1142,6 +1149,7 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
               });
             } catch (dbError) {
               console.error('[OAuth] ❌ CRITICAL: Failed to save token to database:', dbError.message);
+              console.error('[OAuth] Error details:', dbError);
               // Don't continue - we need to save the token for multi-workspace support
               return res.status(500).send(`
                 <html>
@@ -1149,7 +1157,13 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
                   <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
                     <h1>❌ Authorization Failed</h1>
                     <p>The app received your authorization, but failed to save it.</p>
-                    <p>Error: Failed to connect to database</p>
+                    <p><strong>Error: ${dbError.message}</strong></p>
+                    <p><strong>Troubleshooting:</strong></p>
+                    <ul style="text-align: left; display: inline-block;">
+                      <li>Check that MONGODB_USER and MONGODB_PASSWORD are set in Render environment variables</li>
+                      <li>Verify MongoDB Atlas is accessible from Render's IP</li>
+                      <li>Check that the IP whitelist includes Render's dynamic IPs (or allow 0.0.0.0/0)</li>
+                    </ul>
                     <p>Please try again or contact support.</p>
                   </body>
                 </html>
