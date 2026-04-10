@@ -542,7 +542,7 @@ app.command('/summarize-week', async ({ command, ack, respond, client }) => {
 
         // Use a command-specific timeout because Gemini summary generation can exceed default API timeout.
         const response = await apiClient.post(
-          `/api/summaries/${databaseKey}`,
+          `/api/summaries/${encodeURIComponent(databaseKey)}`,
           null,
           { timeout: 120000 }
         );
@@ -577,10 +577,15 @@ app.command('/summarize-week', async ({ command, ack, respond, client }) => {
           return;
         }
 
-        console.error('Error in /summarize-week command:', err);
+        console.error('Error in /summarize-week command:', {
+          message: err.message,
+          code: err.code,
+          status: err.response?.status,
+          data: err.response?.data
+        });
         await respond({
             response_type: 'ephemeral',
-            text: `Error fetching summaries: ${err.message}`
+          text: `Error fetching summaries: ${err.response?.status ? `${err.response.status} - ` : ''}${err.message}`
         });
     }
 });
