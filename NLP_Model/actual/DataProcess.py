@@ -1,4 +1,4 @@
-from datetime import datetime as dt
+from datetime import datetime as dt, timezone, timedelta
 from calendar import day_name
 from Summarizer import Summarizer
 
@@ -134,6 +134,33 @@ class DataProcess:
         df = df[df['week_of'] == week_num]
 
         return df
+
+    def filter_by_week_start(self, df, week_start_arg):
+        if df.empty or not week_start_arg:
+            return df.iloc[0:0]
+
+        if not pd.api.types.is_datetime64_any_dtype(df['ts']):
+            df = self._normalize_ts(df.copy())
+
+        normalized = str(week_start_arg).replace('Z', '+00:00')
+        try:
+            parsed = dt.fromisoformat(normalized)
+        except ValueError:
+            return df.iloc[0:0]
+
+        parsed_utc = parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        days_since_sunday = (parsed_utc.weekday() + 1) % 7
+        week_start = (parsed_utc - timedelta(days=days_since_sunday)).replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        week_end = week_start + timedelta(days=7)
+
+        ts_utc = pd.to_datetime(df['ts'], utc=True, errors='coerce')
+        mask = (ts_utc >= pd.Timestamp(week_start)) & (ts_utc < pd.Timestamp(week_end))
+        return df[mask.fillna(False)]
     
     def create_user_summary(self,df,user,coll):
 

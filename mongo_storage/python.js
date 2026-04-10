@@ -1,21 +1,74 @@
 const mongoose = require('mongoose');
 const { PythonShell } = require('python-shell');
 
+const MODEL_RESULT_PREFIX = '__MODEL_RESULT__';
 
-async function runModel(dbName) {
-    let options = {
-    pythonPath: 'py',
-    pythonOptions: ['-3.14','-u'],
-    scriptPath: '../NLP_Model/actual',
-    args: [dbName]
+function parseModelResult(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return null;
+    }
+
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const line = messages[i];
+        if (typeof line !== 'string' || !line.startsWith(MODEL_RESULT_PREFIX)) {
+            continue;
+        }
+
+        const payload = line.slice(MODEL_RESULT_PREFIX.length);
+        try {
+            return JSON.parse(payload);
+        } catch (parseErr) {
+            console.warn('[runModel] Failed to parse structured model result:', parseErr.message);
+            return null;
+        }
+    }
+
+    return null;
+}
+
+
+async function runModel(dbName, runOptions = {}) {
+    const args = [dbName];
+
+    if (runOptions.weekStart) {
+        args.push(`--week-start=${runOptions.weekStart}`);
+    } else if (Number.isInteger(runOptions.week)) {
+        args.push(`--week=${runOptions.week}`);
+    }
+
+    const pythonOptions = {
+        pythonPath: 'py',
+        pythonOptions: ['-3.14','-u'],
+        scriptPath: '../NLP_Model/actual',
+        args
     };
 
-    PythonShell.run('model.py', options).then(messages => {
-    // messages is an array of messages collected during execution
-    console.log('results: %j', messages);
-    }).catch(err => {
-      console.error(err);
-    });
+    try {
+        const messages = await PythonShell.run('model.py', pythonOptions);
+        const modelResult = parseModelResult(messages);
+        // messages is an array of messages collected during execution
+        console.log(`[runModel] Successfully executed model for database: ${dbName}`);
+        console.log(`[runModel] Results: %j`, messages);
+        
+        return {
+            success: true,
+            dbName: dbName,
+            message: `Model execution completed successfully for ${dbName}`,
+            results: messages,
+            modelResult,
+            savedCount: modelResult && Number.isInteger(modelResult.saved_count)
+                ? modelResult.saved_count
+                : null,
+        };
+    } catch (err) {
+        console.error(`[runModel] Error executing model for database ${dbName}:`, err);
+        return {
+            success: false,
+            dbName: dbName,
+            message: `Model execution failed for ${dbName}`,
+            error: err.message
+        };
+    }
 }
 
 async function postSummaries(channel_id, channel_name) {

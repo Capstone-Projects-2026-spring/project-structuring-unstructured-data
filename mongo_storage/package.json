@@ -13,8 +13,8 @@
   },
   "scripts": {
     "test": "jest",
-    "test:unit": "jest messages.route.test.js",
-    "test:integration": "jest messages.integration.test.js",
+    "test:unit": "jest --testPathPatterns=routes/__tests__/.*\\.route\\.test\\.js",
+    "test:integration": "jest --testPathPatterns=routes/__tests__/.*\\.integration\\.test\\.js",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "db:setup": "node scripts/setup-local-db.js",

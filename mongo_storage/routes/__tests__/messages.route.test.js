@@ -125,6 +125,33 @@ describe('GET /api/messages/:collectionName - Unit Tests', () => {
     expect(res.body[0]).toHaveProperty('metadata');
     expect(res.body[0].metadata).toEqual({ foo: 'bar' });
   });
+
+  test('should return limited newest-first messages when limit query is provided', async () => {
+    const mockMessages = [
+      { user: 'user2', type: 'message', text: 'Newest', ts: '2024-01-02' },
+      { user: 'user1', type: 'message', text: 'Older', ts: '2024-01-01' }
+    ];
+
+    const mockLimit = jest.fn().mockResolvedValue(mockMessages);
+    const mockSort = jest.fn().mockReturnValue({ limit: mockLimit });
+    const mockCountDocuments = jest.fn().mockResolvedValue(2);
+    const mockFind = jest.fn().mockReturnValue({ sort: mockSort, limit: mockLimit });
+
+    getMessageModel.mockReturnValue({
+      find: mockFind,
+      countDocuments: mockCountDocuments
+    });
+
+    const res = await request(app).get('/api/messages/testCollection?limit=2');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-total-count']).toBe('2');
+    expect(res.body).toHaveLength(2);
+    expect(mockFind).toHaveBeenCalledTimes(1);
+    expect(mockSort).toHaveBeenCalledWith({ ts: -1 });
+    expect(mockLimit).toHaveBeenCalledWith(2);
+    expect(mockCountDocuments).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('POST /api/messages/:channelName - Unit Tests',() => {
@@ -169,5 +196,32 @@ describe('POST /api/messages/:channelName - Unit Tests',() => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(errorMessage);
+  });
+
+  test('should return 200 when message is deleted successfully', async () => {
+    const channelName = 'test-channel';
+    const ts = '1234567890.123456';
+    const mockDeleteOne = jest.fn().mockResolvedValue({ deletedCount: 1 });
+    getMessageModel.mockReturnValue({ deleteOne: mockDeleteOne });
+
+    const response = await request(app).delete(`/api/messages/${channelName}/${ts}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ message: 'Message deleted successfully' });
+    expect(getMessageModel).toHaveBeenCalledWith(channelName);
+    expect(mockDeleteOne).toHaveBeenCalledWith({ ts });
+  });
+
+  test('should return 404 when message to delete is not found', async () => {
+    const channelName = 'test-channel';
+    const ts = '1234567890.123456';
+    const mockDeleteOne = jest.fn().mockResolvedValue({ deletedCount: 0 });
+    getMessageModel.mockReturnValue({ deleteOne: mockDeleteOne });
+
+    const response = await request(app).delete(`/api/messages/${channelName}/${ts}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'Message not found' });
+    expect(mockDeleteOne).toHaveBeenCalledWith({ ts });
   });
 });

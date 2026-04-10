@@ -1,114 +1,107 @@
-const path = require('path');
 const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
-
-// Load env from repo root so CI/local share the same config
-require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+ 
+jest.mock('../../models/Message', () => ({
+  getMessageModel: jest.fn()
+}));
 
 const messagesRouter = require('../messages');
 const { getMessageModel } = require('../../models/Message');
 
 /**
  * Integration Tests for GET/POST /api/messages/:channelName
- * 
- * PREREQUISITES:
- * - MongoDB Atlas connection configured in .env file
- * - IP address whitelisted in Atlas settings
- * - Atlas user must be allowed to create/drop test databases
- * 
- * These tests connect to a real MongoDB instance and verify end-to-end functionality.
- * Run these tests separately from unit tests when you have database connectivity.
+ *
+ * These tests exercise the full router stack via HTTP while mocking Message model
+ * operations with an in-memory channel store.
  */
 
 describe('Messages API - Integration Tests', () => {
   let app;
-  let isConnected = false;
+  const channelStore = new Map();
+  const modelCache = new Map();
   const TEST_CHANNEL_PREFIX = 'it_';
-  const usedChannelNames = new Set();
   let sequence = 0;
-  const DB_USER = process.env.MONGODB_USER;
-  const DB_PASSWORD = process.env.MONGODB_PASSWORD;
-  const uri = `mongodb+srv://${encodeURIComponent(DB_USER || '')}:${encodeURIComponent(DB_PASSWORD || '')}@suds-cluster.poxtvnp.mongodb.net/?appName=SUDs-Cluster`;
+
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+
+  const getChannelDocs = (channelName) => {
+    if (!channelStore.has(channelName)) {
+      channelStore.set(channelName, []);
+    }
+    return channelStore.get(channelName);
+  };
+
+  const findMatchingDoc = (docs, query = {}) => docs.find((doc) => (
+    Object.entries(query).every(([key, expectedValue]) => doc[key] === expectedValue)
+  ));
+
+  const createMessageModel = (channelName) => {
+    const docs = getChannelDocs(channelName);
+
+    class MockMessageModel {
+      constructor(payload) {
+        this.payload = clone(payload);
+      }
+
+      async save() {
+        docs.push(clone(this.payload));
+        return clone(this.payload);
+      }
+
+      static async insertMany(payload) {
+        const normalizedPayload = payload.map((item) => clone(item));
+        docs.push(...normalizedPayload);
+        return normalizedPayload;
+      }
+
+      static async find() {
+        return clone(docs);
+      }
+
+      static async countDocuments() {
+        return docs.length;
+      }
+
+      static async findOne(query) {
+        const matched = findMatchingDoc(docs, query);
+        return matched ? clone(matched) : null;
+      }
+    }
+
+    return MockMessageModel;
+  };
+
+  const getOrCreateMessageModel = (channelName) => {
+    if (!modelCache.has(channelName)) {
+      modelCache.set(channelName, createMessageModel(channelName));
+    }
+    return modelCache.get(channelName);
+  };
 
   const createChannelName = (suffix) => {
     sequence += 1;
     const compactTime = Date.now().toString(36).slice(-6);
     const compactSeq = sequence.toString(36);
     const compactSuffix = String(suffix || 'x').replace(/[^a-z0-9]/gi, '').slice(0, 6).toLowerCase() || 'x';
-    const channelName = `${TEST_CHANNEL_PREFIX}${compactSuffix}_${compactTime}${compactSeq}`;
-    usedChannelNames.add(channelName);
-    return channelName;
+    return `${TEST_CHANNEL_PREFIX}${compactSuffix}_${compactTime}${compactSeq}`;
   };
 
-  const cleanupChannelDb = async (channelName) => {
-    try {
-      const dbName = getMessageModel(channelName).db.name;
-      await mongoose.connection.client.db(dbName).dropDatabase();
-    } catch (err) {
-      // NamespaceNotFound/no DB yet is expected for channels that were never written.
-      if (!/ns not found|not found/i.test(String(err && err.message))) {
-        throw err;
-      }
-    }
-  };
-
-  beforeAll(async () => {
-    // Skip tests if no database credentials
-    if (!DB_USER || !DB_PASSWORD) {
-      console.warn('⚠ Skipping integration tests: MongoDB credentials not found in .env');
-      return;
-    }
-
-    try {
-      await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 10000,
-      });
-      isConnected = true;
-    } catch (err) {
-      console.warn('⚠ Skipping integration tests: unable to connect to MongoDB:', err.message);
-      return;
-    }
-
-    // Setup Express app with router
+  beforeAll(() => {
     app = express();
     app.use(express.json());
     app.use(messagesRouter);
-  }, 30000); // 30 second timeout for connection
-
-  afterAll(async () => {
-    if (mongoose.connection.readyState === 1) {
-      for (const channelName of usedChannelNames) {
-        // Best-effort cleanup in case a test exits early.
-        // eslint-disable-next-line no-await-in-loop
-        await cleanupChannelDb(channelName);
-      }
-    }
-
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.connection.close();
-    }
+    getMessageModel.mockImplementation((channelName) => getOrCreateMessageModel(channelName));
   });
 
-  beforeEach(async () => {
-    if (mongoose.connection.readyState !== 1) {
-      return;
-    }
-
-    for (const channelName of usedChannelNames) {
-      // eslint-disable-next-line no-await-in-loop
-      await cleanupChannelDb(channelName);
-    }
-
-    usedChannelNames.clear();
+  beforeEach(() => {
+    channelStore.clear();
+    modelCache.clear();
+    getMessageModel.mockClear();
+    getMessageModel.mockImplementation((channelName) => getOrCreateMessageModel(channelName));
   });
 
   describe('GET /api/messages/:channelName', () => {
     test('should return seeded documents from channel database', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('seeded_docs');
       const testMessages = [
         { user: 'alice', type: 'message', text: 'Hello from integration test', ts: '1001.000001' },
@@ -128,10 +121,6 @@ describe('Messages API - Integration Tests', () => {
     });
 
     test('should return empty array for new channel database', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('empty_channel');
       const res = await request(app).get(`/api/messages/${encodeURIComponent(channelName)}`);
 
@@ -140,10 +129,6 @@ describe('Messages API - Integration Tests', () => {
     });
 
     test('should return documents with extra fields beyond schema', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('extra_fields');
       const testMessages = [
         {
@@ -169,10 +154,6 @@ describe('Messages API - Integration Tests', () => {
     });
 
     test('should handle documents missing schema fields', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('missing_fields');
       const testMessages = [
         { user: 'dave', type: 'message' },
@@ -191,10 +172,6 @@ describe('Messages API - Integration Tests', () => {
     });
 
     test('should handle large result sets', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('large_collection');
       const largeDataset = Array.from({ length: 100 }, (_, i) => ({
         user: `user${i}`,
@@ -213,12 +190,7 @@ describe('Messages API - Integration Tests', () => {
     });
 
     test('should support special characters in channel name via sanitization', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = `it msg/26#${Date.now().toString(36).slice(-4)}`;
-      usedChannelNames.add(channelName);
       const testMessages = [
         { user: 'frank', type: 'message', text: 'Special channel', ts: '1004.000001' }
       ];
@@ -236,10 +208,6 @@ describe('Messages API - Integration Tests', () => {
 
   describe('POST /api/messages/:channelName', () => {
     test('should insert array payload and persist to channel database', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('post_array');
       const payload = [
         { user: 'amy', type: 'message', text: 'Bulk one', ts: '3001.000001' },
@@ -252,7 +220,9 @@ describe('Messages API - Integration Tests', () => {
 
       expect(postRes.status).toBe(200);
       expect(postRes.body).toMatchObject({
-        message: `Messages from channel ${channelName} inserted into the database successfully.`
+        message: `Messages from channel ${channelName} inserted into the database successfully.`,
+        insertedCount: 2,
+        skippedCount: 0
       });
 
       const getRes = await request(app).get(`/api/messages/${encodeURIComponent(channelName)}`);
@@ -263,10 +233,6 @@ describe('Messages API - Integration Tests', () => {
     });
 
     test('should insert one message and then report duplicate by ts', async () => {
-      if (!isConnected) {
-        return;
-      }
-
       const channelName = createChannelName('post_single_duplicate');
       const payload = { user: 'zoe', type: 'message', text: 'Hello once', ts: '4001.000001' };
 
