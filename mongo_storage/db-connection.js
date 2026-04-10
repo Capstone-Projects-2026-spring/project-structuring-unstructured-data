@@ -11,8 +11,22 @@ try {
   mongoose = require('../bolt_slack/node_modules/mongoose');
 }
 const path = require('path');
+let dotenv;
+try {
+  dotenv = require('dotenv');
+} catch (_error) {
+  try {
+    // Render may install dependencies only under bolt_slack in this monorepo.
+    dotenv = require('../bolt_slack/node_modules/dotenv');
+  } catch (_innerError) {
+    dotenv = null;
+    console.warn('[DB] dotenv not found; relying on runtime environment variables only.');
+  }
+}
 
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+if (dotenv) {
+  dotenv.config({ path: path.resolve(__dirname, '../.env') });
+}
 
 const DB_USER = process.env.MONGODB_USER;
 const DB_PASSWORD = process.env.MONGODB_PASSWORD;
