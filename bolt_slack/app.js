@@ -1,6 +1,10 @@
 const { App, ExpressReceiver } = require('@slack/bolt');
 const axios = require('axios');
-const mongoose = require('mongoose');
+const {
+  connectToDatabase,
+  isConnectedToDatabase,
+  mongoose: dbMongoose
+} = require('../mongo_storage/db-connection');
 const config = require('./config');
 const autoSavedMessages = new Map();
 const userAutoSavePreference = new Map();
@@ -1017,7 +1021,6 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
     // Connect to MongoDB for multi-workspace token storage
     console.log('🔗 Connecting to MongoDB for workspace token storage...');
     try {
-      const { connectToDatabase } = require('../mongo_storage/db-connection');
       await connectToDatabase();
       console.log('✅ MongoDB connection established');
     } catch (dbError) {
@@ -1120,8 +1123,16 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
               const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
               
               // Check if MongoDB is connected
-              const readyState = mongoose.connection.readyState;
+              let readyState = dbMongoose.connection.readyState;
               console.log('[OAuth] MongoDB connection state:', readyState, '(0=disconnected, 1=connected, 2=connecting, 3=disconnecting)');
+
+              // Attempt a reconnect on demand (handles cold starts/restarts)
+              if (!isConnectedToDatabase()) {
+                console.log('[OAuth] MongoDB not connected, attempting reconnect...');
+                await connectToDatabase();
+                readyState = dbMongoose.connection.readyState;
+                console.log('[OAuth] MongoDB connection state after reconnect attempt:', readyState);
+              }
               
               if (readyState !== 1) {
                 console.error('[OAuth] ❌ MongoDB is not connected. Current state:', readyState);
