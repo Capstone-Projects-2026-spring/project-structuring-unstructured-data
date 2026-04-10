@@ -94,6 +94,17 @@ async function getWorkspaceToken(teamId) {
   return config.slackBotToken;
 }
 
+async function authorizeWorkspace({ teamId }) {
+  const botToken = await getWorkspaceToken(teamId);
+
+  if (!botToken) {
+    throw new Error(`No bot token available for team ${teamId || 'unknown'}`);
+  }
+
+  // Returning botToken lets Bolt create a workspace-scoped client for this request.
+  return { botToken };
+}
+
 // Shared API client for Mongo storage
 const apiClient = axios.create({
   baseURL: config.apiBaseUrl,
@@ -183,7 +194,7 @@ if (!config.socketMode) {
   
   // Create Slack app with the receiver
   app = new App({
-    token: config.slackBotToken,
+    authorize: authorizeWorkspace,
     signingSecret: config.slackSigningSecret,
     socketMode: false,
     receiver: receiver,
@@ -192,7 +203,7 @@ if (!config.socketMode) {
 } else {
   // Socket Mode: No receiver needed, uses WebSocket
   app = new App({
-    token: config.slackBotToken,
+    authorize: authorizeWorkspace,
     signingSecret: config.slackSigningSecret,
     socketMode: true,
     appToken: config.slackAppToken,
@@ -208,11 +219,11 @@ const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
 // ====================
 
 // Fetch select number of messages via conversations.history
-async function getConversationHistory(channelId, limit = 100) {
+async function getConversationHistory(channelId, limit = 100, client = app.client) {
   try {
     console.log(`🚀 Attempting to pull messages from: ${channelId}`);
     
-    const result = await app.client.conversations.history({
+    const result = await client.conversations.history({
       channel: channelId,
       limit: limit
     });
@@ -226,11 +237,11 @@ async function getConversationHistory(channelId, limit = 100) {
 }
 
 // Fetch select number of messages via conversations.history, ONLY collecting messages posted AFTER the last call
-async function getRecentConversationHistory(channelId, lastTimestamp) {
+async function getRecentConversationHistory(channelId, lastTimestamp, client = app.client) {
   try {
     console.log(`🚀 Attempting to pull messages from: ${channelId} since ${lastTimestamp}`);
     
-    const result = await app.client.conversations.history({
+    const result = await client.conversations.history({
       channel: channelId,
       oldest: lastTimestamp,
       // limit = 1000 per call
@@ -244,9 +255,9 @@ async function getRecentConversationHistory(channelId, lastTimestamp) {
 }
 
 // Fetch info about channel via conversations.info
-async function getConversationInfo(channelId) {
+async function getConversationInfo(channelId, client = app.client) {
   try {  
-    const result = await app.client.conversations.info({
+    const result = await client.conversations.info({
       channel: channelId,
       include_num_members: true
     });
@@ -286,10 +297,10 @@ async function fetchMembersFromAPI(collectionName) {
 // ====================
 
 // Listen for when the bot is added to a channel
-app.event('member_joined_channel', async ({ event, client, logger }) => {
+app.event('member_joined_channel', async ({ event, client, logger, context }) => {
   try {
     // Check if the bot was added
-    if (event.user === BOT_USER_ID) {
+  if (event.user === context?.botUserId || event.user === BOT_USER_ID) {
       await client.chat.postMessage({
         channel: event.channel,
         text: `👋 Hello! I'm your Slack API bot. I can help you manage and store messages from this channel.\n\n*🎯 Interactive Message Storage:*\nWhenever someone posts a message, I'll reply with a question:\n💾 "Would you like to save this message to the database?"\n\nSimply click:\n• "✅ Yes, Save" to store it\n• "❌ No, Skip" to ignore it\n\n*📋 Available Commands:*\n• \`/messages\` - View messages stored in database\n• \`/store-messages\` - Store ALL channel messages at once\n• \`/channel-info\` - Get channel information\n• \`@bot help\` - Show detailed help`
@@ -426,7 +437,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
   await ack();
   
   try {
-    const channelInfo = await getConversationInfo(command.channel_id);
+  const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
     
     // Try to fetch from API first
@@ -468,7 +479,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
       }
     } catch (error) {
       // If API fails, fetch directly from Slack
-      const messages = await getConversationHistory(command.channel_id, 5);
+  const messages = await getConversationHistory(command.channel_id, 5, client);
       const messageText = messages.map((msg, idx) => 
         `${idx + 1}. ${msg.text || '(no text)'}`
       ).join('\n');
@@ -488,11 +499,11 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
 });
 
 // /store-messages - Store messages to database
-app.command('/store-messages', async ({ command, ack, respond }) => {
+app.command('/store-messages', async ({ command, ack, respond, client }) => {
   await ack();
   
   try {
-    const channelInfo = await getConversationInfo(command.channel_id);
+  const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
     
     await respond({
@@ -500,7 +511,7 @@ app.command('/store-messages', async ({ command, ack, respond }) => {
       text: `⏳ Storing messages from *${channelName}*...`
     });
     
-    await insertMessageModels(channelName);
+  await insertMessageModels(channelName, { client });
     
     await respond({
       response_type: 'in_channel',
@@ -516,17 +527,17 @@ app.command('/store-messages', async ({ command, ack, respond }) => {
 });
 
 // /store-members - Store channel members data to database
-app.command('/store-members', async ({ command, ack, respond }) => {
+app.command('/store-members', async ({ command, ack, respond, client }) => {
   await ack();
   try {
-    const channelInfo = await getConversationInfo(command.channel_id);
+  const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
 
     await respond({
       response_type: 'ephemeral',
       text: `⏳ Storing member data from *${channelName}*...`
     });
-    await insertUserModels(channelName);
+  await insertUserModels(channelName, { client });
 
     await respond({
       response_type: 'in_channel',
@@ -542,11 +553,11 @@ app.command('/store-members', async ({ command, ack, respond }) => {
 });
 
 // /channel-info - Get channel information
-app.command('/channel-info', async ({ command, ack, respond }) => {
+app.command('/channel-info', async ({ command, ack, respond, client }) => {
   await ack();
   
   try {
-    const channelInfo = await getConversationInfo(command.channel_id);
+  const channelInfo = await getConversationInfo(command.channel_id, client);
     
     await respond({
       response_type: 'in_channel',
@@ -631,10 +642,10 @@ app.command('/summarize-week', async ({ command, ack, respond, client }) => {
 });
 
 // /members-info - Get information about all members in the channel
-app.command('/members-info', async ({ command, ack, respond }) => {
+app.command('/members-info', async ({ command, ack, respond, client }) => {
   await ack();
   try {
-    const channelInfo = await getConversationInfo(command.channel_id);
+  const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
     const collectionName = await buildChannelKey(channelName);
 
@@ -771,11 +782,11 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
 // ====================
 
 // Listen for messages in channels (not from bots)
-app.message(async ({ message, client, logger }) => {
+app.message(async ({ message, client, logger, context }) => {
   try {
     if (!message.user) return;
     if (message.subtype === 'bot_message' || message.bot_id) return;
-    if (BOT_USER_ID && message.user === BOT_USER_ID) return;
+  if ((context?.botUserId && message.user === context.botUserId) || (BOT_USER_ID && message.user === BOT_USER_ID)) return;
 
     // Handle DMs to the bot
     if (message.channel_type === 'im') {

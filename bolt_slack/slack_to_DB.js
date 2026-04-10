@@ -14,19 +14,20 @@ function isSlackChannelId(value) {
 
 
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
-async function getConversationHistory(channelName) {
+async function getConversationHistory(channelName, options = {}) {
   try {
     if (!channelName) {
       throw new Error('channelName is required to fetch conversation history');
     }
 
-    const channelId = await channelNameToID(channelName.trim());
+  const channelId = await channelNameToID(channelName.trim(), options.client);
     console.log(`Searching for messages at channel id: ${channelId}.`);
     if (!channelId) {
       throw new Error(`Channel ID not found for channel name: ${channelName}`);
     }
     
-    const result = await app.client.conversations.history({
+    const slackClient = options.client || app.client;
+    const result = await slackClient.conversations.history({
       channel: channelId,
       // limit = 1000 per call
     });
@@ -49,15 +50,15 @@ async function getConversationHistory(channelName) {
 }
 
 // Inserts message model data to the database via API
-async function insertMessageModels(channelName) {
+async function insertMessageModels(channelName, options = {}) {
     try {
         if (!channelName) {
           throw new Error('channelName is required to insert messages');
         }
 
-        const channelId = await channelNameToID(channelName);
+  const channelId = await channelNameToID(channelName, options.client);
         const channelKey = buildChannelKey(channelName, channelId);
-        const history = await getConversationHistory(channelName);
+  const history = await getConversationHistory(channelName, { client: options.client });
         console.log(`History: ${history.length}.`);
         if (!history || history.length === 0) {
           return;
@@ -109,22 +110,24 @@ async function insertSingleMessageToDB(channelName, messageData, options = {}) {
 }
 
 // Retrieves list of member ids from a specified channel
-async function getMembersData(channelId) {
+async function getMembersData(channelId, options = {}) {
   try {
-    const resolvedChannelId = await channelNameToID(channelId);
+    const resolvedChannelId = await channelNameToID(channelId, options.client);
     console.log(`Searching for messages at channel id: ${resolvedChannelId}.`);
     if (!resolvedChannelId) {
       throw new Error(`Channel ID not found for channel name: ${channelId}`);
     }
 
-    const membersResult = await app.client.conversations.members({
+    const slackClient = options.client || app.client;
+
+    const membersResult = await slackClient.conversations.members({
       channel: resolvedChannelId,
     });
 
     const fullMemberData = [];
 
     for (const memberId of membersResult.members) {
-      const userInfoResult = await app.client.users.info({
+      const userInfoResult = await slackClient.users.info({
         user: memberId,
       });
       fullMemberData.push(userInfoResult.user);
@@ -139,9 +142,9 @@ async function getMembersData(channelId) {
 }
 
 // Inserts message model data to the database via API
-async function insertUserModels(channelName) {
+async function insertUserModels(channelName, options = {}) {
     try {
-        const members = await getMembersData(channelName);
+    const members = await getMembersData(channelName, { client: options.client });
         if (!members || members.length === 0) {
           return;
         }
@@ -152,7 +155,7 @@ async function insertUserModels(channelName) {
           member_id: member.id
         }));
 
-        const channelId = await channelNameToID(channelName);
+  const channelId = await channelNameToID(channelName, options.client);
         const channelKey = buildChannelKey(channelName, channelId);
 
         const response = await apiClient.post(`/api/users/${encodeURIComponent(channelKey)}`, transformedMembers);
