@@ -26,6 +26,46 @@ const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildCha
 
 // Token management for multi-workspace support
 const tokenCache = new Map(); // Cache tokens by team_id
+const channelLabelCache = new Map(); // Cache channel_id -> resolved label (name or fallback id)
+
+async function safePostEphemeral(client, payload, logger, contextLabel = 'ephemeral message') {
+  try {
+    return await client.chat.postEphemeral(payload);
+  } catch (error) {
+    const slackError = error?.data?.error;
+    if (slackError === 'channel_not_found' || slackError === 'not_in_channel') {
+      logger.warn(`[${contextLabel}] Skipped: ${slackError} for channel ${payload.channel}`);
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function resolveChannelLabel(client, channelId, logger, contextLabel = 'channel') {
+  if (!channelId) {
+    return channelId;
+  }
+
+  const cached = channelLabelCache.get(channelId);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const channelInfo = await client.conversations.info({ channel: channelId });
+    const resolvedName = channelInfo?.channel?.name || channelId;
+    channelLabelCache.set(channelId, resolvedName);
+    return resolvedName;
+  } catch (error) {
+    const slackError = error?.data?.error;
+    if (slackError === 'channel_not_found' || slackError === 'not_in_channel') {
+      logger.warn(`[${contextLabel}] Could not resolve channel metadata (${slackError}) for ${channelId}; using channel ID fallback for API key.`);
+      channelLabelCache.set(channelId, channelId);
+      return channelId;
+    }
+    throw error;
+  }
+}
 
 async function getWorkspaceToken(teamId) {
   // Check cache first
@@ -760,7 +800,7 @@ app.message(async ({ message, client, logger }) => {
       // Check if user has turned off autosave
       if (userAutoSavePreference.get(message.user) === false) {
         // Still offer a manual save button if they have autosave off
-        await client.chat.postEphemeral({
+        await safePostEphemeral(client, {
           channel: message.channel,
           user: message.user,
           text: '💾 Auto-save is off. Want to save this message?',
@@ -792,21 +832,13 @@ app.message(async ({ message, client, logger }) => {
               ]
             }
           ]
-        });
+        }, logger, 'autosave-off prompt');
         return;
       }
 
       // AUTO-SAVE: immediately save the message to the database
       try {
-        let channelName;
-        try {
-          const channelInfo = await client.conversations.info({ channel: message.channel });
-          channelName = channelInfo.channel.name;
-        } catch (channelError) {
-          logger.error(`Failed to get channel info for ${message.channel}:`, channelError.message);
-          // Try alternative: use the channel ID directly if we can't get the name
-          channelName = message.channel;
-        }
+        const channelName = await resolveChannelLabel(client, message.channel, logger, 'autosave');
 
         const messageToStore = {
           user: message.user,
@@ -835,7 +867,7 @@ app.message(async ({ message, client, logger }) => {
 
         // Notify user privately with unsave option
         const expiresAt = new Date(Date.now() + 1800000).toLocaleTimeString();
-        await client.chat.postEphemeral({
+        await safePostEphemeral(client, {
           channel: message.channel,
           user: message.user,
           text: `✅ Your message was auto-saved. You can unsave it until ${expiresAt}.`,
@@ -861,15 +893,15 @@ app.message(async ({ message, client, logger }) => {
               ]
             }
           ]
-        });
+        }, logger, 'autosave success notice');
 
       } catch (saveError) {
         logger.error('Auto-save failed:', saveError);
-        await client.chat.postEphemeral({
+        await safePostEphemeral(client, {
           channel: message.channel,
           user: message.user,
           text: `⚠️ Auto-save failed for your message: ${saveError.message}`
-        });
+        }, logger, 'autosave failure notice');
       }
     }
   } catch (error) {
@@ -944,13 +976,7 @@ app.action('manual_save_message', async ({ ack, body, client, logger, respond })
     }
 
     let channelName = channel;
-    try {
-      const channelInfo = await client.conversations.info({ channel });
-      channelName = channelInfo.channel.name || channel;
-    } catch (channelError) {
-      logger.error(`Failed to get channel info for manual save ${channel}:`, channelError.message);
-      channelName = channel;
-    }
+    channelName = await resolveChannelLabel(client, channel, logger, 'manual-save');
 
     // We need to fetch the message text from Slack since we didn't store it
     const history = await client.conversations.history({
