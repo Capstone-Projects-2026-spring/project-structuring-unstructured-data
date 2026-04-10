@@ -19,6 +19,36 @@ console.log('DEBUG ENV:', {
 
 const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildChannelKey, userIDToName } = require('./slack_to_DB');
 
+// Token management for multi-workspace support
+const tokenCache = new Map(); // Cache tokens by team_id
+
+async function getWorkspaceToken(teamId) {
+  // Check cache first
+  if (tokenCache.has(teamId)) {
+    return tokenCache.get(teamId);
+  }
+  
+  // Fall back to environment variable for the default workspace
+  if (teamId === process.env.SLACK_TEAM_ID || !teamId) {
+    return config.slackBotToken;
+  }
+  
+  // Try to fetch from database
+  try {
+    const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
+    const record = await WorkspaceToken.findOne({ team_id: teamId });
+    if (record) {
+      tokenCache.set(teamId, record.access_token);
+      return record.access_token;
+    }
+  } catch (error) {
+    console.error(`Failed to fetch token for team ${teamId}:`, error.message);
+  }
+  
+  // Return default token as fallback
+  return config.slackBotToken;
+}
+
 // Shared API client for Mongo storage
 const apiClient = axios.create({
   baseURL: config.apiBaseUrl,
@@ -755,8 +785,15 @@ app.message(async ({ message, client, logger }) => {
 
       // AUTO-SAVE: immediately save the message to the database
       try {
-        const channelInfo = await client.conversations.info({ channel: message.channel });
-        const channelName = channelInfo.channel.name;
+        let channelName;
+        try {
+          const channelInfo = await client.conversations.info({ channel: message.channel });
+          channelName = channelInfo.channel.name;
+        } catch (channelError) {
+          logger.error(`Failed to get channel info for ${message.channel}:`, channelError.message);
+          // Try alternative: use the channel ID directly if we can't get the name
+          channelName = message.channel;
+        }
 
         const messageToStore = {
           user: message.user,
@@ -1050,7 +1087,27 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
           console.log('[OAuth] Response data:', { team_id: response.data.team_id, team_name: response.data.team_name });
           
           // Store the token or workspace info
-          const { access_token, team_id, team_name, incoming_webhook } = response.data;
+          const { access_token, team_id, team_name, bot_user_id, incoming_webhook } = response.data;
+          
+          // Save token to database for multi-workspace support
+          try {
+            const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
+            await WorkspaceToken.findOneAndUpdate(
+              { team_id },
+              {
+                team_id,
+                team_name,
+                access_token,
+                bot_user_id,
+                last_used: new Date()
+              },
+              { upsert: true, new: true }
+            );
+            console.log('[OAuth] ✅ Token saved to database for team:', team_id);
+          } catch (dbError) {
+            console.error('[OAuth] Warning: Failed to save token to database:', dbError.message);
+            // Continue anyway - the token is still valid for this session
+          }
           
           // Success response
           res.status(200).send(`
@@ -1060,7 +1117,7 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
                 <h1>✅ Success!</h1>
                 <p>You have successfully authorized the Slack app.</p>
                 <p>Team: <strong>${team_name || 'Your Workspace'}</strong> (ID: ${team_id})</p>
-                <p>You can close this window and the bot is now ready to use in your workspace.</p>
+                <p>The bot is now ready to use in your workspace!</p>
               </body>
             </html>
           `);

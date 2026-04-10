@@ -65,7 +65,8 @@
                 "reactions:read",
                 "users:read",
                 "groups:read",
-                "mpim:read"
+                "mpim:read",
+                "metadata:read"
             ]
         },
         "pkce_enabled": false
