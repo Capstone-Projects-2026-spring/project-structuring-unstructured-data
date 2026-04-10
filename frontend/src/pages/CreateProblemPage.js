@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { AVAILABLE_LANGUAGES } from '../constants';
 import { createProblem } from '../api';
 
@@ -603,7 +603,7 @@ function CreateProblemPage({ onBack }) {
     console.log(JSON.stringify(problemData.testCases, null, 2));
 
     try {
-      const result = await createProblem(problemData, localStorage.getItem('token'));
+      const result = await createProblem(problemData, localStorage.getItem('teacher_token'));
       setAccessCode(result.access_code);
       setSubmitted(true);
     } catch (err) {

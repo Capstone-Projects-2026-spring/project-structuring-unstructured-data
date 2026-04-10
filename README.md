@@ -70,10 +70,12 @@ Then edit `backend/.env`:
 | Variable | Description | Required |
 |---|---|---|
 | `OPENAI_API_KEY` | OpenAI API key for AI code suggestions | **Yes** |
-| `DATABASE_URL` | SQLite path — default: `sqlite:///./quiz.db` | No |
+| `DATABASE_URL` | PostgreSQL connection string for the backend database | **Yes** |
 | `DEBUG` | Set to `True` in development | No |
 | `SUPABASE_URL` | Your Supabase project URL | Only for OTP login |
 | `SUPABASE_SERVICE_KEY` | Your Supabase anon/service key | Only for OTP login |
+| `JUDGE0_URL` | Judge0 base URL, for example `http://localhost:2358` | For code execution |
+| `JUDGE0_AUTH_TOKEN` | Optional auth token for a protected Judge0 instance | No |
 
 **Start the server**
 
@@ -82,6 +84,69 @@ uvicorn main:app --reload
 ```
 
 The API runs at `http://localhost:8000`. The database is **created and seeded automatically** on first startup — no manual migration needed. A seed teacher (`seed@autoquiz.dev`) and a sample problem (access code `123456`) are added when the database is empty.
+
+### Self-Hosted Compiler With Docker
+
+The backend uses a local Judge0 CE instance for code execution. This keeps the existing `/code/execute` backend endpoint the same while moving compilation and execution onto your machine.
+
+Docker Desktop must already be installed and running before you start Judge0. The helper scripts manage the local Judge0 stack, but they do not install Docker for you.
+
+Start Judge0 locally:
+
+```bash
+./scripts/start_judge0.sh
+```
+
+Then set `JUDGE0_URL=http://localhost:2358` in `backend/.env` and start the backend normally.
+
+Stop Judge0 when you are done:
+
+```bash
+./scripts/stop_judge0.sh
+```
+
+If Judge0 starts successfully but code execution still fails, reset the local Judge0 volumes and start again:
+
+```bash
+./scripts/stop_judge0.sh
+cd .judge0/judge0-v1.13.1 && docker compose down -v
+cd ../..
+./scripts/start_judge0.sh
+```
+
+## Mac
+
+For macOS users setting up Judge0:
+You may need to change a Docker settings file if Docker and Judge0 are incompatible on your machine.
+
+To start, close docker and every instance of it currently running.
+
+You will need to locate the settings-store.json for docker in order to use the deprecatedCgroupv1.
+
+In Terminal:
+
+```bash
+open -a TextEdit "/Users/[Your Computer Name]/Library/Group Containers/group.com.docker/settings-store.json"
+```
+
+Then replace the file contents with:
+
+```json
+{
+  "AutoStart": false,
+  "DisplayedOnboarding": true,
+  "DockerAppLaunchPath": "/Applications/Docker.app",
+  "EnableDockerAI": true,
+  "LastContainerdSnapshotterEnable": 1773866500,
+  "LicenseTermsVersion": 2,
+  "SettingsVersion": 43,
+  "ShowInstallScreen": false,
+  "UseContainerdSnapshotter": true,
+  "deprecatedCgroupv1": true
+}
+```
+
+Reopen Docker, and the app should be able to reach Judge0.
 
 ---
 

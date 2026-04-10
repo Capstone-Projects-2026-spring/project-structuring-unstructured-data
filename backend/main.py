@@ -7,6 +7,7 @@ from routes_auth import router as auth_router
 from routes_ai import router as ai_router
 from routes_quiz import router as quiz_router
 from routes_problems import router as problems_router
+from routes_judge import router as code_router
 from routes_submissions import router as submissions_router
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app.include_router(auth_router)
 app.include_router(ai_router)
 app.include_router(quiz_router)
 app.include_router(problems_router)
+app.include_router(code_router)
 app.include_router(submissions_router)
 
 

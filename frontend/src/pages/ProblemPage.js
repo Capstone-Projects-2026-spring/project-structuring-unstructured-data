@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { LANGUAGE_MAP } from '../constants';
-import { startSubmission, saveDraft, submitCode } from '../api';
+import { LANGUAGE_MAP, AVAILABLE_LANGUAGES } from '../constants';
+import { executeCode, startSubmission, saveDraft, submitCode } from '../api';
 
 /**
  * @fileoverview Problem page component for the AutoSuggestion Quiz application.
@@ -9,7 +9,10 @@ import { startSubmission, saveDraft, submitCode } from '../api';
  */
 
 function ProblemPage({ problem, onBack, studentName }) {
-  const language = problem.language;
+  const availableLanguages = problem.languages || [problem.language];
+  const [selectedLanguage, setSelectedLanguage] = useState(availableLanguages[0] || 'python');
+
+  const language = selectedLanguage;
   const starterCode = (problem.sections || [])
     .sort((a, b) => a.order_index - b.order_index)
     .map((s) => {
@@ -202,7 +205,25 @@ function ProblemPage({ problem, onBack, studentName }) {
   }, []);
 
   useEffect(() => {
+    if (monacoRef.current && editorRef.current) {
+      registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[selectedLanguage]);
+    }
+  }, [selectedLanguage, registerCompletionProvider]);
+
+  useEffect(() => {
+    const newStarterCode = (problem.sections || [])
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((s) => {
+        const sectionCode = (typeof s.code === 'object' ? s.code[selectedLanguage] : s.code) || '';
+        return `# ${s.label}\n${sectionCode}`;
+      })
+      .join('\n');
+    setCode(newStarterCode);
+  }, [selectedLanguage, problem.sections]);
+
+  useEffect(() => {
     if (!studentName) return;
+
     startSubmission(problem.id, studentName)
       .then((result) => {
         setSessionId(result.session_id);
@@ -214,6 +235,7 @@ function ProblemPage({ problem, onBack, studentName }) {
       .catch((err) => {
         setSubmitError(err.message);
       });
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -299,20 +321,29 @@ function ProblemPage({ problem, onBack, studentName }) {
   }, []);
 
   const handleRunCode = async () => {
-    if (!pyodide) {
-      setOutput('Error: Python runtime not loaded yet. Please wait...\n');
-      return;
-    }
-
     if (language !== 'python') {
       setIsRunning(true);
       setActiveTab('output');
       setOutput('Running code...\n');
 
-      setTimeout(() => {
-        setOutput(`$ Running ${language} code...\n\nExecution complete.\n`);
+      try {
+        const result = await executeCode(code, language, '');
+        let outputText = result.output || '';
+        if (result.error) {
+          outputText += `${outputText ? '\n' : ''}Error: ${result.error}`;
+        }
+        setOutput(outputText || 'Code executed successfully (no output)\n');
+      } catch (error) {
+        const errorMessage = error?.message || String(error) || 'Unknown error';
+        setOutput(`Error executing ${language} code:\n${errorMessage}\n`);
+      } finally {
         setIsRunning(false);
-      }, 1500);
+      }
+      return;
+    }
+
+    if (!pyodide) {
+      setOutput('Error: Python runtime not loaded yet. Please wait...\n');
       return;
     }
 
@@ -364,7 +395,8 @@ _stderr = _stderr_buf.getvalue()
 
       setOutput(result || 'Code executed successfully (no output)\n');
     } catch (error) {
-      setOutput(`Error executing Python code:\n${error.message}\n`);
+      const errorMessage = error?.message || String(error) || 'Unknown error';
+      setOutput(`Error executing Python code:\n${errorMessage}\n`);
     } finally {
       setIsRunning(false);
     }
@@ -486,9 +518,17 @@ _stderr = _stderr_buf.getvalue()
         <div className="panel editor-panel">
           <div className="panel-header editor-header">
             <div className="language-selector">
-              <span className="lang-btn active">
-                {language.charAt(0).toUpperCase() + language.slice(1)}
-              </span>
+              <select
+                className="lang-select"
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+              >
+                {availableLanguages.map(lang => (
+                  <option key={lang} value={lang}>
+                    {AVAILABLE_LANGUAGES.find(l => l.key === lang)?.label || lang.charAt(0).toUpperCase() + lang.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="editor-actions">
