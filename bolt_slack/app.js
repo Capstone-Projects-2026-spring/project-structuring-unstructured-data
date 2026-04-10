@@ -1010,6 +1010,17 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
   const port = config.botPort;
 
   try {
+    // Connect to MongoDB for multi-workspace token storage
+    console.log('🔗 Connecting to MongoDB for workspace token storage...');
+    try {
+      const { connectToDatabase } = require('../mongo_storage/db-connection');
+      await connectToDatabase();
+      console.log('✅ MongoDB connection established');
+    } catch (dbError) {
+      console.error('⚠️  Warning: Could not connect to MongoDB:', dbError.message);
+      console.error('⚠️  Multi-workspace token storage will not work, but bot will continue with single workspace');
+    }
+
     if (config.socketMode) {
       // Socket Mode: WebSocket connection
       await app.start(port);
@@ -1084,29 +1095,75 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
           }
           
           console.log('[OAuth] ✅ Successfully exchanged code for token');
-          console.log('[OAuth] Response data:', { team_id: response.data.team_id, team_name: response.data.team_name });
           
-          // Store the token or workspace info
-          const { access_token, team_id, team_name, bot_user_id, incoming_webhook } = response.data;
+          // Extract workspace info from response
+          // Note: team_id/team_name might be nested or named differently
+          const accessToken = response.data.access_token;
+          const teamId = response.data.team?.id || response.data.team_id;
+          const teamName = response.data.team?.name || response.data.team_name;
+          const botUserId = response.data.bot_user_id;
           
-          // Save token to database for multi-workspace support
-          try {
-            const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
-            await WorkspaceToken.findOneAndUpdate(
-              { team_id },
-              {
-                team_id,
-                team_name,
-                access_token,
-                bot_user_id,
-                last_used: new Date()
-              },
-              { upsert: true, new: true }
-            );
-            console.log('[OAuth] ✅ Token saved to database for team:', team_id);
-          } catch (dbError) {
-            console.error('[OAuth] Warning: Failed to save token to database:', dbError.message);
-            // Continue anyway - the token is still valid for this session
+          console.log('[OAuth] Response data:', { 
+            teamId, 
+            teamName, 
+            botUserId, 
+            hasAccessToken: !!accessToken 
+          });
+          
+          // Save token to database for multi-workspace support (REQUIRED for multi-workspace)
+          if (teamId && accessToken) {
+            try {
+              const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
+              
+              // Ensure we have a mongoose connection
+              if (!mongoose.connection.readyState) {
+                console.warn('[OAuth] ⚠️  MongoDB not connected yet, token may not persist');
+              }
+              
+              const savedToken = await WorkspaceToken.findOneAndUpdate(
+                { team_id: teamId },
+                {
+                  team_id: teamId,
+                  team_name: teamName || 'Unknown Workspace',
+                  access_token: accessToken,
+                  bot_user_id: botUserId,
+                  last_used: new Date()
+                },
+                { upsert: true, new: true }
+              );
+              console.log('[OAuth] ✅ Token saved to database for team:', teamId);
+              console.log('[OAuth] Saved token record:', {
+                team_id: savedToken.team_id,
+                team_name: savedToken.team_name,
+                bot_user_id: savedToken.bot_user_id
+              });
+            } catch (dbError) {
+              console.error('[OAuth] ❌ CRITICAL: Failed to save token to database:', dbError.message);
+              // Don't continue - we need to save the token for multi-workspace support
+              return res.status(500).send(`
+                <html>
+                  <head><title>Authorization Error</title></head>
+                  <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1>❌ Authorization Failed</h1>
+                    <p>The app received your authorization, but failed to save it.</p>
+                    <p>Error: Failed to connect to database</p>
+                    <p>Please try again or contact support.</p>
+                  </body>
+                </html>
+              `);
+            }
+          } else {
+            console.warn('[OAuth] ❌ Missing teamId or accessToken - cannot proceed');
+            return res.status(400).send(`
+              <html>
+                <head><title>Authorization Error</title></head>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                  <h1>❌ Authorization Failed</h1>
+                  <p>Slack did not provide required workspace information.</p>
+                  <p>Please try again.</p>
+                </body>
+              </html>
+            `);
           }
           
           // Success response
@@ -1116,7 +1173,7 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
               <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
                 <h1>✅ Success!</h1>
                 <p>You have successfully authorized the Slack app.</p>
-                <p>Team: <strong>${team_name || 'Your Workspace'}</strong> (ID: ${team_id})</p>
+                <p>Team: <strong>${teamName || 'Your Workspace'}</strong> (ID: ${teamId || 'Unknown'})</p>
                 <p>The bot is now ready to use in your workspace!</p>
               </body>
             </html>
