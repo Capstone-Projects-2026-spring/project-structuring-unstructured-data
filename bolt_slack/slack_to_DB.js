@@ -8,6 +8,10 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
+function isSlackChannelId(value) {
+  return typeof value === 'string' && /^[CGD][A-Z0-9]+$/.test(value);
+}
+
 
 //Retrieves messages from a channel, filters for type, user, text, and timestamp, and returns cleaned messages
 async function getConversationHistory(channelName) {
@@ -68,18 +72,34 @@ async function insertMessageModels(channelName) {
 }
 
 // New function to insert a single message to the database via API
-async function insertSingleMessageToDB(channelName, messageData) {
+async function insertSingleMessageToDB(channelName, messageData, options = {}) {
     try {
-        if (!channelName) {
-          throw new Error('channelName is required to insert a message');
+        if (!channelName && !options.channelId) {
+          throw new Error('channelName or channelId is required to insert a message');
         }
 
         if (!messageData || typeof messageData !== 'object') {
           throw new Error('messageData must be a non-null object');
         }
 
-        const channelId = await channelNameToID(channelName);
-        const channelKey = buildChannelKey(channelName, channelId);
+        const providedChannelId = options.channelId;
+        let channelId = providedChannelId || (isSlackChannelId(channelName) ? channelName : null);
+        let resolvedChannelName = options.channelName || channelName;
+
+        if (!channelId && resolvedChannelName) {
+          channelId = await channelNameToID(resolvedChannelName, options.client);
+        }
+
+        if (!channelId) {
+          throw new Error(`Channel ID not found for channel reference: ${channelName}`);
+        }
+
+        // If channel name is unavailable (e.g. channel_not_found), use channel ID as a stable fallback label.
+        if (!resolvedChannelName || isSlackChannelId(resolvedChannelName)) {
+          resolvedChannelName = channelId;
+        }
+
+        const channelKey = buildChannelKey(resolvedChannelName, channelId);
         const response = await apiClient.post(`/api/messages/${encodeURIComponent(channelKey)}`, messageData);
         return response.data;
     } catch (error) {
@@ -144,10 +164,14 @@ async function insertUserModels(channelName) {
 }
 
 // Converts channel name to channel ID using conversations.list API method
-async function channelNameToID(channelName) {
+async function channelNameToID(channelName, client = app.client) {
     try {
-        const channelList = await app.client.conversations.list({
-            types: "public_channel"
+    if (isSlackChannelId(channelName)) {
+      return channelName;
+    }
+
+    const channelList = await client.conversations.list({
+      types: "public_channel,private_channel"
         });
     const channel = channelList?.channels?.find(c => c.name === channelName);
 

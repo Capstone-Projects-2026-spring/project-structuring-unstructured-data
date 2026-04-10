@@ -815,7 +815,7 @@ app.message(async ({ message, client, logger }) => {
           ts: message.ts
         };
 
-        await insertSingleMessageToDB(channelName, messageToStore);
+  await insertSingleMessageToDB(channelName, messageToStore, { channelId: message.channel });
 
         // Store in unsave window map for 30 minutes
         const key = `${message.channel}-${message.ts}`;
@@ -943,8 +943,14 @@ app.action('manual_save_message', async ({ ack, body, client, logger, respond })
       return;
     }
 
-    const channelInfo = await client.conversations.info({ channel });
-    const channelName = channelInfo.channel.name;
+    let channelName = channel;
+    try {
+      const channelInfo = await client.conversations.info({ channel });
+      channelName = channelInfo.channel.name || channel;
+    } catch (channelError) {
+      logger.error(`Failed to get channel info for manual save ${channel}:`, channelError.message);
+      channelName = channel;
+    }
 
     // We need to fetch the message text from Slack since we didn't store it
     const history = await client.conversations.history({
@@ -965,7 +971,7 @@ app.action('manual_save_message', async ({ ack, body, client, logger, respond })
       type: 'message',
       text: msg.text,
       ts: timestamp
-    });
+    }, { channelId: channel });
 
     await respond({
       text: '✅ *Message saved to database successfully!*',
