@@ -1,4 +1,10 @@
-const mongoose = require('mongoose');
+let mongoose;
+try {
+  mongoose = require('mongoose');
+} catch (_error) {
+  // Render may install dependencies only under bolt_slack in this monorepo.
+  mongoose = require('../../bolt_slack/node_modules/mongoose');
+}
 
 const workspaceTokenSchema = new mongoose.Schema({
   team_id: {

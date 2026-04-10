@@ -3,7 +3,13 @@
  * Used by both the API server and the Slack bot
  */
 
-const mongoose = require('mongoose');
+let mongoose;
+try {
+  mongoose = require('mongoose');
+} catch (_error) {
+  // Render may install dependencies only under bolt_slack in this monorepo.
+  mongoose = require('../bolt_slack/node_modules/mongoose');
+}
 const path = require('path');
 
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
