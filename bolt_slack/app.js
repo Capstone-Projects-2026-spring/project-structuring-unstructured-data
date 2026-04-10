@@ -75,11 +75,13 @@ function parseDashboardState(rawValue) {
 
   try {
     const parsed = JSON.parse(rawValue);
-    const parsedSelectedWeek = Number.parseInt(parsed.selectedWeek, 10);
+    const parsedSelectedWeek = typeof parsed.selectedWeek === 'string'
+      ? parsed.selectedWeek.trim()
+      : '';
 
     return {
       channelName: typeof parsed.channelName === 'string' ? parsed.channelName : '',
-      selectedWeek: Number.isFinite(parsedSelectedWeek) ? parsedSelectedWeek : null
+      selectedWeek: parsedSelectedWeek || null
     };
   } catch (_error) {
     return {
@@ -90,13 +92,20 @@ function parseDashboardState(rawValue) {
 }
 
 function getSelectedOptionValueFromViewState(viewState, actionId) {
-  const values = viewState && viewState.values ? Object.values(viewState.values) : [];
+  const valueGroups = viewState && viewState.values ? Object.values(viewState.values) : [];
 
-  for (const valueGroup of values) {
+  for (const valueGroup of valueGroups) {
     if (!valueGroup || typeof valueGroup !== 'object') {
       continue;
     }
 
+    // In Slack Home view state, action_id is usually the key in valueGroup.
+    const keyedState = valueGroup[actionId];
+    if (keyedState && keyedState.selected_option && keyedState.selected_option.value) {
+      return keyedState.selected_option.value;
+    }
+
+    // Fallback for payload variations that include action_id on state objects.
     for (const actionState of Object.values(valueGroup)) {
       if (!actionState || actionState.type !== 'static_select' || actionState.action_id !== actionId) {
         continue;
@@ -507,69 +516,63 @@ app.command('/channel-info', async ({ command, ack, respond }) => {
   }
 });
 
-// summary - Get channel summary
-app.command('/summary', async ({ command, ack, respond, client }) => {
+// summarize-week - Send channel summary for most recent week into channel
+app.command('/summarize-week', async ({ command, ack, respond, client }) => {
     await ack();
 
     try {
         const channel_id = command.channel_id;
         const channel_name = command.channel_name;
 
-        await respond({
-            response_type: 'ephemeral',
-            text: 'Fetching summaries...'
-        });
+        const databaseKey = await buildChannelKey(channel_name);
 
-        // Fetch all summaries from the API
-        const response = await apiClient.get('/api/summary/all');
-        const allSummaries = response.data;
-
-        const weeks = [
-            { suffix: 'cw', label: 'Current Week' },
-            { suffix: 'pw', label: 'Past Week' }
-        ];
-
-        for (const week of weeks) {
-            const db_name = `${channel_name}_S_${week.suffix}`;
-            const weekData = allSummaries[db_name];
-
-            if (!weekData || Object.keys(weekData).length === 0) {
-                await client.chat.postMessage({
-                    channel: channel_id,
-                    text: `No summaries found for *${week.label}* in *#${channel_name}*.`
-                });
-                continue;
-            }
-
-            // Post week header
-            await client.chat.postMessage({
-                channel: channel_id,
-                text: `*${week.label} Summaries for #${channel_name}*`
-            });
-
-            // Each key is a day
-            for (const day in weekData) {
-                const docs = weekData[day];
-                if (!docs || docs.length === 0) continue;
-
-                await client.chat.postMessage({
-                    channel: channel_id,
-                    text: `*${day}*`
-                });
-
-                for (const doc of docs) {
-                    if (!doc.sum_text || doc.sum_text === '()') continue;
-
-                    await client.chat.postMessage({
-                        channel: channel_id,
-                        text: `*User:* ${doc.user}\n*Summary:* ${doc.sum_text}`
-                    });
-                }
-            }
+        if (!databaseKey) {
+            throw new Error(`Failed to build database key for channel: ${channel_name}`);
         }
 
+        await respond({
+            response_type: 'ephemeral',
+            text: 'Structuring summaries... (this may take up to a minute)'
+        });
+
+        // Use a command-specific timeout because Gemini summary generation can exceed default API timeout.
+        const response = await apiClient.post(
+          `/api/summaries/${databaseKey}`,
+          null,
+          { timeout: 120000 }
+        );
+        const savedCount = response.data?.savedCount || 0;
+        const weekStart = response.data?.weekStart || 'N/A';
+
+        if (savedCount > 0) {
+            await respond({
+                response_type: 'in_channel',
+            text: `✅ Created ${savedCount} summaries for *${channel_name}*!`
+              });
+        } else {
+            await respond({
+                response_type: 'in_channel',
+                text: `⚠️ No summaries were created for *${channel_name}*.`
+              });
+        }
+        
+        return {
+            success: true,
+            dbName: databaseKey,
+            message: `Model executed successfully for ${databaseKey}, summaries created for week starting ${weekStart}`,
+            results: response.data?.modelResults || []
+        };
+
     } catch(err) {
-        console.error('Error in /summary command:', err);
+        if (err.code === 'ECONNABORTED') {
+          await respond({
+            response_type: 'ephemeral',
+            text: '⏳ Summary generation is still running and exceeded the request wait time. Please check the Home dashboard or re-run /summarize-week shortly.'
+          });
+          return;
+        }
+
+        console.error('Error in /summarize-week command:', err);
         await respond({
             response_type: 'ephemeral',
             text: `Error fetching summaries: ${err.message}`
@@ -646,6 +649,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
     const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
       ? body.actions[0].selected_option.value
       : '';
+    const selectedWeekRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
 
     publishHomeTab({
       client,
@@ -653,7 +657,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       logger,
       apiClient,
       selectedChannelName,
-      selectedWeek: null
+      selectedWeek: selectedWeekRaw || null
     })
       .catch((error) => {
         logger.error('Error handling Home channel selection:', error);
@@ -698,7 +702,6 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     ? body.actions[0].selected_option.value
     : '';
   const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
-  const selectedWeek = Number.parseInt(selectedWeekRaw, 10);
 
   publishHomeTab({
     client,
@@ -706,7 +709,7 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     logger,
     apiClient,
     selectedChannelName,
-    selectedWeek: Number.isFinite(selectedWeek) ? selectedWeek : null
+    selectedWeek: selectedWeekRaw || null
   })
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);
