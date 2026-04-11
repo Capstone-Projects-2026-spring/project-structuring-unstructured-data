@@ -176,6 +176,10 @@ function getSelectedOptionValueFromViewState(viewState, actionId) {
   return '';
 }
 
+function getWorkspaceIdFromPayload(payload) {
+  return payload?.team_id || payload?.team?.id || payload?.enterprise?.id || null;
+}
+
 // Initialize Express and Slack App based on mode
 let receiver;
 let expressApp;
@@ -233,24 +237,6 @@ async function getConversationHistory(channelId, limit = 100, client = app.clien
   } catch (error) {
     console.error("❌ Extraction Error:", error.data ? error.data.error : error.message);
     throw error;
-  }
-}
-
-// Fetch select number of messages via conversations.history, ONLY collecting messages posted AFTER the last call
-async function getRecentConversationHistory(channelId, lastTimestamp, client = app.client) {
-  try {
-    console.log(`🚀 Attempting to pull messages from: ${channelId} since ${lastTimestamp}`);
-    
-    const result = await client.conversations.history({
-      channel: channelId,
-      oldest: lastTimestamp,
-      // limit = 1000 per call
-    });
-
-    console.log(`✅ Success! Found ${result.messages.length} new messages.`);
-    console.log(JSON.stringify(result.messages, null, 2));
-  } catch (error) {
-    console.error("❌ Extraction Error:", error.data ? error.data.error : error.message);
   }
 }
 
@@ -344,6 +330,7 @@ app.event('app_mention', async ({ event, client, logger }) => {
 app.event('app_home_opened', async ({ event, client, logger }) => {
   console.log('🏠 [app_home_opened] Event triggered for user:', event.user);
   const userId = event.user;
+  const teamId = getWorkspaceIdFromPayload(event);
   
   // Publish a loading view immediately (within Slack's 3-second timeout)
   try {
@@ -384,6 +371,7 @@ app.event('app_home_opened', async ({ event, client, logger }) => {
       await publishHomeTab({
         client,
         userId,
+        teamId,
         logger,
         apiClient
       });
@@ -678,6 +666,7 @@ app.command('/members-info', async ({ command, ack, respond, client }) => {
 // /refresh-home - Refresh the Home dashboard for the current user
 app.command('/refresh-home', async ({ command, ack, respond, client, logger }) => {
   await ack();
+  const teamId = getWorkspaceIdFromPayload(command);
 
   // Send immediate response to avoid timeout
   // publishHomeTab() is slow due to paginated channel list and API calls
@@ -691,6 +680,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
   publishHomeTab({
     client,
     userId: command.user_id,
+    teamId,
     logger,
     apiClient
   })
@@ -705,6 +695,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
 // Home tab channel dropdown: republish with selected channel data.
 app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
+  const teamId = getWorkspaceIdFromPayload(body);
 
   try {
     const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
@@ -715,6 +706,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
     publishHomeTab({
       client,
       userId: body.user.id,
+      teamId,
       logger,
       apiClient,
       selectedChannelName,
@@ -731,6 +723,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
 // Home tab refresh button: republish the dashboard on click.
 app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
+  const teamId = getWorkspaceIdFromPayload(body);
 
   const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
@@ -745,6 +738,7 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   publishHomeTab({
     client,
     userId: body.user.id,
+    teamId,
     logger,
     apiClient,
     selectedChannelName,
@@ -758,6 +752,7 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
 // Home tab week dropdown: republish with selected week updates.
 app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
+  const teamId = getWorkspaceIdFromPayload(body);
 
   const selectedWeekRaw = body.actions && body.actions[0] && body.actions[0].selected_option
     ? body.actions[0].selected_option.value
@@ -767,6 +762,7 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
   publishHomeTab({
     client,
     userId: body.user.id,
+    teamId,
     logger,
     apiClient,
     selectedChannelName,

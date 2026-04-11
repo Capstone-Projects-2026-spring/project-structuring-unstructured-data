@@ -8,10 +8,11 @@ const MAX_SUMMARY_TEXT_LENGTH = 750;
 const CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000; // Increased from 5 to 30 minutes to reduce API calls
 const MAX_STATIC_SELECT_OPTIONS = 100;
 
-const channelCache = {
-  channels: null,
-  expiresAt: 0
-};
+const channelCacheByWorkspace = new Map();
+
+function getWorkspaceCacheKey(teamId) {
+  return typeof teamId === 'string' && teamId.trim() ? teamId.trim() : 'unknown-workspace';
+}
 
 function formatSummaryTimestamp(ts) {
   if (!ts) {
@@ -171,14 +172,14 @@ function buildWeekOptions(availableWeeks) {
     });
 
     return {
-    text: {
-      type: 'plain_text',
-      text: weekInfo.kind === 'week-start'
-        ? `${weekInfo.label}`
-        : weekInfo.label
-    },
-    value: weekKey
-  };
+      text: {
+        type: 'plain_text',
+        text: weekInfo.kind === 'week-start'
+          ? `${weekInfo.label}`
+          : weekInfo.label
+      },
+      value: weekKey
+    };
   });
 }
 
@@ -192,20 +193,30 @@ function buildChannelOptions(channels) {
   }));
 }
 
-function getCachedChannels() {
-  if (channelCache.channels && Date.now() < channelCache.expiresAt) {
-    return channelCache.channels;
+function getCachedChannels(teamId) {
+  const cacheKey = getWorkspaceCacheKey(teamId);
+  const cachedEntry = channelCacheByWorkspace.get(cacheKey);
+
+  if (cachedEntry && Date.now() < cachedEntry.expiresAt) {
+    return cachedEntry.channels;
   }
+
+  if (cachedEntry) {
+    channelCacheByWorkspace.delete(cacheKey);
+  }
+
   return null;
 }
 
-function setCachedChannels(channels) {
-  channelCache.channels = channels;
-  channelCache.expiresAt = Date.now() + CHANNEL_CACHE_TTL_MS;
+function setCachedChannels(teamId, channels) {
+  channelCacheByWorkspace.set(getWorkspaceCacheKey(teamId), {
+    channels,
+    expiresAt: Date.now() + CHANNEL_CACHE_TTL_MS
+  });
 }
 
-async function getBotChannels(client) {
-  const cachedChannels = getCachedChannels();
+async function getBotChannels(client, teamId) {
+  const cachedChannels = getCachedChannels(teamId);
   if (cachedChannels) {
     return cachedChannels;
   }
@@ -243,11 +254,11 @@ async function getBotChannels(client) {
   } while (cursor);
 
   channels.sort((a, b) => a.name.localeCompare(b.name));
-  setCachedChannels(channels);
+  setCachedChannels(teamId, channels);
   return channels;
 }
 
-async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }) {
+async function fetchWeeklySummariesForChannel({ apiClient, channelName, client, logger }) {
   if (!channelName) {
     if (logger) {
       logger.warn('[fetchWeeklySummariesForChannel] No channel name provided');
@@ -272,7 +283,7 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
       console.log(`[fetchWeeklySummariesForChannel] Starting for channel: ${channelName}`);
     }
 
-    const channelId = await channelNameToID(channelName);
+    const channelId = await channelNameToID(channelName, client);
     if (!channelId) {
       if (logger) {
         logger.warn(`[fetchWeeklySummariesForChannel] Channel ID not found for: ${channelName}`);
@@ -658,7 +669,7 @@ function buildSampleHomeView({
   return view;
 }
 
-async function publishHomeTab({ client, userId, logger, apiClient, selectedChannelName, selectedWeek = null }) {
+async function publishHomeTab({ client, userId, teamId, logger, apiClient, selectedChannelName, selectedWeek = null }) {
   try {
     if (logger) {
       logger.info(`[publishHomeTab] Starting for user ${userId}`);
@@ -666,7 +677,7 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       console.log(`[publishHomeTab] Starting for user ${userId}`);
     }
 
-    const channels = await getBotChannels(client);
+    const channels = await getBotChannels(client, teamId);
     const channelOptions = buildChannelOptions(channels);
 
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
@@ -688,6 +699,7 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
     } = await fetchWeeklySummariesForChannel({
       apiClient,
       channelName: resolvedChannelName,
+      client,
       logger
     });
 
