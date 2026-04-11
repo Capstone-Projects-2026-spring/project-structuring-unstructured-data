@@ -519,6 +519,7 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
 
 function buildSampleHomeView({
   userId,
+  workspaceName,
   channelOptions,
   selectedChannelName,
   selectedWeek,
@@ -546,7 +547,7 @@ function buildSampleHomeView({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `Welcome <@${userId}>! Here you can access and manage summaries and structured data for all the conversations in this workspace.`
+        text: `Welcome <@${userId}>! Here you can access and manage summaries and structured data for all the conversations in *${workspaceName || 'this workspace'}*.`
       }
     },
     {
@@ -669,7 +670,7 @@ function buildSampleHomeView({
   return view;
 }
 
-async function publishHomeTab({ client, userId, teamId, logger, apiClient, selectedChannelName, selectedWeek = null }) {
+async function publishHomeTab({ client, userId, teamId, workspaceName, logger, apiClient, selectedChannelName, selectedWeek = null }) {
   try {
     if (logger) {
       logger.info(`[publishHomeTab] Starting for user ${userId}`);
@@ -711,6 +712,7 @@ async function publishHomeTab({ client, userId, teamId, logger, apiClient, selec
 
     const viewPayload = buildSampleHomeView({
       userId,
+      workspaceName,
       channelOptions,
       selectedChannelName: resolvedChannelName,
       selectedWeek: availableWeeks.includes(selectedWeek) ? selectedWeek : availableWeeks[0],

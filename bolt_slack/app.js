@@ -180,6 +180,10 @@ function getWorkspaceIdFromPayload(payload) {
   return payload?.team_id || payload?.team?.id || payload?.enterprise?.id || null;
 }
 
+function getWorkspaceNameFromPayload(payload) {
+  return payload?.team?.name || payload?.team_name || payload?.team?.domain || payload?.team_domain || null;
+}
+
 // Initialize Express and Slack App based on mode
 let receiver;
 let expressApp;
@@ -327,10 +331,11 @@ app.event('app_mention', async ({ event, client, logger }) => {
 });
 
 // Publish Home tab when a user opens the app's Home.
-app.event('app_home_opened', async ({ event, client, logger }) => {
+app.event('app_home_opened', async ({ event, body, client, logger }) => {
   console.log('🏠 [app_home_opened] Event triggered for user:', event.user);
   const userId = event.user;
-  const teamId = getWorkspaceIdFromPayload(event);
+  const teamId = getWorkspaceIdFromPayload(body) || getWorkspaceIdFromPayload(event);
+  const workspaceName = getWorkspaceNameFromPayload(body) || getWorkspaceNameFromPayload(event);
   
   // Publish a loading view immediately (within Slack's 3-second timeout)
   try {
@@ -372,6 +377,7 @@ app.event('app_home_opened', async ({ event, client, logger }) => {
         client,
         userId,
         teamId,
+        workspaceName,
         logger,
         apiClient
       });
@@ -667,6 +673,7 @@ app.command('/members-info', async ({ command, ack, respond, client }) => {
 app.command('/refresh-home', async ({ command, ack, respond, client, logger }) => {
   await ack();
   const teamId = getWorkspaceIdFromPayload(command);
+  const workspaceName = getWorkspaceNameFromPayload(command);
 
   // Send immediate response to avoid timeout
   // publishHomeTab() is slow due to paginated channel list and API calls
@@ -681,6 +688,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
     client,
     userId: command.user_id,
     teamId,
+    workspaceName,
     logger,
     apiClient
   })
@@ -696,6 +704,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
 app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
   const teamId = getWorkspaceIdFromPayload(body);
+  const workspaceName = getWorkspaceNameFromPayload(body);
 
   try {
     const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
@@ -707,6 +716,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       client,
       userId: body.user.id,
       teamId,
+      workspaceName,
       logger,
       apiClient,
       selectedChannelName,
@@ -724,6 +734,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
 app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
   const teamId = getWorkspaceIdFromPayload(body);
+  const workspaceName = getWorkspaceNameFromPayload(body);
 
   const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
@@ -739,6 +750,7 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
     client,
     userId: body.user.id,
     teamId,
+    workspaceName,
     logger,
     apiClient,
     selectedChannelName,
@@ -753,6 +765,7 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
 app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
   const teamId = getWorkspaceIdFromPayload(body);
+  const workspaceName = getWorkspaceNameFromPayload(body);
 
   const selectedWeekRaw = body.actions && body.actions[0] && body.actions[0].selected_option
     ? body.actions[0].selected_option.value
@@ -763,6 +776,7 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     client,
     userId: body.user.id,
     teamId,
+    workspaceName,
     logger,
     apiClient,
     selectedChannelName,
