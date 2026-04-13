@@ -11,6 +11,7 @@ import {
   Stack,
   Text,
   Title,
+  Transition,
 } from "@mantine/core";
 import {
   IconAlertTriangleFilled,
@@ -68,6 +69,7 @@ type LaneConfig = {
 const PHASE_AUTOPLAY_DURATION_MS = 7000;
 const SWAP_ROLE_APPLY_DELAY_MS = 1300;
 const SWAP_OVERLAY_DURATION_MS = 2600;
+const SWAP_OVERLAY_FADE_MS = 320;
 const TYPEWRITER_SPEED_MS = 14;
 
 const PHASE_ORDER: PhaseId[] = ["active", "swap", "finish"];
@@ -145,8 +147,9 @@ export default function LiveDemoSection() {
   const [autoPlay, setAutoPlay] = useState(true);
   const [typedCode, setTypedCode] = useState("");
   const [swapOverlayVisible, setSwapOverlayVisible] = useState(false);
+  const [swapTypingLocked, setSwapTypingLocked] = useState(false);
   const [laneSwapApplied, setLaneSwapApplied] = useState(false);
-  const swapTimersRef = useRef<ReturnType<typeof setInterval>[]>([]);
+  const swapTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   const phase = DEMO_PHASES[activePhase];
   const phaseIndex = PHASE_ORDER.indexOf(activePhase);
@@ -164,6 +167,7 @@ export default function LiveDemoSection() {
     if (nextPhase === "swap") {
       setActivePhase("swap");
       setSwapOverlayVisible(true);
+      setSwapTypingLocked(true);
       setLaneSwapApplied(false);
 
       const applySwapTimer = setTimeout(() => {
@@ -174,11 +178,16 @@ export default function LiveDemoSection() {
         setSwapOverlayVisible(false);
       }, SWAP_OVERLAY_DURATION_MS);
 
-      swapTimersRef.current = [applySwapTimer, hideOverlayTimer];
+      const unlockTypingTimer = setTimeout(() => {
+        setSwapTypingLocked(false);
+      }, SWAP_OVERLAY_DURATION_MS + SWAP_OVERLAY_FADE_MS);
+
+      swapTimersRef.current = [applySwapTimer, hideOverlayTimer, unlockTypingTimer];
       return;
     }
 
     setSwapOverlayVisible(false);
+    setSwapTypingLocked(false);
     if (nextPhase === "active") {
       setLaneSwapApplied(false);
     }
@@ -206,7 +215,7 @@ export default function LiveDemoSection() {
   }, [clearSwapTimers]);
 
   useEffect(() => {
-    if (activePhase === "swap" && swapOverlayVisible) {
+    if (activePhase === "swap" && (swapOverlayVisible || swapTypingLocked)) {
       return;
     }
 
@@ -241,7 +250,7 @@ export default function LiveDemoSection() {
       clearTimeout(clearTypedCode);
       clearInterval(typewriter);
     };
-  }, [activePhase, phase.code, swapOverlayVisible]);
+  }, [activePhase, phase.code, swapOverlayVisible, swapTypingLocked]);
 
   const isTypingCode = typedCode.length < phase.code.length;
 
@@ -274,28 +283,34 @@ export default function LiveDemoSection() {
         p="md"
         className={`${classes.workspacePane} ${classes.editorPane} ${lane.isMirror ? classes.mirrorPane : ""}`}
       >
-        {swapOverlayVisible && (
-          <>
-            <Overlay
-              // className={classes.roleSwapOverlay}
-              backgroundOpacity={0.5}
-              blur={2}
-              zIndex={4}
-            />
-            <Box className={classes.roleSwapLabel}>
-              <Badge
-                variant="filled"
-                color="orange"
-                leftSection={<IconRefresh size={12} />}
-              >
-                Swapping Roles
-              </Badge>
-              <Text size="xs" fw={700} c="white">
-                {laneSwapApplied ? "Lane reassigned" : "Reassigning editor lanes..."}
-              </Text>
+        <Transition
+          mounted={swapOverlayVisible}
+          transition="fade"
+          duration={SWAP_OVERLAY_FADE_MS}
+          timingFunction="ease"
+        >
+          {(transitionStyles) => (
+            <Box style={transitionStyles}>
+              <Overlay
+                className={classes.roleSwapOverlay}
+                backgroundOpacity={0.5}
+                blur={2}
+              />
+              <Box className={classes.roleSwapLabel}>
+                <Badge
+                  variant="filled"
+                  color="orange"
+                  leftSection={<IconRefresh size={12} />}
+                >
+                  Swapping Roles
+                </Badge>
+                <Text size="xs" fw={700} c="white">
+                  {laneSwapApplied ? "Lane reassigned" : "Reassigning editor lanes..."}
+                </Text>
+              </Box>
             </Box>
-          </>
-        )}
+          )}
+        </Transition>
 
         <Group justify="space-between" mb="xs">
           <Group gap={6}>
