@@ -55,21 +55,6 @@
   );
 }
 
-.instantCard {
-  animation: fadeInUp 250ms ease-out 0.15s both;
-  background: light-dark(
-    rgba(255, 255, 255, 0.95),
-    rgba(26, 27, 30, 0.95)
-  );
-  backdrop-filter: blur(10px);
-  position: relative;
-  z-index: 1;
-  border-color: light-dark(
-    var(--mantine-color-gray-3),
-    var(--mantine-color-dark-4)
-  );
-}
-
 .segmentedControl {
   background: light-dark(
     var(--mantine-color-gray-0),

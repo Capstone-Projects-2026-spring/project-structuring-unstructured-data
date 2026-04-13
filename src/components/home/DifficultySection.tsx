@@ -1,4 +1,4 @@
-import { Title, Text, Stack, Button, Group, Box, Badge, Card } from "@mantine/core";
+import { Text, Stack, Button, Group, Box, Badge, Card, Flex } from "@mantine/core";
 import { IconUsers, IconUser } from "@tabler/icons-react";
 import { useRouter } from "next/router";
 import { authClient } from "@/lib/auth-client";
@@ -71,7 +71,7 @@ export default function DifficultySection() {
     posthog?.capture("room_creation_started", { difficulty, gameType });
 
     const result = await createRoom(difficulty, gameType);
-    
+
     if (result.success && result.gameId) {
       router.push(`/game/${result.gameId}`);
     } else {
@@ -84,88 +84,82 @@ export default function DifficultySection() {
   };
 
   return (
-    <Stack
-      component="section"
-      aria-labelledby="difficulty-section-title"
-      gap="xl"
-    >
-      <Stack gap="md">
-        {difficulties.map((diff) => (
-          <Card
-            key={diff.level}
-            padding="xl"
-            radius="md"
-            className={classes.difficultyCard}
-            withBorder
-          >
-            <Group justify="space-between" wrap="wrap" align="flex-start">
-              <Box style={{ flex: 1 }}>
-                <Group gap="xs" mb="xs">
-                  <Badge
-                    color={diff.color}
-                    variant="light"
-                    size="lg"
-                    radius="sm"
-                  >
-                    {diff.title}
-                  </Badge>
-                  <Text size="sm" c="dimmed">
-                    {diff.estimatedTime}
-                  </Text>
-                </Group>
-
-                <Text fw={600} size="lg" mb={4}>
-                  {diff.subtitle}
-                </Text>
-
-                <Text c="dimmed" size="sm" mb="md">
-                  {diff.description}
-                </Text>
-
-                <Group gap="xs">
-                  {diff.topics.map((topic, idx) => (
-                    <Badge
-                      key={idx}
-                      variant="dot"
-                      color="gray"
-                      size="sm"
-                    >
-                      {topic}
-                    </Badge>
-                  ))}
-                </Group>
-              </Box>
-
-              <Group gap="xs" wrap="wrap">
-                <Button
-                  size="md"
+    <Stack gap="md">
+      {difficulties.map((diff) => (
+        <Card
+          key={diff.level}
+          padding="xl"
+          radius="md"
+          className={classes.mainCard}
+          withBorder
+        >
+          <Group justify="space-between">
+            <Box style={{ flex: 1 }}>
+              <Group gap="xs" mb="xs">
+                <Badge
                   color={diff.color}
-                  leftSection={<IconUser size={18} />}
-                  onClick={() => handleCreateRoom(diff.level, GameType.TWOPLAYER)}
-                  loading={isLoading}
-                  data-testid={`co-op-create-room-button-${diff.level.toLowerCase()}`}
-                  className={classes.actionButton}
+                  variant="light"
+                  size="lg"
+                  radius="sm"
                 >
-                  Co-Op
-                </Button>
-
-                <Button
-                  size="md"
-                  color={diff.color}
-                  variant="outline"
-                  leftSection={<IconUsers size={18} />}
-                  onClick={() => handleCreateRoom(diff.level, GameType.FOURPLAYER)}
-                  loading={isLoading}
-                  data-testid={`2v2-create-room-button-${diff.level.toLowerCase()}`}
-                  className={classes.actionButton}
-                >
-                  2v2
-                </Button>
+                  {diff.title}
+                </Badge>
+                <Text size="sm" c="dimmed">
+                  {diff.estimatedTime}
+                </Text>
               </Group>
+
+              <Text fw={600} size="lg" mb={4}>
+                {diff.subtitle}
+              </Text>
+
+              <Text c="dimmed" size="sm" mb="md">
+                {diff.description}
+              </Text>
+
+              <Group gap="xs">
+                {diff.topics.map((topic, idx) => (
+                  <Badge
+                    key={idx}
+                    variant="dot"
+                    color="gray"
+                    size="sm"
+                  >
+                    {topic}
+                  </Badge>
+                ))}
+              </Group>
+            </Box>
+
+            <Group gap="xs">
+              <Button
+                size="md"
+                color={diff.color}
+                leftSection={<IconUser size={18} />}
+                onClick={() => handleCreateRoom(diff.level, GameType.TWOPLAYER)}
+                loading={isLoading}
+                data-testid={`co-op-create-room-button-${diff.level.toLowerCase()}`}
+                className={classes.actionButton}
+              >
+                Co-Op
+              </Button>
+
+              <Button
+                size="md"
+                color={diff.color}
+                variant="outline"
+                leftSection={<IconUsers size={18} />}
+                onClick={() => handleCreateRoom(diff.level, GameType.FOURPLAYER)}
+                loading={isLoading}
+                data-testid={`2v2-create-room-button-${diff.level.toLowerCase()}`}
+                className={classes.actionButton}
+              >
+                2v2
+              </Button>
             </Group>
-          </Card>
-        ))}
-      </Stack>
+          </Group>
+        </Card>
+      ))}
     </Stack>
   );
 }

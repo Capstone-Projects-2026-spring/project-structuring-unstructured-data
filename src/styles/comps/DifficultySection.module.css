@@ -1,43 +1,20 @@
-.section {
-  background: linear-gradient(
-    180deg, 
-    transparent 0%, 
-    light-dark(rgba(49, 176, 0, 0.02), rgba(113, 211, 73, 0.03)) 100%
-  );
-  position: relative;
-}
-
-.section::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: 
-    linear-gradient(light-dark(rgba(49, 176, 0, 0.02), rgba(113, 211, 73, 0.03)) 1px, transparent 1px),
-    linear-gradient(90deg, light-dark(rgba(49, 176, 0, 0.02), rgba(113, 211, 73, 0.03)) 1px, transparent 1px);
-  background-size: 100px 100px;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.sectionTitle {
-  font-size: clamp(2rem, 4vw, 2.5rem);
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--mantine-color-console-5), var(--mantine-color-console-3));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.difficultyCard {
+.mainCard {
+  animation: fadeInUp 250ms ease-out 0.1s both;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  cursor: default;
+  background: light-dark(
+    rgba(255, 255, 255, 0.95),
+    rgba(26, 27, 30, 0.95)
+  );
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1;
   border-color: light-dark(
     var(--mantine-color-gray-3),
     var(--mantine-color-dark-4)
   );
 }
 
-.difficultyCard:hover {
+.mainCard:hover {
   box-shadow: 0 8px 24px light-dark(rgba(49, 176, 0, 0.15), rgba(113, 211, 73, 0.2));
   border-color: light-dark(
     var(--mantine-color-console-3),
@@ -57,6 +34,17 @@
 
 .actionButton:active {
   transform: scale(0.98);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 768px) {

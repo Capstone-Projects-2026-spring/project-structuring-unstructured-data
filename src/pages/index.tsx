@@ -7,9 +7,13 @@ import { usePostHog } from "posthog-js/react";
 const HeroSection = dynamic(() => import("@/components/home/HeroSection"), {
   ssr: true,
 });
-const HowItWorksSection = dynamic(() => import("@/components/home/HowItWorksSection"));
+const HowItWorksSection = dynamic(() => import("@/components/home/HowItWorksSection"), {
+  ssr: true
+});
 // const StatsSection = dynamic(() => import("@/components/home/StatsSection"));
-const CTASection = dynamic(() => import("@/components/home/CTASection"));
+const CTASection = dynamic(() => import("@/components/home/CTASection"), {
+  ssr: true
+});
 
 export default function Home() {
   const posthog = usePostHog();

@@ -131,7 +131,7 @@ export default function QueuePage() {
         </Head>
         <Center h="100vh">
           <Stack gap="md" align="center">
-            <Loader color="blue" size="lg" type="dots" />
+            <Loader size="lg" type="dots" />
             <Text c="dimmed">Loading matchmaking...</Text>
           </Stack>
         </Center>
@@ -201,7 +201,6 @@ export default function QueuePage() {
               <Card
                 withBorder
                 shadow="md"
-                radius="lg"
                 padding="xl"
                 className={classes.mainCard}
               >
