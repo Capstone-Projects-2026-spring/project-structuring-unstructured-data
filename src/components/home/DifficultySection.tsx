@@ -1,4 +1,4 @@
-import { Text, Stack, Button, Group, Box, Badge, Card, Flex } from "@mantine/core";
+import { Text, Stack, Button, Group, Box, Badge, Card } from "@mantine/core";
 import { IconUsers, IconUser } from "@tabler/icons-react";
 import { useRouter } from "next/router";
 import { authClient } from "@/lib/auth-client";

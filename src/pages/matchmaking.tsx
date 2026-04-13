@@ -42,7 +42,8 @@ export default function QueuePage() {
   // Tracks what the user actually queued for so leaveQueue cancels the right one
   const queuedSelectionRef = useRef<{ gameType: GameType; difficulty: ProblemDifficulty } | null>(null);
 
-  const partyId = (router.query.partyId as string) ?? null; // TODO: this is a bit hacky, we should have a proper lobby component ideally throughout the app instead of just a query param
+  const partyId = (router.query.partyId as string) ?? null; 
+  // TODO: this is a bit hacky, we should have a proper lobby component ideally throughout the app instead of just a query param
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -51,8 +52,7 @@ export default function QueuePage() {
   }, [isPending, session, router]);
 
   useEffect(() => {
-    if (!session?.user.id) return;
-    if (socketRef.current) return;
+    if (!session?.user.id || socketRef.current) return;
 
     const socketInstance = io();
     socketRef.current = socketInstance;
@@ -86,6 +86,7 @@ export default function QueuePage() {
       socketInstance.disconnect();
       socketRef.current = null;
     };
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
