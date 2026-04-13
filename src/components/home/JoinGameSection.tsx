@@ -3,7 +3,6 @@ import { TextInput, Button, Group, Text, Box, Card, Stack } from "@mantine/core"
 import { IconSearch, IconArrowRight } from "@tabler/icons-react";
 import { useRouter } from "next/router";
 import { usePostHog } from "posthog-js/react";
-import Link from "next/link";
 import classes from "@/styles/comps/JoinGameSection.module.css";
 
 export default function JoinGameSection() {
@@ -79,21 +78,6 @@ export default function JoinGameSection() {
             </Button>
           </Group>
         </form>
-
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">
-            Looking for a match?
-          </Text>
-          <Button
-            component={Link}
-            href="/matchmaking"
-            variant="subtle"
-            size="sm"
-            data-testid="matchmaking-link"
-          >
-            Try Quick Matchmaking
-          </Button>
-        </Group>
       </Stack>
     </Card>
   );

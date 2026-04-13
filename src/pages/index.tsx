@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import Head from "next/head";
-import { Container } from "@mantine/core";
 import dynamic from "next/dynamic";
 import { usePostHog } from "posthog-js/react";
 
@@ -11,7 +10,6 @@ const HeroSection = dynamic(() => import("@/components/home/HeroSection"), {
 const HowItWorksSection = dynamic(() => import("@/components/home/HowItWorksSection"));
 // const StatsSection = dynamic(() => import("@/components/home/StatsSection"));
 const CTASection = dynamic(() => import("@/components/home/CTASection"));
-const JoinGameSection = dynamic(() => import("@/components/home/JoinGameSection"));
 
 export default function Home() {
   const posthog = usePostHog();
@@ -46,10 +44,10 @@ export default function Home() {
         {/* How It Works - Education */}
         <HowItWorksSection />
 
-        {/* Secondary - Join by Game ID */}
+        {/* Secondary - Join by Game ID
         <Container size="lg" py="xl">
           <JoinGameSection />
-        </Container>
+        </Container> */}
 
         {/* Final CTA */}
         <CTASection />

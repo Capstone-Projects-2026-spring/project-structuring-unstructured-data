@@ -89,20 +89,6 @@ export default function DifficultySection() {
       aria-labelledby="difficulty-section-title"
       gap="xl"
     >
-      <Stack gap="xs" align="center">
-        <Title
-          id="difficulty-section-title"
-          order={2}
-          ta="center"
-          className={classes.sectionTitle}
-        >
-          Start an Instant Room
-        </Title>
-        <Text size="md" c="dimmed" ta="center" maw={640}>
-          Skip waiting and jump directly into a game with your preferred difficulty and mode.
-        </Text>
-      </Stack>
-
       <Stack gap="md">
         {difficulties.map((diff) => (
           <Card

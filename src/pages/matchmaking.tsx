@@ -22,8 +22,11 @@ import { IconUsers, IconUser, IconTrophy } from '@tabler/icons-react';
 import { GameType, ProblemDifficulty } from '@prisma/client';
 import { authClient } from '@/lib/auth-client';
 import { usePostHog } from 'posthog-js/react';
-import DifficultySection from '@/components/home/DifficultySection';
 import classes from '@/styles/Matchmaking.module.css';
+import dynamic from 'next/dynamic';
+
+const DifficultySection = dynamic(() => import("@/components/home/DifficultySection"));
+const JoinGameSection = dynamic(() => import("@/components/home/JoinGameSection"));
 
 type QueueStatus = 'idle' | 'queued' | 'matched' | 'error';
 
@@ -150,7 +153,15 @@ export default function QueuePage() {
       </Head>
 
       <Box className={classes.matchmakingPage}>
-        <Container size="md" py={60}>
+        <Container
+          display="flex"
+          size="md"
+          py={60}
+          style={{
+            flexDirection: "column",
+            gap: 20
+          }}
+        >
           {/* Header Section */}
           <Stack gap="xl" mb={60} className={classes.header}>
             <Box ta="center">
@@ -327,17 +338,11 @@ export default function QueuePage() {
             </Tabs.Panel>
 
             <Tabs.Panel value="create-game" pt="md">
-              <Card
-                withBorder
-                shadow="sm"
-                radius="lg"
-                padding="xl"
-                className={classes.instantCard}
-              >
-                <DifficultySection />
-              </Card>
+              <DifficultySection />
             </Tabs.Panel>
           </Tabs>
+
+          <JoinGameSection />
 
           {/* Help Text */}
           <Text size="sm" c="dimmed" ta="center" mt="xl">
