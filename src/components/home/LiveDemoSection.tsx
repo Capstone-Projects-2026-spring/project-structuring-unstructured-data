@@ -5,6 +5,7 @@ import {
   Container,
   Grid,
   Group,
+  Overlay,
   Paper,
   SegmentedControl,
   Stack,
@@ -25,7 +26,7 @@ import {
   IconRocket,
 } from "@tabler/icons-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { usePostHog } from "posthog-js/react";
 import classes from "@/styles/comps/LiveDemoSection.module.css";
 
@@ -54,6 +55,20 @@ type DemoPhase = {
   tests: DemoTest[];
   chat: DemoChatMessage[];
 };
+
+type LaneConfig = {
+  title: string;
+  badgeText: string;
+  badgeColor: string;
+  description: string;
+  icon: ReactNode;
+  isMirror: boolean;
+};
+
+const PHASE_AUTOPLAY_DURATION_MS = 7000;
+const SWAP_ROLE_APPLY_DELAY_MS = 1300;
+const SWAP_OVERLAY_DURATION_MS = 2600;
+const TYPEWRITER_SPEED_MS = 14;
 
 const PHASE_ORDER: PhaseId[] = ["active", "swap", "finish"];
 
@@ -129,25 +144,72 @@ export default function LiveDemoSection() {
   const [activePhase, setActivePhase] = useState<PhaseId>("active");
   const [autoPlay, setAutoPlay] = useState(true);
   const [typedCode, setTypedCode] = useState("");
+  const [swapOverlayVisible, setSwapOverlayVisible] = useState(false);
+  const [laneSwapApplied, setLaneSwapApplied] = useState(false);
+  const swapTimersRef = useRef<ReturnType<typeof setInterval>[]>([]);
 
   const phase = DEMO_PHASES[activePhase];
   const phaseIndex = PHASE_ORDER.indexOf(activePhase);
 
+  const clearSwapTimers = useCallback(() => {
+    swapTimersRef.current.forEach((timerId) => {
+      clearTimeout(timerId);
+    });
+    swapTimersRef.current = [];
+  }, []);
+
+  const transitionToPhase = useCallback((nextPhase: PhaseId) => {
+    clearSwapTimers();
+
+    if (nextPhase === "swap") {
+      setActivePhase("swap");
+      setSwapOverlayVisible(true);
+      setLaneSwapApplied(false);
+
+      const applySwapTimer = setTimeout(() => {
+        setLaneSwapApplied(true);
+      }, SWAP_ROLE_APPLY_DELAY_MS);
+
+      const hideOverlayTimer = setTimeout(() => {
+        setSwapOverlayVisible(false);
+      }, SWAP_OVERLAY_DURATION_MS);
+
+      swapTimersRef.current = [applySwapTimer, hideOverlayTimer];
+      return;
+    }
+
+    setSwapOverlayVisible(false);
+    if (nextPhase === "active") {
+      setLaneSwapApplied(false);
+    }
+    setActivePhase(nextPhase);
+  }, [clearSwapTimers]);
+
   useEffect(() => {
     if (!autoPlay) return;
 
-    const interval = setInterval(() => {
-      setActivePhase((current) => {
-        const currentIndex = PHASE_ORDER.indexOf(current);
-        const nextIndex = (currentIndex + 1) % PHASE_ORDER.length;
-        return PHASE_ORDER[nextIndex];
-      });
-    }, 7000);
+    const autoAdvanceTimer = setTimeout(() => {
+      const currentIndex = PHASE_ORDER.indexOf(activePhase);
+      const nextPhase = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length];
+      transitionToPhase(nextPhase);
+    }, PHASE_AUTOPLAY_DURATION_MS);
 
-    return () => clearInterval(interval);
-  }, [autoPlay]);
+    return () => {
+      clearTimeout(autoAdvanceTimer);
+    };
+  }, [activePhase, autoPlay, transitionToPhase]);
 
   useEffect(() => {
+    return () => {
+      clearSwapTimers();
+    };
+  }, [clearSwapTimers]);
+
+  useEffect(() => {
+    if (activePhase === "swap" && swapOverlayVisible) {
+      return;
+    }
+
     const clearTypedCode = setTimeout(() => {
       setTypedCode("");
     }, 0);
@@ -165,7 +227,6 @@ export default function LiveDemoSection() {
     }
 
     let characterIndex = 0;
-    const typingSpeed = 14;
 
     const typewriter = setInterval(() => {
       characterIndex += 1;
@@ -174,19 +235,94 @@ export default function LiveDemoSection() {
       if (characterIndex >= phase.code.length) {
         clearInterval(typewriter);
       }
-    }, typingSpeed);
+    }, TYPEWRITER_SPEED_MS);
 
     return () => {
       clearTimeout(clearTypedCode);
       clearInterval(typewriter);
     };
-  }, [activePhase, phase.code]);
+  }, [activePhase, phase.code, swapOverlayVisible]);
 
   const isTypingCode = typedCode.length < phase.code.length;
 
+  const coderLane: LaneConfig = {
+    title: "Coder Editor",
+    badgeText: "Write Lane",
+    badgeColor: "console",
+    description: "Primary stream where the coder pushes implementation updates.",
+    icon: <IconCode size={16} />,
+    isMirror: false,
+  };
+
+  const testerLane: LaneConfig = {
+    title: "Tester Mirror",
+    badgeText: "Read Only",
+    badgeColor: "blue",
+    description: "Mirrored stream where testers watch every character appear in real time.",
+    icon: <IconEye size={16} />,
+    isMirror: true,
+  };
+
+  const leftLane = laneSwapApplied ? testerLane : coderLane;
+  const rightLane = laneSwapApplied ? coderLane : testerLane;
+
+  const renderEditorPane = (lane: LaneConfig) => {
+    return (
+      <Paper
+        withBorder
+        radius="md"
+        p="md"
+        className={`${classes.workspacePane} ${classes.editorPane} ${lane.isMirror ? classes.mirrorPane : ""}`}
+      >
+        {swapOverlayVisible && (
+          <>
+            <Overlay
+              // className={classes.roleSwapOverlay}
+              backgroundOpacity={0.5}
+              blur={2}
+              zIndex={4}
+            />
+            <Box className={classes.roleSwapLabel}>
+              <Badge
+                variant="filled"
+                color="orange"
+                leftSection={<IconRefresh size={12} />}
+              >
+                Swapping Roles
+              </Badge>
+              <Text size="xs" fw={700} c="white">
+                {laneSwapApplied ? "Lane reassigned" : "Reassigning editor lanes..."}
+              </Text>
+            </Box>
+          </>
+        )}
+
+        <Group justify="space-between" mb="xs">
+          <Group gap={6}>
+            {lane.icon}
+            <Text fw={700} size="sm">{lane.title}</Text>
+          </Group>
+          <Badge variant="light" color={lane.badgeColor}>{lane.badgeText}</Badge>
+        </Group>
+
+        <Box className={`${classes.codeWindow} ${lane.isMirror ? classes.mirrorWindow : ""}`}>
+          <pre>
+            {typedCode}
+            {isTypingCode && <span className={classes.caret}>|</span>}
+          </pre>
+        </Box>
+
+        <Text size="sm" mt="sm" c="dimmed">
+          {lane.description}
+        </Text>
+      </Paper>
+    );
+  };
+
   const handlePhaseChange = (value: string) => {
     const nextPhase = value as PhaseId;
-    setActivePhase(nextPhase);
+    setAutoPlay(false);
+    transitionToPhase(nextPhase);
     posthog?.capture("homepage_live_demo_phase_changed", { phase: nextPhase });
   };
 
@@ -239,7 +375,6 @@ export default function LiveDemoSection() {
                 size="sm"
                 value={activePhase}
                 onChange={handlePhaseChange}
-                onClick={() => setAutoPlay(false)}
                 data={PHASE_ORDER.map((phaseId) => ({
                   label: DEMO_PHASES[phaseId].tabLabel,
                   value: phaseId,
@@ -250,58 +385,18 @@ export default function LiveDemoSection() {
 
               <Group justify="space-between" align="center" wrap="wrap" gap="sm" className={classes.syncMeta}>
                 <Text size="xs" c="dimmed">{phase.roleHint}</Text>
+                {swapOverlayVisible && (
+                  <Badge variant="filled" color="yellow">Role swap underway</Badge>
+                )}
               </Group>
 
               <Grid gutter="md" align="stretch">
                 <Grid.Col span={{ base: 12, md: 6 }}>
-                  <Paper withBorder radius="md" p="md" className={`${classes.workspacePane} ${classes.editorPane}`}>
-                    <Group justify="space-between" mb="xs">
-                      <Group gap={6}>
-                        <IconCode size={16} />
-                        <Text fw={700} size="sm">Coder Editor</Text>
-                      </Group>
-                      <Badge variant="light" color="console">Write Lane</Badge>
-                    </Group>
-
-                    <Box className={classes.codeWindow}>
-                      <pre>
-                        {typedCode}
-                        {isTypingCode && <span className={classes.caret}>|</span>}
-                      </pre>
-                    </Box>
-
-                    <Text size="sm" mt="sm" c="dimmed">
-                      Primary stream where the coder pushes implementation updates.
-                    </Text>
-                  </Paper>
+                  {renderEditorPane(leftLane)}
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, md: 6 }}>
-                  <Paper
-                    withBorder
-                    radius="md"
-                    p="md"
-                    className={`${classes.workspacePane} ${classes.editorPane} ${classes.mirrorPane}`}
-                  >
-                    <Group justify="space-between" mb="xs">
-                      <Group gap={6}>
-                        <IconEye size={16} />
-                        <Text fw={700} size="sm">Tester Mirror</Text>
-                      </Group>
-                      <Badge variant="light" color="blue">Read Only</Badge>
-                    </Group>
-
-                    <Box className={`${classes.codeWindow} ${classes.mirrorWindow}`}>
-                      <pre>
-                        {typedCode}
-                        {isTypingCode && <span className={classes.caret}>|</span>}
-                      </pre>
-                    </Box>
-
-                    <Text size="sm" mt="sm" c="dimmed">
-                      Mirrored stream where testers watch every character appear in real time.
-                    </Text>
-                  </Paper>
+                  {renderEditorPane(rightLane)}
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, md: 7 }}>
