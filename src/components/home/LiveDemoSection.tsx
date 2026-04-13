@@ -82,7 +82,7 @@ const DEMO_PHASES: Record<PhaseId, DemoPhase> = {
     headline: "Coder Builds, Tester Validates",
     detail: "Code changes sync live while tester iterates on cases and runs batches.",
     roleHint: "Run All triggers full suite against the latest synced code",
-    code: `function solve(nums, target) {\n  const seen = new Map();\n\n  for (let i = 0; i < nums.length; i += 1) {\n    const want = target - nums[i];\n    if (seen.has(want)) return [seen.get(want), i];\n    seen.set(nums[i], i);\n  }\n\n  return [];\n}`,
+    code: `function solution(nums, target) {\n  const seen = new Map();\n\n  for (let i = 0; i < nums.length; i += 1) {\n    const want = target - nums[i];\n    if (seen.has(want)) return [seen.get(want), i];\n    seen.set(nums[i], i);\n  }\n\n  return [];\n}`,
     tests: [
       { name: "happy path", status: "pass", detail: "0.11s" },
       { name: "duplicate values", status: "pass", detail: "0.13s" },
@@ -100,7 +100,7 @@ const DEMO_PHASES: Record<PhaseId, DemoPhase> = {
     headline: "Role Swap Mid-Match",
     detail: "The game flips responsibilities so both players experience coding and testing pressure.",
     roleHint: "Previous tester now drives implementation while partner hardens test quality",
-    code: `function solve(nums, target) {\n  const seen = new Map();\n\n  for (let i = 0; i < nums.length; i += 1) {\n    const want = target - nums[i];\n    if (seen.has(want)) return [seen.get(want), i];\n    seen.set(nums[i], i);\n  }\n\n  // Added after role swap\n  return [-1, -1];\n}`,
+    code: `function solution(nums, target) {\n  const seen = new Map();\n\n  for (let i = 0; i < nums.length; i += 1) {\n    const want = target - nums[i];\n    if (seen.has(want)) return [seen.get(want), i];\n    seen.set(nums[i], i);\n  }\n\n  // Added after role swap\n  return [-1, -1];\n}`,
     tests: [
       { name: "happy path", status: "pass", detail: "0.10s" },
       { name: "duplicate values", status: "pass", detail: "0.12s" },
@@ -118,7 +118,7 @@ const DEMO_PHASES: Record<PhaseId, DemoPhase> = {
     headline: "Final Submit + Score",
     detail: "Both roles converge on correctness, submit before timeout, and lock the final run.",
     roleHint: "Score rewards fast delivery with clean test outcomes",
-    code: `function solve(nums, target) {\n  const seen = new Map();\n\n  for (let i = 0; i < nums.length; i += 1) {\n    const want = target - nums[i];\n    if (seen.has(want)) return [seen.get(want), i];\n    seen.set(nums[i], i);\n  }\n\n  return [];\n}`,
+    code: `function solution(nums, target) {\n  const seen = new Map();\n\n  for (let i = 0; i < nums.length; i += 1) {\n    const want = target - nums[i];\n    if (seen.has(want)) return [seen.get(want), i];\n    seen.set(nums[i], i);\n  }\n\n  return [];\n}`,
     tests: [
       { name: "happy path", status: "pass", detail: "0.10s" },
       { name: "duplicate values", status: "pass", detail: "0.12s" },
@@ -353,11 +353,10 @@ export default function LiveDemoSection() {
           <Stack gap="sm" align="center" ta="center">
             <Badge variant="light" color="console" size="lg">Live Demo</Badge>
             <Title order={2} id="live-demo-title" className={classes.sectionTitle}>
-              Watch the Match Loop in Motion
+              Watch a Match in Motion
             </Title>
             <Text size="lg" c="dimmed" maw={760}>
-              This walkthrough mirrors the real arena flow: matchmaking, mirrored editor sync,
-              tester-driven validation, timed role swaps, and final submission pressure.
+              This walkthrough mirrors the real arena flow: matchmaking, mirrored editor sync, tester-driven validation, timed role swaps, and final submission pressure.
             </Text>
           </Stack>
 
