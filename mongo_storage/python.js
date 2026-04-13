@@ -1,8 +1,45 @@
 const path = require('path');
 const mongoose = require('mongoose');
 const { PythonShell } = require('python-shell');
+const { spawnSync } = require('child_process');
 
 const MODEL_RESULT_PREFIX = '__MODEL_RESULT__';
+const REQUIREMENTS_PATH = path.resolve(__dirname, '../NLP_Model/actual/requirements.txt');
+let pythonDepsChecked = false;
+
+function installPythonDependencies(pythonPath) {
+    console.log(`[runModel] Installing Python dependencies via ${pythonPath} -m pip install -r ${REQUIREMENTS_PATH}`);
+
+    let result = spawnSync(pythonPath, ['-m', 'pip', 'install', '-r', REQUIREMENTS_PATH], {
+        stdio: 'inherit'
+    });
+
+    if (result.status === 0) {
+        return true;
+    }
+
+    // Some minimal images might not have pip bootstrapped. Try ensurepip once.
+    console.warn('[runModel] pip install failed, attempting ensurepip bootstrap...');
+    const ensurePip = spawnSync(pythonPath, ['-m', 'ensurepip', '--upgrade'], {
+        stdio: 'inherit'
+    });
+
+    if (ensurePip.status !== 0) {
+        return false;
+    }
+
+    result = spawnSync(pythonPath, ['-m', 'pip', 'install', '-r', REQUIREMENTS_PATH], {
+        stdio: 'inherit'
+    });
+
+    return result.status === 0;
+}
+
+function isMissingPythonModuleError(err) {
+    const message = String(err?.message || '');
+    const traceback = String(err?.traceback || '');
+    return message.includes('ModuleNotFoundError') || traceback.includes('ModuleNotFoundError');
+}
 
 function parseModelResult(messages) {
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -57,6 +94,12 @@ async function runModel(dbName, runOptions = {}) {
         args
     };
 
+    if (!pythonDepsChecked) {
+        // Best effort bootstrap before first execution in this process.
+        installPythonDependencies(pythonPath);
+        pythonDepsChecked = true;
+    }
+
     try {
         const messages = await PythonShell.run('model.py', pythonShellOptions);
         const modelResult = parseModelResult(messages);
@@ -75,6 +118,37 @@ async function runModel(dbName, runOptions = {}) {
                 : null,
         };
     } catch (err) {
+        // Self-heal once if Python modules are missing at runtime.
+        if (isMissingPythonModuleError(err)) {
+            console.warn('[runModel] Detected missing Python module. Attempting dependency install + one retry...');
+            const installed = installPythonDependencies(pythonPath);
+            if (installed) {
+                try {
+                    const retryMessages = await PythonShell.run('model.py', pythonShellOptions);
+                    const retryModelResult = parseModelResult(retryMessages);
+                    console.log(`[runModel] Retry succeeded for database: ${dbName}`);
+                    return {
+                        success: true,
+                        dbName: dbName,
+                        message: `Model execution completed successfully for ${dbName} after dependency install retry`,
+                        results: retryMessages,
+                        modelResult: retryModelResult,
+                        savedCount: retryModelResult && Number.isInteger(retryModelResult.saved_count)
+                            ? retryModelResult.saved_count
+                            : null,
+                    };
+                } catch (retryErr) {
+                    console.error(`[runModel] Retry failed for database ${dbName}:`, retryErr);
+                    return {
+                        success: false,
+                        dbName: dbName,
+                        message: `Model execution failed for ${dbName} after dependency install retry`,
+                        error: retryErr.message
+                    };
+                }
+            }
+        }
+
         console.error(`[runModel] Error executing model for database ${dbName}:`, err);
         return {
             success: false,
