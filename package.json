@@ -2,7 +2,7 @@
   "name": "project-structuring-unstructured-data",
   "private": true,
   "scripts": {
-    "build": "npm --prefix bolt_slack install && npm --prefix mongo_storage install",
+    "build": "npm --prefix bolt_slack install && npm --prefix mongo_storage install && node scripts/install-python-deps.js",
     "test": "npm --prefix bolt_slack test -- --passWithNoTests && npm --prefix mongo_storage test -- --passWithNoTests"
   }
 }
