@@ -373,9 +373,6 @@ export function Results() {
                 style={{
                   width: isProblemVisible ? "30%" : "52px",
                   minWidth: isProblemVisible ? "260px" : "52px",
-                  color: "white",
-                  backgroundColor: "#333",
-                  padding: "0",
                   overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
@@ -383,11 +380,14 @@ export function Results() {
                   justifyContent: isProblemVisible ? "flex-start" : "center",
                   flexShrink: 0,
                   transition: "width 0.2s ease, min-width 0.2s ease",
-                  borderRadius: "8px",
                 }}
               >
                 {isProblemVisible ? (
-                  <Box style={{ width: "100%", flex: 1, minHeight: 0, padding: "1rem" }}>
+                  <Box style={{
+                    width: "100%",
+                    flex: 1,
+                    minHeight: 0,
+                  }}>
                     <ProblemBox problem={problem} onToggleVisibility={toggleProblemVisibility} />
                   </Box>
                 ) : (

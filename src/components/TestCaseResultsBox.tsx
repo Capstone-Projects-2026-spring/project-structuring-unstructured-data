@@ -71,46 +71,132 @@ export default function TestCaseResultsBox({ gameId, team1Results, team2Results,
     return String(value);
   };
 
+  const isEquivalent = (a: unknown, b: unknown): boolean => {
+    const normalize = (value: unknown): string => {
+      if (value === undefined || value === null) return "";
+      if (typeof value === "string") return value.trim();
+      if (typeof value === "number" || typeof value === "boolean") return String(value);
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    };
+
+    return normalize(a) === normalize(b);
+  };
+
   const rows = testCases.map((element, index) => {
     // Determine which results to show based on user's team
     const yourResults = userTeamNumber === 2 ? team2TestResults : team1TestResults;
     const otherTeamResults = userTeamNumber === 2 ? team1TestResults : team2TestResults;
 
+    const yourResult = yourResults?.[index];
+    const otherTeamResult = otherTeamResults?.[index];
+
+    const hasYourResult = yourResult !== undefined;
+    const hasOtherTeamResult = otherTeamResult !== undefined;
+
+    const yourResultPassed = hasYourResult && isEquivalent(yourResult, element.expected);
+    const otherTeamPassed = hasOtherTeamResult && isEquivalent(otherTeamResult, element.expected);
+
     return (
-      <Table.Tr key={element.id}>
+      <Table.Tr key={element.id} className={styles.tableRow}>
         <Table.Td>
-          <Text size="sm" fw={500} ff="monospace">{formatValue(element.input)}</Text>
+          <Text size="sm" fw={500} ff="monospace" className={styles.cellInput}>
+            {formatValue(element.input)}
+          </Text>
         </Table.Td>
         <Table.Td>
-          <Text size="sm" fw={500} ff="monospace">{yourResults && yourResults[index] !== undefined ? formatValue(yourResults[index]) : '-'}</Text>
+          <Box className={styles.cellResult}>
+            {hasYourResult ? (
+              <span className={`${styles.statusIndicator} ${yourResultPassed ? styles.statusPass : styles.statusFail}`}>
+                {yourResultPassed ? <IconCheck size={12} className={styles.passIcon} /> : <IconX size={12} className={styles.failIcon} />}
+              </span>
+            ) : (
+              <span className={styles.statusPlaceholder} aria-hidden="true" />
+            )}
+            <Text
+              size="sm"
+              fw={500}
+              ff="monospace"
+              className={`${styles.cellInput} ${hasYourResult ? (yourResultPassed ? styles.passText : styles.failText) : ""}`}
+            >
+              {hasYourResult ? formatValue(yourResult) : '-'}
+            </Text>
+          </Box>
         </Table.Td>
         {showOtherTeamColumn && (
           <Table.Td>
-            <Text size="sm" fw={500} ff="monospace">{otherTeamResults && otherTeamResults[index] !== undefined ? formatValue(otherTeamResults[index]) : '-'}</Text>
+            <Box className={styles.cellResult}>
+              {hasOtherTeamResult ? (
+                <span className={`${styles.statusIndicator} ${otherTeamPassed ? styles.statusPass : styles.statusFail}`}>
+                  {otherTeamPassed ? <IconCheck size={12} className={styles.passIcon} /> : <IconX size={12} className={styles.failIcon} />}
+                </span>
+              ) : (
+                <span className={styles.statusPlaceholder} aria-hidden="true" />
+              )}
+              <Text
+                size="sm"
+                fw={500}
+                ff="monospace"
+                className={`${styles.cellInput} ${hasOtherTeamResult ? (otherTeamPassed ? styles.passText : styles.failText) : ""}`}
+              >
+                {hasOtherTeamResult ? formatValue(otherTeamResult) : '-'}
+              </Text>
+            </Box>
           </Table.Td>
         )}
         <Table.Td>
-          <Text size="sm" fw={500} ff="monospace">{formatValue(element.expected)}</Text>
+          <Text size="sm" fw={500} ff="monospace" className={styles.cellInput}>
+            {formatValue(element.expected)}
+          </Text>
         </Table.Td>
       </Table.Tr>
     );
   });
 
-  return (
-    <Paper shadow="sm" radius="md" p="lg" withBorder style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <Title order={4} mb="md" ta="center">Test Cases</Title>
+  const colSpan = showOtherTeamColumn ? 4 : 3;
 
-      <Box style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-        <Table highlightOnHover verticalSpacing="sm" striped>
+  return (
+    <Paper shadow="sm" radius="md" p="lg" withBorder className={styles.container}>
+      <Title order={4} mb="md" ta="center" className={styles.title}>
+        Test Cases
+      </Title>
+
+      <Box className={styles.scrollRegion}>
+        <Table highlightOnHover verticalSpacing="sm" striped className={styles.table}>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Input</Table.Th>
-              <Table.Th>{gameType === "TWOPLAYER" ? "Your Code" : "Your Result"}</Table.Th>
-              {showOtherTeamColumn && <Table.Th>Other Team</Table.Th>}
-              <Table.Th>Expected Result</Table.Th>
+              <Table.Th className={styles.tableHeader}>Input</Table.Th>
+              <Table.Th className={styles.tableHeader}>{gameType === "TWOPLAYER" ? "Your Code" : "Your Result"}</Table.Th>
+              {showOtherTeamColumn && <Table.Th className={styles.tableHeader}>Other Team</Table.Th>}
+              <Table.Th className={styles.tableHeader}>Expected Result</Table.Th>
             </Table.Tr>
           </Table.Thead>
-          <Table.Tbody>{loading ? null : rows}</Table.Tbody>
+          <Table.Tbody>
+            {loading && (
+              <Table.Tr>
+                <Table.Td colSpan={colSpan}>
+                  <Text size="sm" ta="center" c="dimmed" className={styles.stateText}>
+                    Loading test cases...
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            )}
+
+            {!loading && rows.length === 0 && (
+              <Table.Tr>
+                <Table.Td colSpan={colSpan}>
+                  <Text size="sm" ta="center" c="dimmed" className={styles.stateText}>
+                    No test cases available for this game.
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            )}
+
+            {!loading && rows}
+          </Table.Tbody>
         </Table>
       </Box>
     </Paper>

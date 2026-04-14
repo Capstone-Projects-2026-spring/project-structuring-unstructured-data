@@ -1,7 +1,13 @@
-import { useState } from 'react';
-import { Burger, Container, Group, Text, Anchor } from '@mantine/core';
+// import { useState } from 'react';
+import {
+  Burger, 
+  Container,
+  // Group, 
+  Text,
+  // Anchor 
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import Link from 'next/link'; // <-- Import Next.js Link
+// import Link from 'next/link'; // <-- Import Next.js Link
 import classes from '../styles/comps/Header.module.css';
 import Brand from './Brand';
 
@@ -13,26 +19,26 @@ interface HeaderProps {
 
 export default function HeaderSimple(props: HeaderProps) {
   const [opened, { toggle }] = useDisclosure(false);
-  const [active, setActive] = useState(props.links[0]);
+  // const [active, setActive] = useState(props.links[0]);
 
   // split the title
   const titleParts = props.title.split('|');
-  const brandName = titleParts[0]; 
-  const gameInfo = titleParts.slice(1).join('|'); 
+  // const brandName = titleParts[0]; 
+  const gameInfo = titleParts.slice(1).join('|');
 
-  const items = props.links.map((link) => (
-    <Anchor
-      key={link}
-      className={classes.link}
-      data-active={active === link || undefined}
-      onClick={(event) => {
-        event.preventDefault();
-        setActive(link);
-      }}
-    >
-      {link}
-    </Anchor>
-  ));
+  // const items = props.links.map((link) => (
+  //   <Anchor
+  //     key={link}
+  //     className={classes.link}
+  //     data-active={active === link || undefined}
+  //     onClick={(event) => {
+  //       event.preventDefault();
+  //       setActive(link);
+  //     }}
+  //   >
+  //     {link}
+  //   </Anchor>
+  // ));
 
   return (
     <header className={classes.header}>
@@ -70,9 +76,9 @@ export default function HeaderSimple(props: HeaderProps) {
           )}
         </Text>
 
-        <Group gap={6} visibleFrom="xs">
+        {/* <Group gap={6} visibleFrom="xs">
           {items}
-        </Group>
+        </Group> */}
 
         <Burger
           opened={opened}
