@@ -41,8 +41,13 @@ type DemoTest = {
 };
 
 type DemoChatMessage = {
-  author: string;
+  name: string;
+  role: "Coder" | "Tester" | "System";
   message: string;
+};
+
+type StreamedChatMessage = DemoChatMessage & {
+  id: number;
 };
 
 type DemoPhase = {
@@ -54,7 +59,6 @@ type DemoPhase = {
   roleHint: string;
   code: string;
   tests: DemoTest[];
-  chat: DemoChatMessage[];
 };
 
 type LaneConfig = {
@@ -71,6 +75,7 @@ const SWAP_ROLE_APPLY_DELAY_MS = 1300;
 const SWAP_OVERLAY_DURATION_MS = 2600;
 const SWAP_OVERLAY_FADE_MS = 320;
 const TYPEWRITER_SPEED_MS = 14;
+const CHAT_STREAM_INTERVAL_MS = 1500;
 
 const PHASE_ORDER: PhaseId[] = ["active", "swap", "finish"];
 
@@ -88,10 +93,6 @@ const DEMO_PHASES: Record<PhaseId, DemoPhase> = {
       { name: "duplicate values", status: "pass", detail: "0.13s" },
       { name: "no match", status: "pending", detail: "running" },
     ],
-    chat: [
-      { author: "tester", message: "Run All is green except no-match path." },
-      { author: "coder", message: "Patching empty return handling now." },
-    ],
   },
   swap: {
     id: "swap",
@@ -105,10 +106,6 @@ const DEMO_PHASES: Record<PhaseId, DemoPhase> = {
       { name: "happy path", status: "pass", detail: "0.10s" },
       { name: "duplicate values", status: "pass", detail: "0.12s" },
       { name: "no match", status: "fail", detail: "expected [] got [-1,-1]" },
-    ],
-    chat: [
-      { author: "system", message: "Role swap complete." },
-      { author: "coder", message: "Good catch, reverting fallback value." },
     ],
   },
   finish: {
@@ -124,12 +121,23 @@ const DEMO_PHASES: Record<PhaseId, DemoPhase> = {
       { name: "duplicate values", status: "pass", detail: "0.12s" },
       { name: "no match", status: "pass", detail: "0.09s" },
     ],
-    chat: [
-      { author: "tester", message: "All tests green. Submit now." },
-      { author: "coder", message: "Submitted with 41s left." },
-    ],
   },
 };
+
+const GLOBAL_CHAT_MESSAGES: DemoChatMessage[] = [
+  { name: "Maya", role: "Tester", message: "Kicking off baseline suite now." },
+  { name: "Noah", role: "Coder", message: "Got it. I am wiring the map-based lookup." },
+  { name: "Maya", role: "Tester", message: "Happy path is green in 0.11s." },
+  { name: "Noah", role: "Coder", message: "Pushing edge-case guard for empty arrays." },
+  { name: "Atlas", role: "System", message: "Role swap warning: 10 seconds." },
+  { name: "Maya", role: "Tester", message: "Duplicate-value case passes after your patch." },
+  { name: "Noah", role: "Coder", message: "Nice. Checking no-match return shape next." },
+  { name: "Atlas", role: "System", message: "Roles swapped. New coder assigned." },
+  { name: "Noah", role: "Tester", message: "I see [-1, -1]; expected empty array." },
+  { name: "Maya", role: "Coder", message: "Copy that. Reverting fallback output." },
+  { name: "Noah", role: "Tester", message: "Re-run complete. All tests are green." },
+  { name: "Maya", role: "Coder", message: "Submitting final answer with 41 seconds left." },
+];
 
 function statusIcon(status: TestStatus) {
   if (status === "pass") {
@@ -149,7 +157,12 @@ export default function LiveDemoSection() {
   const [swapOverlayVisible, setSwapOverlayVisible] = useState(false);
   const [swapTypingLocked, setSwapTypingLocked] = useState(false);
   const [laneSwapApplied, setLaneSwapApplied] = useState(false);
+  const [chatFeed, setChatFeed] = useState<StreamedChatMessage[]>([]);
+  const [chatSessionId, setChatSessionId] = useState(0);
   const swapTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const chatCursorRef = useRef(0);
+  const chatMessageIdRef = useRef(0);
 
   const phase = DEMO_PHASES[activePhase];
   const phaseIndex = PHASE_ORDER.indexOf(activePhase);
@@ -190,6 +203,10 @@ export default function LiveDemoSection() {
     setSwapTypingLocked(false);
     if (nextPhase === "active") {
       setLaneSwapApplied(false);
+      setChatFeed([]);
+      chatCursorRef.current = 0;
+      chatMessageIdRef.current = 0;
+      setChatSessionId((current) => current + 1);
     }
     setActivePhase(nextPhase);
   }, [clearSwapTimers]);
@@ -213,6 +230,45 @@ export default function LiveDemoSection() {
       clearSwapTimers();
     };
   }, [clearSwapTimers]);
+
+  useEffect(() => {
+    const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const streamInterval = prefersReducedMotion ? CHAT_STREAM_INTERVAL_MS * 2 : CHAT_STREAM_INTERVAL_MS;
+
+    const chatIntervalId = setInterval(() => {
+      const nextMessage = GLOBAL_CHAT_MESSAGES[chatCursorRef.current];
+      if (!nextMessage) {
+        clearInterval(chatIntervalId);
+        return;
+      }
+
+      setChatFeed((previousMessages) => [
+        ...previousMessages,
+        {
+          ...nextMessage,
+          id: chatMessageIdRef.current,
+        },
+      ]);
+
+      chatCursorRef.current += 1;
+      chatMessageIdRef.current += 1;
+    }, streamInterval);
+
+    return () => {
+      clearInterval(chatIntervalId);
+    };
+  }, [chatSessionId]);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, [chatFeed.length]);
 
   useEffect(() => {
     if (activePhase === "swap" && (swapOverlayVisible || swapTypingLocked)) {
@@ -452,16 +508,18 @@ export default function LiveDemoSection() {
                       <Text fw={700} size="sm">Team Chat</Text>
                     </Group>
 
-                    <Stack gap={6}>
-                      {phase.chat.map((message, index) => (
-                        <Box key={`${message.author}-${index}`} className={classes.chatBubble}>
-                          <Text size="xs" fw={700} className={classes.chatAuthor}>
-                            {message.author}
-                          </Text>
-                          <Text size="sm">{message.message}</Text>
-                        </Box>
-                      ))}
-                    </Stack>
+                    <Box ref={chatContainerRef} className={classes.chatStream}>
+                      <Stack gap={6} className={classes.chatStack}>
+                        {chatFeed.map((message) => (
+                          <Box key={message.id} className={`${classes.chatBubble} ${classes.chatBubbleEnter}`}>
+                            <Text size="xs" fw={700} className={classes.chatAuthor}>
+                              {message.name} ({message.role})
+                            </Text>
+                            <Text size="sm">{message.message}</Text>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
                   </Paper>
                 </Grid.Col>
               </Grid>

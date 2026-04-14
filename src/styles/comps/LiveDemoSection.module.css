@@ -171,11 +171,25 @@
   animation: spin 1s linear infinite;
 }
 
+.chatStream {
+  max-height: 170px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.chatStack {
+  min-height: min-content;
+}
+
 .chatBubble {
   padding: 0.5rem 0.6rem;
   border-radius: 0.55rem;
   border: 1px solid light-dark(rgba(49, 176, 0, 0.16), rgba(113, 211, 73, 0.2));
   background: light-dark(rgba(49, 176, 0, 0.04), rgba(113, 211, 73, 0.07));
+}
+
+.chatBubbleEnter {
+  animation: chatMessageIn 320ms ease-out both;
 }
 
 .chatAuthor {
@@ -209,6 +223,18 @@
   }
 }
 
+@keyframes chatMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 768px) {
   .demoShell {
     padding: 1rem;
@@ -225,6 +251,10 @@
   }
 
   .caret {
+    animation: none;
+  }
+
+  .chatBubbleEnter {
     animation: none;
   }
 }
