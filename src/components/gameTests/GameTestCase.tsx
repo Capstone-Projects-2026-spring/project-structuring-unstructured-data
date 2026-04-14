@@ -13,6 +13,7 @@ import { useForm } from "@mantine/form";
 export interface GameTestCaseProps {
   testableCase: TestableCase,
   onTestCaseChange: (test: TestableCase) => void;
+  onExpectedOutputTypeChange: (type: ParameterPrimitiveType) => void;
   onTestCaseDelete: (testId: TestableCase["id"]) => void;
 
   onParameterDelete: (parameter: ParameterType) => void;
@@ -140,14 +141,7 @@ export default function GameTestCase(props: GameTestCaseProps) {
 
                 <ChangeParameterTypeButton
                   onTypeChanged={(type) => {
-                    props.onTestCaseChange({
-                      ...testableCase,
-                      expectedOutput: {
-                        ...testableCase.expectedOutput,
-                        value: null,
-                        type
-                      }
-                    });
+                    props.onExpectedOutputTypeChange(type);
                   }}
                 />
               </Group>

@@ -471,6 +471,50 @@ function PlayGameRoom() {
     });
   };
 
+  const handleExpectedOutputTypeChange = (type: ParameterType["type"]) => {
+    if (
+      role !== Role.TESTER ||
+      !socket ||
+      !teamSelected ||
+      isWaitingForOtherTeam
+    ) {
+      return;
+    }
+
+    const currentOutputType = testCaseCtx.parameters.find(
+      (parameter) => parameter.isOutputParameter,
+    )?.type;
+    if (currentOutputType === type) return;
+
+    testCaseCtx.setParameters((prev) =>
+      prev.map((parameter) =>
+        parameter.isOutputParameter
+          ? {
+              ...parameter,
+              type,
+              value: null,
+            }
+          : parameter,
+      ),
+    );
+
+    const updatedCases = testCaseCtx.cases.map((testCase) => ({
+      ...testCase,
+      expectedOutput: {
+        ...testCase.expectedOutput,
+        type,
+        value: null,
+      },
+      computedOutput: null,
+    }));
+
+    testCaseCtx.setCases(updatedCases);
+    socket.emit("updateTestCases", {
+      teamId: teamSelected,
+      testCases: updatedCases,
+    });
+  };
+
   const handleRunAllTests = () => {
     if (role !== Role.TESTER || !socket || isWaitingForOtherTeam) return;
 
@@ -882,6 +926,9 @@ function PlayGameRoom() {
                           <GameTestCase
                             testableCase={currentTestCase}
                             onTestCaseChange={handleTestBoxChange}
+                            onExpectedOutputTypeChange={
+                              handleExpectedOutputTypeChange
+                            }
                             onParameterDelete={handleParameterDelete}
                             onTestCaseDelete={removeTest}
                             showDelete={testCaseCtx.cases.length !== 1}
