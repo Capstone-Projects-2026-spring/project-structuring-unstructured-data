@@ -20,6 +20,7 @@ import { authClient } from "@/lib/auth-client";
 import { usePostHog } from "posthog-js/react";
 import { GameType } from "@prisma/client";
 import styles from "@/styles/Results.module.css";
+import { ActiveProblem } from "@/components/ProblemBox";
 
 // Mock data - replace with actual data from backend
 interface TeamResult {
