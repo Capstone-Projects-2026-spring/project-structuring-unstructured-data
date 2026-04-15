@@ -28,6 +28,10 @@ const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildCha
 const tokenCache = new Map(); // Cache tokens by team_id
 const channelLabelCache = new Map(); // Cache channel_id -> resolved label (name or fallback id)
 
+function normalizeTeamId(teamId) {
+  return typeof teamId === 'string' ? teamId.trim() : '';
+}
+
 async function safePostEphemeral(client, payload, logger, contextLabel = 'ephemeral message') {
   try {
     return await client.chat.postEphemeral(payload);
@@ -68,30 +72,69 @@ async function resolveChannelLabel(client, channelId, logger, contextLabel = 'ch
 }
 
 async function getWorkspaceToken(teamId) {
-  // Check cache first
-  if (tokenCache.has(teamId)) {
-    return tokenCache.get(teamId);
-  }
-  
-  // Fall back to environment variable for the default workspace
-  if (teamId === process.env.SLACK_TEAM_ID || !teamId) {
+  const normalizedTeamId = normalizeTeamId(teamId);
+  const defaultTeamId = normalizeTeamId(process.env.SLACK_TEAM_ID);
+
+  console.log('[Auth:getWorkspaceToken] Resolving token', {
+    incomingTeamId: teamId || null,
+    normalizedTeamId: normalizedTeamId || null,
+    defaultTeamId: defaultTeamId || null,
+    hasDefaultEnvToken: Boolean(config.slackBotToken)
+  });
+
+  // The default workspace keeps using the configured env token.
+  if (!normalizedTeamId || normalizedTeamId === defaultTeamId) {
+    console.log('[Auth:getWorkspaceToken] Using default workspace env token fallback', {
+      reason: !normalizedTeamId ? 'missing-team-id' : 'matched-default-team-id'
+    });
     return config.slackBotToken;
   }
+
+  // Check cache first for installed workspaces.
+  if (tokenCache.has(normalizedTeamId)) {
+    const cachedToken = tokenCache.get(normalizedTeamId);
+    console.log('[Auth:getWorkspaceToken] Cache hit for workspace token', {
+      teamId: normalizedTeamId,
+      tokenPresent: Boolean(cachedToken)
+    });
+    return cachedToken;
+  }
+
+  console.log('[Auth:getWorkspaceToken] Cache miss, querying WorkspaceToken collection', {
+    teamId: normalizedTeamId
+  });
   
   // Try to fetch from database
   try {
     const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
-    const record = await WorkspaceToken.findOne({ team_id: teamId });
+    const record = await WorkspaceToken.findOne({ team_id: normalizedTeamId });
     if (record) {
-      tokenCache.set(teamId, record.access_token);
+      tokenCache.set(normalizedTeamId, record.access_token);
+      console.log('[Auth:getWorkspaceToken] Database token found and cached', {
+        teamId: normalizedTeamId,
+        hasAccessToken: Boolean(record.access_token),
+        hasBotUserId: Boolean(record.bot_user_id),
+        updatedLastUsedAt: record.last_used || null
+      });
       return record.access_token;
     }
+
+    console.warn('[Auth:getWorkspaceToken] Database query returned no token record', {
+      teamId: normalizedTeamId
+    });
   } catch (error) {
-    console.error(`Failed to fetch token for team ${teamId}:`, error.message);
+    console.error('[Auth:getWorkspaceToken] Failed while querying WorkspaceToken', {
+      teamId: normalizedTeamId,
+      errorMessage: error.message,
+      errorName: error.name
+    });
   }
+
+  console.warn('[Auth:getWorkspaceToken] Returning null token', {
+    teamId: normalizedTeamId
+  });
   
-  // Return default token as fallback
-  return config.slackBotToken;
+  return null;
 }
 
 async function authorizeWorkspace({ teamId }) {
@@ -246,8 +289,12 @@ const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
 // ====================
 
 // Fetch select number of messages via conversations.history
-async function getConversationHistory(channelId, limit = 100, client = app.client) {
+async function fetchConversationHistory(channelId, limit = 100, client) {
   try {
+    if (!client) {
+      throw new Error('Slack client is required to fetch conversation history');
+    }
+
     console.log(`🚀 Attempting to pull messages from: ${channelId}`);
     
     const result = await client.conversations.history({
@@ -264,8 +311,12 @@ async function getConversationHistory(channelId, limit = 100, client = app.clien
 }
 
 // Fetch info about channel via conversations.info
-async function getConversationInfo(channelId, client = app.client) {
+async function getConversationInfo(channelId, client) {
   try {  
+    if (!client) {
+      throw new Error('Slack client is required to fetch conversation info');
+    }
+
     const result = await client.conversations.info({
       channel: channelId,
       include_num_members: true
@@ -456,7 +507,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
     
     // Try to fetch from API first
     try {
-      const channelKey = await buildChannelKey(channelName);
+      const channelKey = await buildChannelKey(channelName, { client });
       const messages = await fetchMessagesFromAPI(channelKey);
       
       if (messages && messages.length > 0) {
@@ -466,7 +517,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
 
             if (msg.user) {
               try {
-                const resolvedName = await userIDToName(msg.user);
+                const resolvedName = await userIDToName(msg.user, client);
                 if (resolvedName) {
                   displayName = resolvedName;
                 }
@@ -493,7 +544,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
       }
     } catch (error) {
       // If API fails, fetch directly from Slack
-  const messages = await getConversationHistory(command.channel_id, 5, client);
+      const messages = await fetchConversationHistory(command.channel_id, 5, client);
       const messageText = messages.map((msg, idx) => 
         `${idx + 1}. ${msg.text || '(no text)'}`
       ).join('\n');
@@ -594,7 +645,7 @@ app.command('/summarize-week', async ({ command, ack, respond, client }) => {
         const channel_id = command.channel_id;
         const channel_name = command.channel_name;
 
-        const databaseKey = await buildChannelKey(channel_name);
+        const databaseKey = await buildChannelKey(channel_name, { client });
 
         if (!databaseKey) {
             throw new Error(`Failed to build database key for channel: ${channel_name}`);
@@ -661,7 +712,7 @@ app.command('/members-info', async ({ command, ack, respond, client }) => {
   try {
   const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
-    const collectionName = await buildChannelKey(channelName);
+    const collectionName = await buildChannelKey(channelName, { client });
 
     const membersData = await apiClient.get(`/api/users/${collectionName}`);
 
@@ -981,7 +1032,7 @@ app.action('unsave_message', async ({ ack, body, client, logger, respond }) => {
 
     // Actually delete from MongoDB
     try {
-      const channelKey = await buildChannelKey(savedMessage.channelName);
+      const channelKey = await buildChannelKey(savedMessage.channelName, { client });
       await apiClient.delete(`/api/messages/${encodeURIComponent(channelKey)}/${savedMessage.timestamp}`);
     } catch (deleteErr) {
       logger.error('Failed to delete message from DB:', deleteErr);
