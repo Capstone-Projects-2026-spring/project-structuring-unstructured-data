@@ -177,11 +177,30 @@ function getSelectedOptionValueFromViewState(viewState, actionId) {
 }
 
 function getWorkspaceIdFromPayload(payload) {
-  return payload?.team_id || payload?.team?.id || payload?.enterprise?.id || null;
+  return payload?.team_id
+    || payload?.team?.id
+    || payload?.authorizations?.[0]?.team_id
+    || payload?.context_team_id
+    || payload?.enterprise?.id
+    || payload?.authorizations?.[0]?.enterprise_id
+    || payload?.context_enterprise_id
+    || null;
 }
 
 function getWorkspaceNameFromPayload(payload) {
-  return payload?.team?.name || payload?.team_name || payload?.team?.domain || payload?.team_domain || null;
+  return payload?.team?.name
+    || payload?.team_name
+    || payload?.team?.domain
+    || payload?.team_domain
+    || payload?.authorizations?.[0]?.team_name
+    || null;
+}
+
+function getHomeWorkspaceContext(payload) {
+  return {
+    teamId: getWorkspaceIdFromPayload(payload),
+    workspaceName: getWorkspaceNameFromPayload(payload)
+  };
 }
 
 // Initialize Express and Slack App based on mode
@@ -334,8 +353,9 @@ app.event('app_mention', async ({ event, client, logger }) => {
 app.event('app_home_opened', async ({ event, body, client, logger }) => {
   console.log('🏠 [app_home_opened] Event triggered for user:', event.user);
   const userId = event.user;
-  const teamId = getWorkspaceIdFromPayload(body) || getWorkspaceIdFromPayload(event);
-  const workspaceName = getWorkspaceNameFromPayload(body) || getWorkspaceNameFromPayload(event);
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+  const resolvedTeamId = teamId || getWorkspaceIdFromPayload(event);
+  const resolvedWorkspaceName = workspaceName || getWorkspaceNameFromPayload(event);
   
   // Publish a loading view immediately (within Slack's 3-second timeout)
   try {
@@ -376,8 +396,8 @@ app.event('app_home_opened', async ({ event, body, client, logger }) => {
       await publishHomeTab({
         client,
         userId,
-        teamId,
-        workspaceName,
+        teamId: resolvedTeamId,
+        workspaceName: resolvedWorkspaceName,
         logger,
         apiClient
       });
@@ -672,8 +692,7 @@ app.command('/members-info', async ({ command, ack, respond, client }) => {
 // /refresh-home - Refresh the Home dashboard for the current user
 app.command('/refresh-home', async ({ command, ack, respond, client, logger }) => {
   await ack();
-  const teamId = getWorkspaceIdFromPayload(command);
-  const workspaceName = getWorkspaceNameFromPayload(command);
+  const { teamId, workspaceName } = getHomeWorkspaceContext(command);
 
   // Send immediate response to avoid timeout
   // publishHomeTab() is slow due to paginated channel list and API calls
@@ -703,8 +722,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
 // Home tab channel dropdown: republish with selected channel data.
 app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
-  const teamId = getWorkspaceIdFromPayload(body);
-  const workspaceName = getWorkspaceNameFromPayload(body);
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
 
   try {
     const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
@@ -733,8 +751,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
 // Home tab refresh button: republish the dashboard on click.
 app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
-  const teamId = getWorkspaceIdFromPayload(body);
-  const workspaceName = getWorkspaceNameFromPayload(body);
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
 
   const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
@@ -764,8 +781,7 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
 // Home tab week dropdown: republish with selected week updates.
 app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
-  const teamId = getWorkspaceIdFromPayload(body);
-  const workspaceName = getWorkspaceNameFromPayload(body);
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
 
   const selectedWeekRaw = body.actions && body.actions[0] && body.actions[0].selected_option
     ? body.actions[0].selected_option.value

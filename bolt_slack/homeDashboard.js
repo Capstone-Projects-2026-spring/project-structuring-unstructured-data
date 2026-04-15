@@ -11,7 +11,38 @@ const MAX_STATIC_SELECT_OPTIONS = 100;
 const channelCacheByWorkspace = new Map();
 
 function getWorkspaceCacheKey(teamId) {
-  return typeof teamId === 'string' && teamId.trim() ? teamId.trim() : 'unknown-workspace';
+  return typeof teamId === 'string' && teamId.trim() ? teamId.trim() : null;
+}
+
+async function resolveWorkspaceContext({ client, teamId, workspaceName, logger }) {
+  const normalizedTeamId = typeof teamId === 'string' ? teamId.trim() : '';
+  const normalizedWorkspaceName = typeof workspaceName === 'string' ? workspaceName.trim() : '';
+
+  if (normalizedTeamId && normalizedWorkspaceName) {
+    return {
+      teamId: normalizedTeamId,
+      workspaceName: normalizedWorkspaceName
+    };
+  }
+
+  try {
+    const authInfo = await client.auth.test();
+    return {
+      teamId: normalizedTeamId || authInfo?.team_id || '',
+      workspaceName: normalizedWorkspaceName || authInfo?.team || ''
+    };
+  } catch (error) {
+    if (logger) {
+      logger.warn('[resolveWorkspaceContext] auth.test failed; using payload workspace context when available.', error);
+    } else {
+      console.warn('[resolveWorkspaceContext] auth.test failed; using payload workspace context when available.', error);
+    }
+
+    return {
+      teamId: normalizedTeamId,
+      workspaceName: normalizedWorkspaceName
+    };
+  }
 }
 
 function formatSummaryTimestamp(ts) {
@@ -195,6 +226,10 @@ function buildChannelOptions(channels) {
 
 function getCachedChannels(teamId) {
   const cacheKey = getWorkspaceCacheKey(teamId);
+  if (!cacheKey) {
+    return null;
+  }
+
   const cachedEntry = channelCacheByWorkspace.get(cacheKey);
 
   if (cachedEntry && Date.now() < cachedEntry.expiresAt) {
@@ -209,7 +244,12 @@ function getCachedChannels(teamId) {
 }
 
 function setCachedChannels(teamId, channels) {
-  channelCacheByWorkspace.set(getWorkspaceCacheKey(teamId), {
+  const cacheKey = getWorkspaceCacheKey(teamId);
+  if (!cacheKey) {
+    return;
+  }
+
+  channelCacheByWorkspace.set(cacheKey, {
     channels,
     expiresAt: Date.now() + CHANNEL_CACHE_TTL_MS
   });
@@ -672,13 +712,22 @@ function buildSampleHomeView({
 
 async function publishHomeTab({ client, userId, teamId, workspaceName, logger, apiClient, selectedChannelName, selectedWeek = null }) {
   try {
+    const resolvedWorkspaceContext = await resolveWorkspaceContext({
+      client,
+      teamId,
+      workspaceName,
+      logger
+    });
+    const resolvedTeamId = resolvedWorkspaceContext.teamId || null;
+    const resolvedWorkspaceName = resolvedWorkspaceContext.workspaceName || workspaceName;
+
     if (logger) {
-      logger.info(`[publishHomeTab] Starting for user ${userId}`);
+      logger.info(`[publishHomeTab] Starting for user ${userId} (teamId=${resolvedTeamId || 'unknown'})`);
     } else {
-      console.log(`[publishHomeTab] Starting for user ${userId}`);
+      console.log(`[publishHomeTab] Starting for user ${userId} (teamId=${resolvedTeamId || 'unknown'})`);
     }
 
-    const channels = await getBotChannels(client, teamId);
+    const channels = await getBotChannels(client, resolvedTeamId);
     const channelOptions = buildChannelOptions(channels);
 
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
@@ -712,7 +761,7 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
 
     const viewPayload = buildSampleHomeView({
       userId,
-      workspaceName,
+      workspaceName: resolvedWorkspaceName,
       channelOptions,
       selectedChannelName: resolvedChannelName,
       selectedWeek: availableWeeks.includes(selectedWeek) ? selectedWeek : availableWeeks[0],
