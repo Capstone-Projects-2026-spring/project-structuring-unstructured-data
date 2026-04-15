@@ -258,6 +258,8 @@ function setCachedChannels(teamId, channels) {
 async function getBotChannels(client, teamId) {
   const cachedChannels = getCachedChannels(teamId);
   if (cachedChannels) {
+    const first3 = cachedChannels.slice(0, 3).map(c => c.name).join(', ');
+    console.log(`[getBotChannels] Using cached channels for teamId=${teamId}. Count: ${cachedChannels.length}, First 3: [${first3}]`);
     return cachedChannels;
   }
 
@@ -265,6 +267,8 @@ async function getBotChannels(client, teamId) {
   let cursor;
   let pageCount = 0;
   const maxPages = 2; // Limit to 2 pages (400 channels) for performance
+
+  console.log(`[getBotChannels] Fetching fresh channels from Slack for teamId=${teamId}...`);
 
   do {
     const response = await client.conversations.list({
@@ -294,6 +298,8 @@ async function getBotChannels(client, teamId) {
   } while (cursor);
 
   channels.sort((a, b) => a.name.localeCompare(b.name));
+  const first3 = channels.slice(0, 3).map(c => c.name).join(', ');
+  console.log(`[getBotChannels] Fresh fetch complete for teamId=${teamId}. Total: ${channels.length}, First 3: [${first3}]`);
   setCachedChannels(teamId, channels);
   return channels;
 }
@@ -721,6 +727,10 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
     const resolvedTeamId = resolvedWorkspaceContext.teamId || null;
     const resolvedWorkspaceName = resolvedWorkspaceContext.workspaceName || workspaceName;
 
+    console.log(`[publishHomeTab] ========== START HOME PUBLISH ==========`);
+    console.log(`[publishHomeTab] User: ${userId} | ResolvedTeamId: ${resolvedTeamId} | Workspace: ${resolvedWorkspaceName}`);
+    console.log(`[publishHomeTab] Input teamId: ${teamId || '(none)'} | Input workspaceName: ${workspaceName || '(none)'}`);
+
     if (logger) {
       logger.info(`[publishHomeTab] Starting for user ${userId} (teamId=${resolvedTeamId || 'unknown'})`);
     } else {
@@ -729,8 +739,11 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
 
     const channels = await getBotChannels(client, resolvedTeamId);
     const channelOptions = buildChannelOptions(channels);
+    const first3Channels = channels.slice(0, 3).map(c => `#${c.name}`).join(', ');
+    console.log(`[publishHomeTab] Loaded channels for Home dropdown: ${channels.length} total | First 3: ${first3Channels}`);
 
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
+    console.log(`[publishHomeTab] Selected channel: ${resolvedChannelName || '(none)'}`);
 
     if (logger) {
       logger.info(`[publishHomeTab] Fetching summaries for channel: ${resolvedChannelName}`);
