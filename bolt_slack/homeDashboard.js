@@ -55,7 +55,7 @@ function formatSummaryTimestamp(ts) {
     return 'unknown time';
   }
 
-  return new Date(parsed).toLocaleString();
+  return new Date(parsed).toLocaleString('en-US', { timeZone: 'America/New_York' });
 }
 
 function formatSummaryDate(ts, fallback = 'Unknown date') {
@@ -419,7 +419,6 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, client, 
 
 function buildSummaryDetailsMarkdown(summary) {
   const weekInfo = getWeekInfo(summary);
-  const summaryDate = formatSummaryDate(summary.summary_day_utc, 'Unknown date');
   const messageCount = summary.message_count != null ? summary.message_count : 'n/a';
   const distinctUsers = summary.distinct_users != null ? summary.distinct_users : 'n/a';
   const generatedAt = formatSummaryTimestamp(summary.generated_at_utc);
@@ -578,7 +577,7 @@ function buildSampleHomeView({
   summaries,
   errorMessage
 }) {
-  const generatedAt = new Date().toLocaleString();
+  const generatedAt = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
   const selectedOption = channelOptions.find((option) => option.value === selectedChannelName);
 
   const blocks = [
