@@ -13,12 +13,19 @@ export interface TestCase {
 interface ExecutionSummary {
   results: unknown[];
   passedCount: number;
+  executionTimes: (number | null)[];
+  averageExecutionTime: number | null;
+  errors: (string | null)[];
 }
 
 interface ExecutorResultItem {
   id?: unknown;
   actual?: unknown;
   passed?: unknown;
+  stderr?: string;
+  stdout?: string;
+  exit_code?: number;
+  execution_time_ms?: number;
 }
 
 interface ExecutorResponse {
@@ -32,6 +39,12 @@ export interface TestsResponse {
   team1PassedCount: number;
   team2PassedCount: number;
   totalTests: number;
+  team1ExecutionTimes: (number | null)[];
+  team2ExecutionTimes: (number | null)[];
+  team1AverageExecutionTime: number | null;
+  team2AverageExecutionTime: number | null;
+  team1Errors: (string | null)[];
+  team2Errors: (string | null)[];
 }
 
 export interface ErrorResponse {
@@ -89,6 +102,9 @@ function emptyExecution(totalTests: number): ExecutionSummary {
   return {
     results: Array.from({ length: totalTests }, () => null),
     passedCount: 0,
+    executionTimes: Array.from({ length: totalTests }, () => null),
+    averageExecutionTime: null,
+    errors: Array.from({ length: totalTests }, () => null),
   };
 }
 
@@ -123,7 +139,12 @@ async function executeSubmission(
   }
 
   const executionData = (await response.json()) as ExecutorResponse;
-  const resultsById = new Map<number, { actual: string | null; passed: boolean }>();
+  const resultsById = new Map<number, {
+    actual: string | null;
+    passed: boolean;
+    stderr: string | null;
+    execution_time_ms: number | null;
+  }>();
 
   for (const result of executionData.results ?? []) {
     if (typeof result.id !== "number") continue;
@@ -131,6 +152,8 @@ async function executeSubmission(
     resultsById.set(result.id, {
       actual: typeof result.actual === "string" ? result.actual : null,
       passed: result.passed === true,
+      stderr: typeof result.stderr === "string" ? result.stderr : null,
+      execution_time_ms: typeof result.execution_time_ms === "number" ? result.execution_time_ms : null,
     });
   }
 
@@ -139,6 +162,22 @@ async function executeSubmission(
     return toDisplayResult(test.expected, result?.actual ?? null);
   });
 
+  const executionTimes = tests.map((_, index) => {
+    const result = resultsById.get(index);
+    return result?.execution_time_ms ?? null;
+  });
+
+  const errors = tests.map((_, index) => {
+    const result = resultsById.get(index);
+    return result?.stderr ?? null;
+  });
+
+  // Calculate average execution time (only from successful execution times)
+  const validTimes = executionTimes.filter((t): t is number => t !== null && typeof t === "number");
+  const averageExecutionTime = validTimes.length > 0
+    ? Math.round(validTimes.reduce((a, b) => a + b, 0) / validTimes.length)
+    : null;
+
   const passedCount = Array.from(resultsById.values()).filter(
     (result) => result.passed,
   ).length;
@@ -146,6 +185,9 @@ async function executeSubmission(
   return {
     results: normalizedResults,
     passedCount,
+    executionTimes,
+    averageExecutionTime,
+    errors,
   };
 }
 
@@ -238,6 +280,12 @@ export default async function handler(
       team1PassedCount: team1Execution.passedCount,
       team2PassedCount: team2Execution.passedCount,
       totalTests: formattedTests.length,
+      team1ExecutionTimes: team1Execution.executionTimes,
+      team2ExecutionTimes: team2Execution.executionTimes,
+      team1AverageExecutionTime: team1Execution.averageExecutionTime,
+      team2AverageExecutionTime: team2Execution.averageExecutionTime,
+      team1Errors: team1Execution.errors,
+      team2Errors: team2Execution.errors,
     });
   } catch (error: unknown) {
     if (error instanceof Error) {

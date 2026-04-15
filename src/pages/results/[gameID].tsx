@@ -47,6 +47,8 @@ interface RoomDetailsResponse {
   team1Code: string | null;
   team2Code: string | null;
   userTeamNumber: 1 | 2;
+  team1AverageExecutionTime?: number | null;
+  team2AverageExecutionTime?: number | null;
 }
 
 // Animated counter hook
@@ -164,6 +166,8 @@ export function Results() {
             team2Code: roomDetails.team2Code ?? undefined,
             gameType: roomDetails.gameType,
             userTeamNumber: roomDetails.userTeamNumber,
+            team1AverageExecutionTime: roomDetails.team1AverageExecutionTime,
+            team2AverageExecutionTime: roomDetails.team2AverageExecutionTime,
           });
         } else {
           setAnalysisProps(null);

@@ -23,6 +23,8 @@ interface RoomDetailsResponse {
   team1Code: string | null;
   team2Code: string | null;
   userTeamNumber: 1 | 2;
+  team1AverageExecutionTime?: number | null;
+  team2AverageExecutionTime?: number | null;
 }
 
 interface ErrorResponse {
@@ -113,6 +115,28 @@ export default async function handler(
       },
     });
 
+    // Fetch execution metrics from tests endpoint
+    let team1AverageExecutionTime: number | null = null;
+    let team2AverageExecutionTime: number | null = null;
+
+    try {
+      const baseUrl = process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT || 3000}`;
+      const testsResponse = await fetch(`${baseUrl}/api/rooms/tests?gameId=${gameId}`, {
+        headers: {
+          ...(req.headers.cookie ? { Cookie: req.headers.cookie } : {}),
+        },
+      });
+
+      if (testsResponse.ok) {
+        const testsData = await testsResponse.json();
+        team1AverageExecutionTime = testsData.team1AverageExecutionTime ?? null;
+        team2AverageExecutionTime = testsData.team2AverageExecutionTime ?? null;
+      }
+    } catch (error) {
+      console.error("Failed to fetch execution metrics", error);
+      // Continue without metrics if endpoint fails
+    }
+
     // Return complete game data
     return res.status(200).json({
       problem: {
@@ -126,6 +150,8 @@ export default async function handler(
       team1Code: gameResult?.team1Code ?? null,
       team2Code: gameResult?.team2Code ?? null,
       userTeamNumber,
+      team1AverageExecutionTime,
+      team2AverageExecutionTime,
     });
   } catch (error: unknown) {
     // Surface a useful message while preserving a fallback for unknown errors.
