@@ -116,7 +116,16 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
         day_df = week_df[week_df['day_name'] == day_name]
         summary_day_utc = derive_summary_day_utc(day_df)
         week_start_utc = week_start_from_summary_day(summary_day_utc)
-        users = int(day_df['user'].nunique()) if 'user' in day_df.columns else 0
+        distinct_user_ids = []
+        if 'user' in day_df.columns:
+            normalized_user_ids = (
+                day_df['user']
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+            normalized_user_ids = normalized_user_ids[normalized_user_ids != '']
+            distinct_user_ids = [str(user_id) for user_id in pd.unique(normalized_user_ids)]
         message_count = int(len(day_df))
 
         prompt_text = f'--- {day_name} ---\n{day_text}'
@@ -129,7 +138,7 @@ def build_day_summary_docs(db_name, week_df, day_chunks, summarizer, data_proces
                 'week_start_utc': week_start_utc,
                 'summary_text': day_summary,
                 'message_count': message_count,
-                'distinct_users': users,
+                'distinct_users': distinct_user_ids,
                 'generated_at_utc': datetime.now(timezone.utc).isoformat(),
             }
         )

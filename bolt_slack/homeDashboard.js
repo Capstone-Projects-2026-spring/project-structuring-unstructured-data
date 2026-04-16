@@ -7,6 +7,7 @@ const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
 const CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000; // Increased from 5 to 30 minutes to reduce API calls
 const MAX_STATIC_SELECT_OPTIONS = 100;
+const MAX_DISTINCT_USER_MENTIONS_DISPLAY = 8;
 
 const channelCacheByWorkspace = new Map();
 
@@ -420,7 +421,26 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, client, 
 function buildSummaryDetailsMarkdown(summary) {
   const weekInfo = getWeekInfo(summary);
   const messageCount = summary.message_count != null ? summary.message_count : 'n/a';
-  const distinctUsers = summary.distinct_users != null ? summary.distinct_users : 'n/a';
+  const distinctUserIds = Array.isArray(summary.distinct_users)
+    ? Array.from(new Set(
+      summary.distinct_users
+        .map((value) => String(value || '').trim())
+        .map((value) => {
+          const mentionMatch = value.match(/^<@([A-Za-z0-9]+)>!?$/);
+          return mentionMatch ? mentionMatch[1] : value;
+        })
+        .filter((value) => value.length > 0)
+    ))
+    : [];
+
+  const displayMentions = distinctUserIds
+    .slice(0, MAX_DISTINCT_USER_MENTIONS_DISPLAY)
+    .map((userId) => `<@${userId}>`);
+  const hiddenUserCount = Math.max(0, distinctUserIds.length - displayMentions.length);
+
+  const distinctUsers = displayMentions.length
+    ? `${displayMentions.join(' ')}${hiddenUserCount > 0 ? ` + ${hiddenUserCount} more` : ''}`
+    : (summary.distinct_users != null ? String(summary.distinct_users) : 'n/a');
   const generatedAt = formatSummaryTimestamp(summary.generated_at_utc);
 
   return [
@@ -434,7 +454,7 @@ function buildSummaryDetailsMarkdown(summary) {
     },
     {
       type: 'mrkdwn',
-      text: `*Distinct users*\n${distinctUsers}`
+      text: `*Distinct users (${distinctUserIds.length || 'n/a'})*\n${distinctUsers}`
     },
     {
       type: 'mrkdwn',
