@@ -27,6 +27,48 @@ Describe algorithms employed in your project, e.g. neural network paradigm, trai
 A check list for architecture design is attached here [architecture\_design\_checklist.pdf](https://templeu.instructure.com/courses/106563/files/16928870/download?wrap=1 "architecture_design_checklist.pdf")  and should be used as a guidance.
 
 
+## Client-Server Workflow
+```mermaid
+graph LR
+    Slack[Slack] -- Message --> RawData[Raw Data]
+    RawData --> DUM{Daily Update Model}
+    
+    DUM --> LLM[LLM]
+    DUM --> CWT[Current Week Table]
+    CWT --> LLM
+    
+    LLM -- Daily Aggregate Updates --> DPO[Daily Processed Output]
+    LLM -- Higher Level Overview --> PMP[Past Month Processed]
+    
+    DPO -- Last Day Update --> PWP[Past Weeks Processed]
+    PWP --> LLM
+    
+    DPO --> Dashboard[Dashboard]
+    PWP --> Dashboard
+    PMP --> Dashboard
+
+    %% Styling to match the original purple theme
+    classDef purple fill:#f0f0ff,stroke:#9370db,color:#333;
+    class Slack,RawData,DUM,CWT,LLM,DPO,PWP,PMP,Dashboard purple;
+```
+*Figure 1: Diagrame components of the complete Slack application workflow, from collection of sent messages/commands to structured summary output.*
+
+### Daily Update Model
+Model created from the raw data reflecting the relevant information for the day
+
+### Current Week Table
+A table of the previous daily models to keep context for LLM
+
+### Daily Processed Output
+Each day the LLM will process our data models and produce strcutred summarizations for the dashboard
+
+### Past Weeks Processed
+An archieve of the final daily output for each week
+
+### Past Month Processed
+Overviews of each month based on the LLM processing the Past Weeks Processed table
+
+
 # Database Design
 
 ## Raw Data Schema
@@ -83,7 +125,7 @@ erDiagram
         string block_id FK
     }
 ```
-*Figure 1: ER Diagram of relations between Slack data objects collected directly from Slack API*
+*Figure 2: ER Diagram of relations between Slack data objects collected directly from Slack API*
 
 ### Workspace
 Stores organizational data of an entire workspace
@@ -110,7 +152,7 @@ Stores user data for specific member in a workspace
 Stores data of a select message sent into a conversation
 - id: int - primary key, unique identifier assigned manually per message in a conversation
 - text: string - string representation of message's text
-- timestamp: bigint - UNIX representation of timestamp the message was sent, derived from original string provided by Slack API (ex= `"1512104434.000490"`)
+- timestamp: bigint - UNIX representation of timestamp the message was sent, derived from original string provided by Slack API (ex, `"1512104434.000490"`)
 - client_msg_id: uuid -  unique id for the message on the client side
 - author_id: string - foreign key (User: id), contains relation to user that sent message
 - conversation_id: string - foreign key (Conversation: id), contains relation to conversation where message is located
@@ -128,18 +170,31 @@ Composed element/section that makes up a message block. This can include a URL a
 - value: string - string representation of the item type associated with the text
 - block_id: string - foreign key (Block: id), contains relation to block that the element belongs to
 
-## Structured Message Schema
+## Structured Data Schema
 
 ```mermaid
 erDiagram
-    SUMMARY }o--|| USER : contains
+    BIO ||--|| USER : contains
+    SUMMARY }|--|{ USER : contains
+
+    BIO {
+        string id PK
+        string tasks_todo
+        string tasks_completed
+        string skills[]
+        string generated_at_utc
+        string user FK
+    }
 
     SUMMARY {
         string id PK
-        int week_of
-        string day
-        string ts
-        string user FK
+        string channel_db
+        string summary_day_utc
+        string week_start_utc
+        string summary_text
+        int message_count
+        string[] distinct_users
+        string generated_at_utc
     }
 
     USER {
@@ -148,53 +203,25 @@ erDiagram
         string real_name
     }
 ```
-*Figure 2: ER Diagram of structured message data from the LLM model, which includes a daily task summary*
+*Figure 3: ER Diagram of structured message data from the LLM model, which includes a daily task summary and user bio*
 
+
+### Bio
+Collection of structuring model's outputs of holistic user summaries; includes data from all channels & workspaces user is a member of
+- id: string - primary key
+- tasks_todo: string - Structured summary of upcoming tasks and projects the user is a part of / mentions they will be working on.
+- tasks_completed: string - Structured summary of major tasks and projects the user mentions they have finished.
+- skills: string[] - Structured array of skills and topics the user has experience in, based on their assigned projects & completed tasks.
+- generated_at_utc: string - representation of UTC timestamp for date of summary generation (ex, `2026-04-05T00:00:00Z`)
+- user: string - foreign key (User: id), contains relation to member_id assigned to a specific user
 
 ### Summary
 Collection of structuring model's outputs of daily message summaries
 - id: string - primary key
-- week_of: int - notates incremented week count since the creation of the channel
-- day: string - string representation of the day of the week which the message summary is for (`mon`, `tue`, etc.)
-- ts: string - string UNIX representation of date and time when message sent
-- user: string - foreign key (User: id), contains relation to all messages at specified time range sent by the target user ID
-
-## Application workflow
-```mermaid
-graph LR
-    Slack[Slack] -- Message --> RawData[Raw Data]
-    RawData --> DUM{Daily Update Model}
-    
-    DUM --> LLM[LLM]
-    DUM --> CWT[Current Week Table]
-    CWT --> LLM
-    
-    LLM -- Daily Aggregate Updates --> DPO[Daily Processed Output]
-    LLM -- Higher Level Overview --> PMP[Past Month Processed]
-    
-    DPO -- Last Day Update --> PWP[Past Weeks Processed]
-    PWP --> LLM
-    
-    DPO --> Dashboard[Dashboard]
-    PWP --> Dashboard
-    PMP --> Dashboard
-
-    %% Styling to match the original purple theme
-    classDef purple fill:#f0f0ff,stroke:#9370db,color:#333;
-    class Slack,RawData,DUM,CWT,LLM,DPO,PWP,PMP,Dashboard purple;
-```
-
-### Daily Update Model
-Model created from the raw data reflecting the relevant information for the day
-
-### Current Week Table
-A table of the previous daily models to keep context for LLM
-
-### Daily Processed Output
-Each day the LLM will process our data models and produce strcutred summarizations for the dashboard
-
-### Past Weeks Processed
-An archieve of the final daily output for each week
-
-### Past Month Processed
-Overviews of each month based on the LLM processing the Past Weeks Processed table
+- channel_db: string - unique database name for channel on MongoDB, created by combining channel name & ID (ex, `general_channel_C12345ABCDE`)
+- summary_day_utc: string - representation of UTC timestamp for selected day of summary
+- week_start_utc: string - representation of UTC timestamp for starting week of summary (Sundays)
+- summary_text: string - prompt result for structured data from Gemini model
+- message_count: int - number of messages sent on selected summary day
+- distinct_users: string[] - collection of member_ids representing users that sent messages on selected summary day
+- generated_at_utc: string - representation of UTC timestamp for date of summary generation (ex, `2026-04-05T00:00:00Z`)
