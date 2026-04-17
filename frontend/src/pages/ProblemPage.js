@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { LANGUAGE_MAP } from '../constants';
-import { startSubmission, saveDraft, submitCode } from '../api';
+import { LANGUAGE_MAP, AVAILABLE_LANGUAGES } from '../constants';
+import { executeCode, startSubmission, saveDraft, submitCode } from '../api';
 
 /**
  * @fileoverview Problem page component for the AutoSuggestion Quiz application.
@@ -203,7 +203,25 @@ function ProblemPage({ problem, onBack, studentName }) {
 
   // Session start
   useEffect(() => {
+    if (monacoRef.current && editorRef.current) {
+      registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[selectedLanguage]);
+    }
+  }, [selectedLanguage, registerCompletionProvider]);
+
+  useEffect(() => {
+    const newStarterCode = (problem.sections || [])
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((s) => {
+        const sectionCode = (typeof s.code === 'object' ? s.code[selectedLanguage] : s.code) || '';
+        return `# ${s.label}\n${sectionCode}`;
+      })
+      .join('\n');
+    setCode(newStarterCode);
+  }, [selectedLanguage, problem.sections]);
+
+  useEffect(() => {
     if (!studentName) return;
+
     startSubmission(problem.id, studentName)
       .then((result) => {
         setSessionId(result.session_id);
@@ -330,7 +348,8 @@ _stderr = _stderr_buf.getvalue()
       if (stderr) result += 'Error: ' + stderr;
       setOutput(result || 'Code executed successfully (no output)\n');
     } catch (error) {
-      setOutput(`Error executing Python code:\n${error.message}\n`);
+      const errorMessage = error?.message || String(error) || 'Unknown error';
+      setOutput(`Error executing Python code:\n${errorMessage}\n`);
     } finally {
       setIsRunning(false);
     }

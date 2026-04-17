@@ -157,3 +157,16 @@ export async function gradeSubmission(problemId, sessionId, grade, token) {
     }
     return response.json();
 }
+
+export async function executeCode(code, language, input = '') {
+    const response = await fetch(`${API_URL}/code/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language, input }),
+    });
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Failed to execute code');
+    }
+    return response.json();
+}

@@ -47,6 +47,165 @@ ASQ also supports teachers by allowing them to upload problems and give students
 ## Running Locally
 
 For full setup instructions including Supabase configuration, schema SQL, environment variables, and how to run all tests, see [LOCAL_SETUP.md](./LOCAL_SETUP.md).
+### Backend
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate         # Windows
+pip install -r requirements.txt
+```
+
+**Environment variables**
+
+Copy the template and fill in your values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Then edit `backend/.env`:
+
+| Variable | Description | Required |
+|---|---|---|
+| `OPENAI_API_KEY` | OpenAI API key for AI code suggestions | **Yes** |
+| `DATABASE_URL` | PostgreSQL connection string for the backend database | **Yes** |
+| `DEBUG` | Set to `True` in development | No |
+| `SUPABASE_URL` | Your Supabase project URL | Only for OTP login |
+| `SUPABASE_SERVICE_KEY` | Your Supabase anon/service key | Only for OTP login |
+| `JUDGE0_URL` | Judge0 base URL, for example `http://localhost:2358` | For code execution |
+| `JUDGE0_AUTH_TOKEN` | Optional auth token for a protected Judge0 instance | No |
+
+**Start the server**
+
+```bash
+uvicorn main:app --reload
+```
+
+The API runs at `http://localhost:8000`. The database is **created and seeded automatically** on first startup — no manual migration needed. A seed teacher (`seed@autoquiz.dev`) and a sample problem (access code `123456`) are added when the database is empty.
+
+### Self-Hosted Compiler With Docker
+
+The backend uses a local Judge0 CE instance for code execution. This keeps the existing `/code/execute` backend endpoint the same while moving compilation and execution onto your machine.
+
+Docker Desktop must already be installed and running before you start Judge0. The helper scripts manage the local Judge0 stack, but they do not install Docker for you.
+
+Start Judge0 locally:
+
+```bash
+./scripts/start_judge0.sh
+```
+
+Then set `JUDGE0_URL=http://localhost:2358` in `backend/.env` and start the backend normally.
+
+Stop Judge0 when you are done:
+
+```bash
+./scripts/stop_judge0.sh
+```
+
+If Judge0 starts successfully but code execution still fails, reset the local Judge0 volumes and start again:
+
+```bash
+./scripts/stop_judge0.sh
+cd .judge0/judge0-v1.13.1 && docker compose down -v
+cd ../..
+./scripts/start_judge0.sh
+```
+
+## Mac
+
+For macOS users setting up Judge0:
+You may need to change a Docker settings file if Docker and Judge0 are incompatible on your machine.
+
+To start, close docker and every instance of it currently running.
+
+You will need to locate the settings-store.json for docker in order to use the deprecatedCgroupv1.
+
+In Terminal:
+
+```bash
+open -a TextEdit "/Users/[Your Computer Name]/Library/Group Containers/group.com.docker/settings-store.json"
+```
+
+Then replace the file contents with:
+
+```json
+{
+  "AutoStart": false,
+  "DisplayedOnboarding": true,
+  "DockerAppLaunchPath": "/Applications/Docker.app",
+  "EnableDockerAI": true,
+  "LastContainerdSnapshotterEnable": 1773866500,
+  "LicenseTermsVersion": 2,
+  "SettingsVersion": 43,
+  "ShowInstallScreen": false,
+  "UseContainerdSnapshotter": true,
+  "deprecatedCgroupv1": true
+}
+```
+
+Reopen Docker, and the app should be able to reach Judge0.
+
+---
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+> **Optional:** If your backend is not on the default port, create `frontend/.env` and set `REACT_APP_API_URL=http://localhost:<your_port>`. Otherwise no `.env` is needed.
+
+**Start the app**
+
+```bash
+npm start
+```
+
+The app opens at `http://localhost:3000`.
+
+---
+
+### Supabase / OTP Login
+
+All Supabase communication happens on the **backend** — the frontend does not need any Supabase credentials. To enable OTP email login:
+
+1. Create a free account at [supabase.com](https://supabase.com).
+2. Create a new project.
+3. Go to **Project Settings → API**.
+4. Copy the **Project URL** → paste as `SUPABASE_URL` in `backend/.env`.
+5. Copy the **anon / public** key → paste as `SUPABASE_SERVICE_KEY` in `backend/.env`.
+
+**Dev bypass — no Supabase account needed**
+
+On the login page, enter `dev` as the email and click **Send OTP**. This skips Supabase entirely and signs you in as the seed teacher (`seed@autoquiz.dev`) without sending any email. This only works when `DEBUG=True` is set in `backend/.env`.
+
+---
+
+## Testing
+
+### Backend
+
+Make sure the virtual environment is activated, then run:
+
+```bash
+cd backend
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate         # Windows
+pytest backUnitTest/
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm test
+```
+
+Press `a` to run all tests.
 
 ---
 
