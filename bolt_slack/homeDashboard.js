@@ -6,6 +6,7 @@ const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
 const HOME_ADMIN_STORE_MEMBERS = 'home_admin_store_members';
+const HOME_ADMIN_VIEW_UNSTORED = 'home_admin_view_unstored';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
 const CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000; // Increased from 5 to 30 minutes to reduce API calls
 const MAX_STATIC_SELECT_OPTIONS = 100;
@@ -384,7 +385,7 @@ async function getUnstoredMessages(client, apiClient, channelName, channelId) {
 
     const slackMessages = (slackResult.messages || []).filter(isHumanMessage);
 
-    const channelKey = await buildChannelKey(channelName);
+    const channelKey = buildChannelKey(channelName, channelId);
     const response = await apiClient.get(`/api/messages/${encodeURIComponent(channelKey)}`);
     const storedMessages = (response.data || []).filter(isHumanMessage);
 
@@ -393,6 +394,8 @@ async function getUnstoredMessages(client, apiClient, channelName, channelId) {
 
     return {
       channelName,
+      channelId,
+      channelKey,
       total: slackMessages.length,
       stored: storedMessages.length,
       unstored: unstoredCount
@@ -753,14 +756,23 @@ function buildSampleHomeView({
           }
           const allStored = ch.unstored === 0;
           const statusIcon = allStored ? '✅' : '⚠️';
-          const statusText = allStored ? 'All messages stored' : `${ch.unstored} messages not yet stored`;
-          return {
+          const statusText = allStored ? 'All messages stored' : `${ch.unstored} messages not stored`;
+          const block = {
             type: 'section',
             fields: [
               { type: 'mrkdwn', text: `*#${ch.channelName}*` },
               { type: 'mrkdwn', text: `${statusIcon} ${statusText}\n${ch.stored} / ${ch.total} stored` }
             ]
           };
+          if (!allStored) {
+            block.accessory = {
+              type: 'button',
+              text: { type: 'plain_text', text: '🔍 View Unstored', emoji: true },
+              value: JSON.stringify({ channelId: ch.channelId, channelName: ch.channelName, channelKey: ch.channelKey }),
+              action_id: HOME_ADMIN_VIEW_UNSTORED
+            };
+          }
+          return block;
         })
     ),
     {
@@ -896,6 +908,7 @@ module.exports = {
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
+  HOME_ADMIN_VIEW_UNSTORED,
   buildSampleHomeView,
   publishHomeTab,
   encodeDashboardState,

@@ -14,6 +14,7 @@ const {
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
+  HOME_ADMIN_VIEW_UNSTORED,
   encodeDashboardState,
   checkIfUserIsAdmin
 } = require('./homeDashboard');
@@ -833,6 +834,51 @@ app.action(HOME_ADMIN_STORE_MEMBERS, async ({ ack, body, client, logger }) => {
     }).catch((error) => logger.error('Error refreshing home tab:', error));
   } catch (error) {
     logger.error('Error handling admin store members:', error);
+  }
+});
+
+// Home tab admin: show unstored messages for a channel in DM
+app.action(HOME_ADMIN_VIEW_UNSTORED, async ({ ack, body, client, logger }) => {
+  await ack();
+  try {
+    const { channelId, channelName, channelKey } = JSON.parse(body.actions[0].value);
+
+    const [slackResult, storedResult] = await Promise.all([
+      client.conversations.history({ channel: channelId, limit: 1000 }),
+      apiClient.get(`/api/messages/${encodeURIComponent(channelKey)}`)
+    ]);
+
+    const isHumanMessage = (msg) => !msg.bot_id && msg.subtype !== 'bot_message' && msg.user;
+    const slackMessages = (slackResult.messages || []).filter(isHumanMessage);
+    const storedTimestamps = new Set(
+      (storedResult.data || []).filter(isHumanMessage).map((msg) => msg.ts)
+    );
+    const unstoredMessages = slackMessages.filter((msg) => !storedTimestamps.has(msg.ts));
+
+    const dm = await client.conversations.open({ users: body.user.id });
+
+    if (unstoredMessages.length === 0) {
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `✅ All messages in *#${channelName}* are stored.`
+      });
+      return;
+    }
+
+    const CHUNK = 20;
+    for (let i = 0; i < unstoredMessages.length; i += CHUNK) {
+      const chunk = unstoredMessages.slice(i, i + CHUNK);
+      const header = i === 0
+        ? `📋 *Unstored messages in #${channelName}* (${unstoredMessages.length} total):\n\n`
+        : '';
+      const lines = chunk.map((msg, idx) => {
+        const time = new Date(parseFloat(msg.ts) * 1000).toLocaleString();
+        return `${i + idx + 1}. <@${msg.user}> _${time}_\n>${(msg.text || '(no text)').replace(/\n/g, '\n>')}`;
+      }).join('\n\n');
+      await client.chat.postMessage({ channel: dm.channel.id, text: header + lines });
+    }
+  } catch (error) {
+    logger.error('Error viewing unstored messages:', error);
   }
 });
 
