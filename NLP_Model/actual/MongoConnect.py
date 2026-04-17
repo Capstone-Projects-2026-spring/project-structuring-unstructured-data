@@ -29,6 +29,7 @@ class MongoConnect:
 
 
     def extract(self,database):
+    def extract(self,database,collection,col_filter):
         '''
         Maps a collection name to all of the messages 
         within the corresponding channel
@@ -41,7 +42,7 @@ class MongoConnect:
         db_inst = Database(client,database)
         coll_names = db_inst.list_collection_names()
 
-        test = db_inst.get_collection('raw_messages')
+        test = db_inst.get_collection(collection)
 
         docs = []
         with test.find() as cursor:
@@ -52,10 +53,12 @@ class MongoConnect:
         df = pd.DataFrame(docs)
     
         # Filter to only the columns you want
-        cols = ['user', 'type', 'text', 'ts']
+        cols = col_filter
         available_cols = [c for c in cols if c in df.columns]
     
         return df[available_cols]
+    
+    
 
 
         '''
@@ -117,6 +120,33 @@ class MongoConnect:
                 upserted_count += 1
 
         return upserted_count
+    
+    def send_user_summaries(self,database,summaries):
+        client = self.connect(self.user, self.password)
+        db_inst = Database(client, database)
+        summaries_coll = db_inst.get_collection('user_summaries')
+
+        summaries_coll.delete_many({})
+        result = summaries_coll.insert_many(summaries)
+
+        return len(summaries)
+
+
+
+    
+    def get_member_lookup(self, database):
+        '''Returns a dict mapping member_id -> real_name'''
+        client = self.connect(self.user, self.password)
+        db_inst = Database(client, database)
+        members_coll = db_inst.get_collection('members')
+
+        lookup = {}
+        with members_coll.find({}, {'member_id': 1, 'real_name': 1}) as cursor:
+            for doc in cursor:
+                if doc.get('member_id') and doc.get('real_name'):
+                    lookup[doc['member_id']] = doc['real_name']
+
+        return lookup
 
 
     def clear_folder(self):
