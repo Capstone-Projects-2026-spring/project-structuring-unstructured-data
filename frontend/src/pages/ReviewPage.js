@@ -17,6 +17,19 @@ function parseSuggestionLog(raw) {
   }
 }
 
+// re-used for tab switch log which has the same shape requirement
+const parseTabSwitchLog = parseSuggestionLog;
+
+function parseTestResults(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
 function getHighlightedLines(code, suggestionLog) {
   if (!code || !suggestionLog.length) return new Set();
   const lines = code.split('\n');
@@ -40,8 +53,11 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
   const sorted = allSubmissions.length > 0 ? allSubmissions : [submission];
   const [activeSubmission, setActiveSubmission] = useState(sorted[0]);
 
-  const { student_name, submitted_at, code = '', suggestion_log: rawLog } = activeSubmission;
+  const { student_name, submitted_at, code = '', suggestion_log: rawLog, tab_switch_log: rawTabLog, test_results: rawTestResults } = activeSubmission;
   const suggestionLog = parseSuggestionLog(rawLog);
+  const tabSwitchLog = parseTabSwitchLog(rawTabLog);
+  const testResults = parseTestResults(rawTestResults);
+  const passedCount = testResults.filter(r => r.passed).length;
 
   const [activeTab, setActiveTab] = useState('log');
   const editorRef = useRef(null);
@@ -149,6 +165,20 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
                   {suggestionLog.length}
                 </span>
               </div>
+              <div className="review-info-row">
+                <span className="review-info-label">Tab Switches</span>
+                <span className="review-info-value" style={{ color: tabSwitchLog.length > 0 ? '#c0392b' : '#16825d' }}>
+                  {tabSwitchLog.length}
+                </span>
+              </div>
+              {testResults.length > 0 && (
+                <div className="review-info-row">
+                  <span className="review-info-label">Tests Passed</span>
+                  <span className="review-info-value" style={{ color: passedCount === testResults.length ? '#16825d' : '#c0392b' }}>
+                    {passedCount} / {testResults.length}
+                  </span>
+                </div>
+              )}
               {submission.grade != null && (
                 <div className="review-info-row">
                   <span className="review-info-label">Grade</span>
@@ -224,13 +254,24 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
                 )}
               </button>
               <button
+                className={`tab-btn ${activeTab === 'tabs' ? 'active' : ''}`}
+                onClick={() => setActiveTab('tabs')}
+              >
+                Tab Switches
+                {tabSwitchLog.length > 0 && (
+                  <span className="log-count" style={{ backgroundColor: '#c0392b' }}>
+                    {tabSwitchLog.length}
+                  </span>
+                )}
+              </button>
+              <button
                 className={`tab-btn ${activeTab === 'tests' ? 'active' : ''}`}
                 onClick={() => setActiveTab('tests')}
               >
-                Test Cases
-                {testCases.length > 0 && (
-                  <span className="log-count" style={{ backgroundColor: '#569cd6' }}>
-                    {testCases.length}
+                Test Results
+                {testResults.length > 0 && (
+                  <span className="log-count" style={{ backgroundColor: passedCount === testResults.length ? '#16825d' : '#c0392b' }}>
+                    {passedCount}/{testResults.length}
                   </span>
                 )}
               </button>
@@ -251,30 +292,47 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
                     ))
                   )}
                 </div>
+              ) : activeTab === 'tabs' ? (
+                <div className="suggestion-log">
+                  {tabSwitchLog.length === 0 ? (
+                    <p className="log-empty">No tab switches were recorded during this submission.</p>
+                  ) : (
+                    tabSwitchLog.map((entry, i) => (
+                      <div key={i} className="log-entry">
+                        <span className="log-time">{entry.time}</span>
+                        <span className="log-action" style={{ color: '#c0392b' }}>switched away</span>
+                        <span className="log-label">Tab switch {i + 1} of {tabSwitchLog.length}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               ) : (
                 <div className="suggestion-log">
-                  {testCases.length === 0 ? (
-                    <p className="log-empty">
-                      No test cases have been added to this problem yet.
-                      You can add them when editing the problem.
-                    </p>
+                  {testResults.length === 0 ? (
+                    <p className="log-empty">No test results were recorded for this submission.</p>
                   ) : (
-                    testCases.map((tc, i) => (
+                    testResults.map((r, i) => (
                       <div key={i} className="review-test-case">
                         <div className="review-test-header">
                           <span className="review-test-label">Test {i + 1}</span>
-                          {tc.explanation && (
-                            <span className="review-test-explanation">{tc.explanation}</span>
-                          )}
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: r.passed ? '#4caf50' : '#f44336' }}>
+                            {r.passed ? 'PASSED' : 'FAILED'}
+                          </span>
                         </div>
                         <div className="review-test-body">
                           <div className="review-test-row">
-                            <span className="review-test-key">Input</span>
-                            <code className="review-test-val">{tc.input || '—'}</code>
+                            <span className="review-test-key">Call</span>
+                            <code className="review-test-val">{r.input}</code>
                           </div>
                           <div className="review-test-row">
                             <span className="review-test-key">Expected</span>
-                            <code className="review-test-val">{tc.expected || '—'}</code>
+                            <code className="review-test-val">{r.expected}</code>
+                          </div>
+                          <div className="review-test-row">
+                            <span className="review-test-key">Actual</span>
+                            <code className="review-test-val" style={{ color: r.passed ? '#4caf50' : '#f44336' }}>
+                              {r.actual}
+                            </code>
                           </div>
                         </div>
                       </div>

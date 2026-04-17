@@ -130,7 +130,8 @@ def _build_problem(cursor, problem) -> dict:
 
     # Submissions
     cursor.execute(
-        """SELECT id, student_name, submitted_at, score, total, code, suggestion_log
+        """SELECT id, student_name, submitted_at, score, total, code,
+                  suggestion_log, tab_switch_log, test_results
            FROM sessions
            WHERE problem_id = %s AND submitted_at IS NOT NULL
            ORDER BY submitted_at DESC""",
@@ -146,6 +147,8 @@ def _build_problem(cursor, problem) -> dict:
             "total": row["total"],
             "code": row["code"],
             "suggestion_log": row["suggestion_log"],
+            "tab_switch_log": row["tab_switch_log"],
+            "test_results": row["test_results"],
             "grade": round((row["score"] / row["total"]) * 100) if row["total"] else None,
         }
         for row in session_rows
