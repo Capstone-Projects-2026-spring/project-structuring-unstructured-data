@@ -327,7 +327,8 @@ function StepSections({ sections, setSections, selectedLanguages, boilerplate, e
 // ─── Step 4: Settings ────────────────────────────────────────────────────────
 
 function StepSettings({
-  timeLimitMinutes, setTimeLimitMinutes,
+  timeLimitMins, setTimeLimitMins,
+  timeLimitSecs, setTimeLimitSecs,
   maxSubmissions, setMaxSubmissions,
   allowCopyPaste, setAllowCopyPaste,
   trackTabSwitching, setTrackTabSwitching,
@@ -343,16 +344,28 @@ function StepSettings({
       <div className="form-row">
         <div className="form-field form-field-half">
           <label className="form-label">Time Limit</label>
-          <div className="time-limit-wrapper">
+          <div className="time-limit-wrapper" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <input
               type="number"
               className="form-input"
-              placeholder="None"
-              value={timeLimitMinutes}
-              min={1}
-              onChange={e => setTimeLimitMinutes(e.target.value)}
+              placeholder="0"
+              value={timeLimitMins}
+              min={0}
+              style={{ width: '72px' }}
+              onChange={e => setTimeLimitMins(e.target.value)}
             />
-            <span className="time-limit-unit">minutes</span>
+            <span className="time-limit-unit">min</span>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="0"
+              value={timeLimitSecs}
+              min={0}
+              max={59}
+              style={{ width: '72px' }}
+              onChange={e => setTimeLimitSecs(e.target.value)}
+            />
+            <span className="time-limit-unit">sec</span>
           </div>
           <span className="form-hint">Leave blank for no time limit.</span>
         </div>
@@ -597,7 +610,8 @@ function CreateProblemPage({ onBack, onCreated }) {
   const [testCases, setTestCases] = useState([{ input: '', expected: '', explanation: '' }]);
   
   //Step 5
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
+  const [timeLimitMins, setTimeLimitMins] = useState('');
+  const [timeLimitSecs, setTimeLimitSecs] = useState('');
   const [maxSubmissions, setMaxSubmissions] = useState('');
   const [allowCopyPaste, setAllowCopyPaste] = useState(true);
   const [trackTabSwitching, setTrackTabSwitching] = useState(false);
@@ -728,7 +742,9 @@ function CreateProblemPage({ onBack, onCreated }) {
         })),
       })),
       testCases: testCases,
-      timeLimitMinutes: timeLimitMinutes !== '' ? Number(timeLimitMinutes) : null,
+      timeLimitSeconds: (timeLimitMins !== '' || timeLimitSecs !== '')
+        ? (Number(timeLimitMins || 0) * 60 + Number(timeLimitSecs || 0)) || null
+        : null,
       maxSubmissions: maxSubmissions !== '' ? Number(maxSubmissions) : null,
       allowCopyPaste,
       trackTabSwitching,
@@ -826,7 +842,8 @@ function CreateProblemPage({ onBack, onCreated }) {
               )}
               {step === 4 && (
                 <StepSettings
-                  timeLimitMinutes={timeLimitMinutes} setTimeLimitMinutes={setTimeLimitMinutes}
+                  timeLimitMins={timeLimitMins} setTimeLimitMins={setTimeLimitMins}
+                  timeLimitSecs={timeLimitSecs} setTimeLimitSecs={setTimeLimitSecs}
                   maxSubmissions={maxSubmissions} setMaxSubmissions={setMaxSubmissions}
                   allowCopyPaste={allowCopyPaste} setAllowCopyPaste={setAllowCopyPaste}
                   trackTabSwitching={trackTabSwitching} setTrackTabSwitching={setTrackTabSwitching}

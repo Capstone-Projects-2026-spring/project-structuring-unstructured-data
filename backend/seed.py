@@ -45,7 +45,7 @@ print(f"Created seed teacher (id={teacher_id})")
 cursor.execute(
     """INSERT INTO problems
        (teacher_id, access_code, title, description, language, languages,
-        time_limit_minutes, max_attempts, allow_copy_paste, track_tab_switching)
+        time_limit_seconds, max_attempts, allow_copy_paste, track_tab_switching)
        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
        RETURNING id""",
     (

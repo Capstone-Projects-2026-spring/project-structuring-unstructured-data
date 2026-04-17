@@ -71,7 +71,9 @@ function DeleteModal({ problem, onConfirm, onClose }) {
 function EditModal({ problem, token, onSaved, onClose }) {
     const [title, setTitle] = useState(problem.title);
     const [description, setDescription] = useState(problem.description);
-    const [timeLimitMinutes, setTimeLimitMinutes] = useState(problem.time_limit_minutes ?? '');
+    const totalSecs = problem.time_limit_seconds ?? null;
+    const [timeLimitMins, setTimeLimitMins] = useState(totalSecs !== null ? Math.floor(totalSecs / 60) : '');
+    const [timeLimitSecs, setTimeLimitSecs] = useState(totalSecs !== null ? totalSecs % 60 : '');
     const [maxSubmissions, setMaxSubmissions] = useState(problem.max_attempts ?? '');
     const [allowCopyPaste, setAllowCopyPaste] = useState(problem.allow_copy_paste);
     const [trackTabSwitching, setTrackTabSwitching] = useState(problem.track_tab_switching);
@@ -86,7 +88,9 @@ function EditModal({ problem, token, onSaved, onClose }) {
             const updated = await editProblem(problem.id, {
                 title: title.trim(),
                 description: description.trim(),
-                timeLimitMinutes: timeLimitMinutes !== '' ? Number(timeLimitMinutes) : null,
+                timeLimitSeconds: (timeLimitMins !== '' || timeLimitSecs !== '')
+                    ? (Number(timeLimitMins || 0) * 60 + Number(timeLimitSecs || 0)) || null
+                    : null,
                 maxSubmissions: maxSubmissions !== '' ? Number(maxSubmissions) : null,
                 allowCopyPaste,
                 trackTabSwitching,
@@ -127,15 +131,30 @@ function EditModal({ problem, token, onSaved, onClose }) {
                     </div>
                     <div style={{ display: 'flex', gap: '16px' }}>
                         <div className="form-field" style={{ flex: 1 }}>
-                            <label className="form-label">Time Limit (minutes)</label>
-                            <input
-                                type="number"
-                                className="form-input"
-                                placeholder="None"
-                                value={timeLimitMinutes}
-                                min={1}
-                                onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                            />
+                        <label className="form-label">Time Limit</label>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    placeholder="0"
+                                    value={timeLimitMins}
+                                    min={0}
+                                    style={{ width: '80px' }}
+                                    onChange={(e) => setTimeLimitMins(e.target.value)}
+                                />
+                                <span style={{ color: '#aaa', fontSize: '13px' }}>min</span>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    placeholder="0"
+                                    value={timeLimitSecs}
+                                    min={0}
+                                    max={59}
+                                    style={{ width: '72px' }}
+                                    onChange={(e) => setTimeLimitSecs(e.target.value)}
+                                />
+                                <span style={{ color: '#aaa', fontSize: '13px' }}>sec</span>
+                            </div>
                         </div>
                         <div className="form-field" style={{ flex: 1 }}>
                             <label className="form-label">Max Submissions</label>

@@ -73,7 +73,7 @@ def start_submission(req: StartSubmissionRequest):
             )
 
     cursor.execute(
-        """SELECT id, code FROM sessions
+        """SELECT id, code, started_at FROM sessions
            WHERE problem_id = %s AND student_name = %s AND submitted_at IS NULL
            ORDER BY started_at DESC LIMIT 1""",
         (req.problem_id, req.student_name),
@@ -86,11 +86,12 @@ def start_submission(req: StartSubmissionRequest):
             "session_id": draft["id"],
             "has_draft": True,
             "code": draft["code"],
+            "started_at": draft["started_at"].isoformat() if draft["started_at"] else None,
         }
 
     cursor.execute(
         """INSERT INTO sessions (problem_id, student_name)
-           VALUES (%s, %s) RETURNING id""",
+           VALUES (%s, %s) RETURNING id, started_at""",
         (req.problem_id, req.student_name),
     )
     new_session = cursor.fetchone()
@@ -101,6 +102,7 @@ def start_submission(req: StartSubmissionRequest):
         "session_id": new_session["id"],
         "has_draft": False,
         "code": None,
+        "started_at": new_session["started_at"].isoformat() if new_session["started_at"] else None,
     }
 
 
