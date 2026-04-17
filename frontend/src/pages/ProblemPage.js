@@ -9,7 +9,11 @@ import { executeCode, startSubmission, saveDraft, submitCode } from '../api';
  */
 
 function ProblemPage({ problem, onBack, studentName }) {
-  const language = problem.language;
+  const availableLanguages = problem.languages?.length
+    ? AVAILABLE_LANGUAGES.filter(l => problem.languages.includes(l.key))
+    : [{ key: problem.language || 'python', label: (problem.language || 'python').charAt(0).toUpperCase() + (problem.language || 'python').slice(1) }];
+  const [selectedLanguage, setSelectedLanguage] = useState(availableLanguages[0]?.key || 'python');
+  const language = selectedLanguage;
   const sections = (problem.sections || []).sort((a, b) => a.order_index - b.order_index);
 
   const starterCode = sections
@@ -38,6 +42,7 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [draftCode, setDraftCode] = useState(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [tabSwitchLog, setTabSwitchLog] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [pasteToast, setPasteToast] = useState(false);
   const [testResults, setTestResults] = useState(null);
 
@@ -135,7 +140,7 @@ function ProblemPage({ problem, onBack, studentName }) {
           },
         });
     },
-    [problem.id, problem.description]
+    [problem.id, problem.description, sections]
   );
 
   const handleEditorDidMount = useCallback(
@@ -208,21 +213,21 @@ function ProblemPage({ problem, onBack, studentName }) {
   // Session start
   useEffect(() => {
     if (monacoRef.current && editorRef.current) {
-      registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[selectedLanguage]);
+      registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[language]);
     }
-  }, [selectedLanguage, registerCompletionProvider]);
+  }, [language, registerCompletionProvider]);
 
   useEffect(() => {
     const newStarterCode = (problem.sections || [])
       .sort((a, b) => a.order_index - b.order_index)
       .map((s) => {
-        const sectionCode = (typeof s.code === 'object' ? s.code[selectedLanguage] : s.code) || '';
-        const prefix = LANGUAGE_COMMENT_PREFIX[selectedLanguage] || '#';
+        const sectionCode = (typeof s.code === 'object' ? s.code[language] : s.code) || '';
+        const prefix = LANGUAGE_COMMENT_PREFIX[language] || '#';
         return `${prefix} ${s.label}\n${sectionCode}`;
       })
       .join('\n');
     setCode(newStarterCode);
-  }, [selectedLanguage, problem.sections]);
+  }, [language, problem.sections]);
 
   useEffect(() => {
     if (!studentName) return;
@@ -357,12 +362,22 @@ function ProblemPage({ problem, onBack, studentName }) {
 
   // Run code
   const handleRunCode = async () => {
-    if (!pyodide) { setOutput('Error: Python runtime not loaded yet. Please wait...\n'); return; }
     if (language !== 'python') {
       setIsRunning(true); setActiveTab('output'); setOutput('Running code...\n');
-      setTimeout(() => { setOutput(`$ Running ${language} code...\n\nExecution complete.\n`); setIsRunning(false); }, 1500);
+      try {
+        const result = await executeCode(code, language);
+        let out = '';
+        if (result.output) out += result.output;
+        if (result.error) out += result.error ? `Error:\n${result.error}` : '';
+        setOutput(out || 'Code executed successfully (no output)\n');
+      } catch (err) {
+        setOutput(`Error: ${err.message}\n`);
+      } finally {
+        setIsRunning(false);
+      }
       return;
     }
+    if (!pyodide) { setOutput('Error: Python runtime not loaded yet. Please wait...\n'); return; }
     setIsRunning(true); setActiveTab('output'); setOutput('');
     try {
       const fullCode = `
@@ -527,7 +542,15 @@ _stderr = _stderr_buf.getvalue()
         <div className="panel editor-panel">
           <div className="panel-header editor-header">
             <div className="language-selector">
-              <span className="lang-btn active">{language.charAt(0).toUpperCase() + language.slice(1)}</span>
+              <select
+                value={selectedLanguage}
+                onChange={e => setSelectedLanguage(e.target.value)}
+                className="lang-select"
+              >
+                {availableLanguages.map(l => (
+                  <option key={l.key} value={l.key}>{l.label}</option>
+                ))}
+              </select>
             </div>
             <div className="editor-actions">
               <button className="btn btn-run" onClick={handleRunCode} disabled={isRunning || (language === 'python' && pyodideLoading)}>
