@@ -1,3 +1,4 @@
+const { buildChannelKey } = require('./slack_to_DB');
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
@@ -195,10 +196,13 @@ async function getUnstoredMessages(client, apiClient, channelName, channelId) {
       channel: channelId,
       limit: 1000
     });
-    const slackMessages = slackResult.messages || [];
+    const isHumanMessage = (msg) => !msg.bot_id && msg.subtype !== 'bot_message';
 
-    const response = await apiClient.get(`/api/messages/${channelName}`);
-    const storedMessages = response.data || [];
+    const slackMessages = (slackResult.messages || []).filter(isHumanMessage);
+
+    const channelKey = await buildChannelKey(channelName);
+    const response = await apiClient.get(`/api/messages/${encodeURIComponent(channelKey)}`);
+    const storedMessages = (response.data || []).filter(isHumanMessage);
 
     const storedTimestamps = new Set(storedMessages.map(msg => msg.ts));
     const unstoredCount = slackMessages.filter(msg => !storedTimestamps.has(msg.ts)).length;
@@ -526,25 +530,50 @@ function buildSampleHomeView({
       ]
     },
     {
-      type: 'section',
+      type: 'header',
       text: {
-        type: 'mrkdwn',
-        text: '*Channel Storage Overview*'
+        type: 'plain_text',
+        text: 'Channel Storage Overview',
+        emoji: true
       }
     },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: channelStorageStats.length === 0
-          ? '_No channel data available._'
-          : channelStorageStats.map(ch => {
-              const allStored = ch.unstored === 0;
-              const status = allStored ? '✅' : `*${ch.unstored} unstored*`;
-              return `*#${ch.channelName}*   ${ch.total} in Slack · ${ch.stored} stored · ${status}`;
-            }).join('\n')
-      }
-    },
+    { type: 'divider' },
+    ...(channelStorageStats.length === 0
+      ? [{
+          type: 'section',
+          text: { type: 'mrkdwn', text: '_No channel data available._' }
+        }]
+      : channelStorageStats.map(ch => {
+          if (ch.notInChannel || ch.total === 'N/A') {
+            return {
+              type: 'section',
+              fields: [
+                { type: 'mrkdwn', text: `*#${ch.channelName}*` },
+                { type: 'mrkdwn', text: `⛔ Bot is not in this channel` }
+              ]
+            };
+          }
+          if (ch.total === 0) {
+            return {
+              type: 'section',
+              fields: [
+                { type: 'mrkdwn', text: `*#${ch.channelName}*` },
+                { type: 'mrkdwn', text: `💬 No messages to store yet` }
+              ]
+            };
+          }
+          const allStored = ch.unstored === 0;
+          const statusIcon = allStored ? '✅' : '⚠️';
+          const statusText = allStored ? 'All messages stored' : `${ch.unstored} messages not yet stored`;
+          return {
+            type: 'section',
+            fields: [
+              { type: 'mrkdwn', text: `*#${ch.channelName}*` },
+              { type: 'mrkdwn', text: `${statusIcon} ${statusText}\n${ch.stored} / ${ch.total} stored` }
+            ]
+          };
+        })
+    ),
     {
       type: 'divider'
     }
