@@ -529,28 +529,25 @@ app.command('/store-messages', async ({ command, ack, respond, client }) => {
 });
 
 // /store-members - Store channel members data to database
-app.command('/store-members', async ({ command, ack, respond, client }) => {
+app.command('/store-members', async ({ command, ack, client }) => {
   await ack();
   try {
-  const channelInfo = await getConversationInfo(command.channel_id, client);
+    const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
 
-    await respond({
-      response_type: 'ephemeral',
+    const dm = await client.conversations.open({ users: command.user_id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
       text: `⏳ Storing member data from *${channelName}*...`
     });
-  await insertUserModels(channelName, { client });
+    await insertUserModels(channelName, { client });
 
-    await respond({
-      response_type: 'in_channel',
+    await client.chat.postMessage({
+      channel: dm.channel.id,
       text: `✅ Member data from *${channelName}* stored successfully to the database!`
     });
   } catch (error) {
     console.error('Error in /store-members command:', error);
-    await respond({
-      response_type: 'ephemeral',
-      text: `❌ Error storing member data: ${error.message}`
-    });
   }
 });
 
