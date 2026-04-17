@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { LANGUAGE_MAP, AVAILABLE_LANGUAGES } from '../constants';
+import { LANGUAGE_MAP, AVAILABLE_LANGUAGES, LANGUAGE_COMMENT_PREFIX } from '../constants';
 import { executeCode, startSubmission, saveDraft, submitCode } from '../api';
 
 /**
@@ -17,7 +17,8 @@ function ProblemPage({ problem, onBack, studentName }) {
     .sort((a, b) => a.order_index - b.order_index)
     .map((s) => {
       const sectionCode = (typeof s.code === 'object' ? s.code[language] : s.code) || '';
-      return `# ${s.label}\n${sectionCode}`;
+      const prefix = LANGUAGE_COMMENT_PREFIX[language] || '#';
+      return `${prefix} ${s.label}\n${sectionCode}`;
     })
     .join('\n');
 
@@ -30,6 +31,8 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [pyodideLoading, setPyodideLoading] = useState(true);
 
   const [sessionId, setSessionId] = useState(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -38,6 +41,7 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const periodicSaveRef = useRef(null);
   const debounceRef = useRef(null);
+  const timerRef = useRef(null);
   const codeRef = useRef(code);
   useEffect(() => { codeRef.current = code; }, [code]);
 
@@ -215,7 +219,8 @@ function ProblemPage({ problem, onBack, studentName }) {
       .sort((a, b) => a.order_index - b.order_index)
       .map((s) => {
         const sectionCode = (typeof s.code === 'object' ? s.code[selectedLanguage] : s.code) || '';
-        return `# ${s.label}\n${sectionCode}`;
+        const prefix = LANGUAGE_COMMENT_PREFIX[selectedLanguage] || '#';
+        return `${prefix} ${s.label}\n${sectionCode}`;
       })
       .join('\n');
     setCode(newStarterCode);
@@ -227,6 +232,9 @@ function ProblemPage({ problem, onBack, studentName }) {
     startSubmission(problem.id, studentName)
       .then((result) => {
         setSessionId(result.session_id);
+        if (result.started_at) {
+          setSessionStartedAt(result.started_at);
+        }
         if (result.has_draft && result.code) {
           setDraftCode(result.code);
           setShowRestorePrompt(true);
@@ -262,6 +270,45 @@ function ProblemPage({ problem, onBack, studentName }) {
     periodicSaveRef.current = setInterval(() => doSave(codeRef.current), 30000);
     return () => clearInterval(periodicSaveRef.current);
   }, [sessionId, doSave]);
+
+  const [showTimesUpModal, setShowTimesUpModal] = useState(false);
+
+  const isSubmittingRef = useRef(isSubmitting);
+  useEffect(() => { isSubmittingRef.current = isSubmitting; }, [isSubmitting]);
+
+  useEffect(() => {
+    if (!problem.time_limit_seconds || !sessionStartedAt || !sessionId) return;
+
+    const totalSeconds = problem.time_limit_seconds;
+    const elapsed = Math.floor((Date.now() - new Date(sessionStartedAt).getTime()) / 1000);
+    const remaining = totalSeconds - elapsed;
+
+    if (remaining <= 0) {
+      setTimeLeft(0);
+      return;
+    }
+
+    setTimeLeft(remaining);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerRef.current);
+  }, [problem.time_limit_seconds, sessionStartedAt, sessionId]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && !isSubmittingRef.current) {
+      setShowTimesUpModal(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft]);
 
   useEffect(() => {
     const initPyodide = async () => {
@@ -425,6 +472,23 @@ _stderr = _stderr_buf.getvalue()
 
   return (
     <div className="app">
+      {showTimesUpModal && (
+        <div className="restore-overlay">
+          <div className="restore-dialog">
+            <h3>Time's up!</h3>
+            <p>Your time has expired. Your solution has been submitted automatically.</p>
+            <div className="restore-actions">
+              <button
+                className="btn btn-run"
+                onClick={() => { setShowTimesUpModal(false); handleSubmit(); }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showConfirmDialog && (
         <div className="restore-overlay">
           <div className="restore-dialog">
@@ -493,6 +557,11 @@ _stderr = _stderr_buf.getvalue()
           {saveStatus === 'saving' && <span className="save-status">Saving…</span>}
           {saveStatus === 'saved' && <span className="save-status save-status--saved">✓ Saved</span>}
           {submitError && <span className="save-status save-status--error">{submitError}</span>}
+          {timeLeft !== null && (
+            <span className={`save-status timer-display${timeLeft <= 60 ? ' timer-display--urgent' : ''}`}>
+              ⏱ {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+            </span>
+          )}
           <span className="problem-title">{problem.title}</span>
           <button
             className="btn btn-outline"

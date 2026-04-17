@@ -1884,3 +1884,6 @@
   .save-status { font-size: 0.8rem; color: var(--text-muted, #888); }
   .save-status--saved { color: #4caf50; }
   .save-status--error { color: #f44336; max-width: 200px; }
+  .timer-display { font-size: 0.9rem; font-weight: 600; color: var(--text-muted, #888); font-variant-numeric: tabular-nums; }
+  .timer-display--urgent { color: #f44336; animation: timer-pulse 1s ease-in-out infinite; }
+  @keyframes timer-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }

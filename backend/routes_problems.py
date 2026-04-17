@@ -37,7 +37,7 @@ class CreateProblemRequest(BaseModel):
     boilerplate: Dict[str, str]
     sections: List[SectionIn]
     testCases: List[TestCaseIn] = []
-    timeLimitMinutes: Optional[int] = None
+    timeLimitSeconds: Optional[int] = None
     maxSubmissions: Optional[int] = None
     allowCopyPaste: bool = True
     trackTabSwitching: bool = False
@@ -46,7 +46,7 @@ class CreateProblemRequest(BaseModel):
 class EditProblemRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    timeLimitMinutes: Optional[int] = None
+    timeLimitSeconds: Optional[int] = None
     maxSubmissions: Optional[int] = None
     allowCopyPaste: Optional[bool] = None
     trackTabSwitching: Optional[bool] = None
@@ -161,7 +161,7 @@ def _build_problem(cursor, problem) -> dict:
         "sections": sections,
         "test_cases": test_cases,
         "submissions": submissions,
-        "time_limit_minutes": problem["time_limit_minutes"],
+        "time_limit_seconds": problem["time_limit_seconds"],
         "max_attempts": problem["max_attempts"],
         "allow_copy_paste": bool(problem["allow_copy_paste"]),
         "track_tab_switching": bool(problem["track_tab_switching"]),
@@ -211,7 +211,7 @@ def create_problem(
         cursor.execute(
             """INSERT INTO problems
                (teacher_id, access_code, title, description, language, languages,
-                time_limit_minutes, max_attempts, allow_copy_paste, track_tab_switching)
+                time_limit_seconds, max_attempts, allow_copy_paste, track_tab_switching)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                RETURNING id""",
             (
@@ -221,7 +221,7 @@ def create_problem(
                 req.description,
                 primary_language,
                 json.dumps(req.languages),
-                req.timeLimitMinutes,
+                req.timeLimitSeconds,
                 req.maxSubmissions,
                 req.allowCopyPaste,
                 req.trackTabSwitching,
@@ -299,9 +299,9 @@ def edit_problem(
     if req.description is not None:
         fields.append("description = %s")
         values.append(req.description)
-    if req.timeLimitMinutes is not None:
-        fields.append("time_limit_minutes = %s")
-        values.append(req.timeLimitMinutes)
+    if req.timeLimitSeconds is not None:
+        fields.append("time_limit_seconds = %s")
+        values.append(req.timeLimitSeconds)
     if req.maxSubmissions is not None:
         fields.append("max_attempts = %s")
         values.append(req.maxSubmissions)
