@@ -806,14 +806,28 @@ app.action(HOME_ADMIN_STORE_MEMBERS, async ({ ack, body, client, logger }) => {
       cursor = response.response_metadata?.next_cursor;
     } while (cursor);
     console.log(`Admin ${body.user.id} triggered store members for ${channels.length} channels`);
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Storing members for ${channels.length} channels...`
+    });
+    let failed = 0;
     for (const channelName of channels) {
       try {
         await insertUserModels(channelName);
         console.log(`Stored members for #${channelName}`);
       } catch (error) {
         console.error(`Failed to store members for #${channelName}:`, error.message);
+        failed++;
       }
     }
+    const succeeded = channels.length - failed;
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: failed === 0
+        ? `✅ Successfully stored members for all ${succeeded} channels.`
+        : `⚠️ Stored members for ${succeeded}/${channels.length} channels. ${failed} failed — check logs for details.`
+    });
     publishHomeTab({
       client,
       userId: body.user.id,
