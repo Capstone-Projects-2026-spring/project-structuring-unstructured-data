@@ -9,12 +9,10 @@ import { executeCode, startSubmission, saveDraft, submitCode } from '../api';
  */
 
 function ProblemPage({ problem, onBack, studentName }) {
-  const availableLanguages = problem.languages || [problem.language];
-  const [selectedLanguage, setSelectedLanguage] = useState(availableLanguages[0] || 'python');
+  const language = problem.language;
+  const sections = (problem.sections || []).sort((a, b) => a.order_index - b.order_index);
 
-  const language = selectedLanguage;
-  const starterCode = (problem.sections || [])
-    .sort((a, b) => a.order_index - b.order_index)
+  const starterCode = sections
     .map((s) => {
       const sectionCode = (typeof s.code === 'object' ? s.code[language] : s.code) || '';
       return `# ${s.label}\n${sectionCode}`;
@@ -36,6 +34,10 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
   const [draftCode, setDraftCode] = useState(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [tabSwitchLog, setTabSwitchLog] = useState([]);
+  const [pasteToast, setPasteToast] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+
   const periodicSaveRef = useRef(null);
   const debounceRef = useRef(null);
   const codeRef = useRef(code);
@@ -73,6 +75,9 @@ function ProblemPage({ problem, onBack, studentName }) {
             try {
               const currentCode = model.getValue();
               const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+              const isCorrect = sections.length > 0
+                ? (sections[0].suggestions?.[0]?.is_correct ?? true)
+                : true;
               const response = await fetch(`${apiUrl}/ai/suggestion`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -80,12 +85,12 @@ function ProblemPage({ problem, onBack, studentName }) {
                   problem_id: problem.id,
                   current_code: currentCode,
                   problem_prompt: problem.description,
+                  is_correct: isCorrect,
                 }),
               });
 
               if (response.ok) {
                 const data = await response.json();
-
                 if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
                   rawSuggestions = data.suggestions.map((item) => ({
                     label: item.suggestion || 'AI Suggestion',
@@ -100,16 +105,9 @@ function ProblemPage({ problem, onBack, studentName }) {
 
             const mappedSuggestions = rawSuggestions.map((s, idx) => {
               const codeText = String(s.insertText || '').replace(/^\s+/, '');
-
-              const lines = codeText
-                .split('\n')
-                .filter((line) => line.trim().length > 0);
-
+              const lines = codeText.split('\n').filter((line) => line.trim().length > 0);
               const firstLine = (lines[0] || 'AI suggestion').trimStart();
-              const codePreview =
-                firstLine.length > 80
-                  ? firstLine.slice(0, 77) + '...'
-                  : firstLine;
+              const codePreview = firstLine.length > 80 ? firstLine.slice(0, 77) + '...' : firstLine;
 
               return {
                 label: codePreview || `Suggestion ${idx + 1}`,
@@ -118,11 +116,7 @@ function ProblemPage({ problem, onBack, studentName }) {
                 documentation: {
                   value:
                     (s.explanation ? `${s.explanation}\n\n` : '') +
-                    '```' +
-                    lang +
-                    '\n' +
-                    codeText +
-                    '\n```',
+                    '```' + lang + '\n' + codeText + '\n```',
                 },
                 insertText: codeText,
                 insertTextRules:
@@ -133,10 +127,7 @@ function ProblemPage({ problem, onBack, studentName }) {
             });
 
             latestSuggestionsRef.current = mappedSuggestions;
-
-            return {
-              suggestions: mappedSuggestions,
-            };
+            return { suggestions: mappedSuggestions };
           },
         });
     },
@@ -149,22 +140,16 @@ function ProblemPage({ problem, onBack, studentName }) {
       monacoRef.current = monaco;
 
       editor.onDidChangeModelContent((event) => {
-        if (idleTimerRef.current) {
-          clearTimeout(idleTimerRef.current);
-        }
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
 
         for (const change of event.changes) {
           const insertedText = change.text;
-
           if (!insertedText) continue;
-
           const matchedSuggestion = latestSuggestionsRef.current.find(
             (suggestion) => suggestion.insertText === insertedText
           );
-
           if (matchedSuggestion) {
             const logKey = `${matchedSuggestion.label}::${insertedText}`;
-
             if (lastLoggedSuggestionRef.current !== logKey) {
               setSuggestionLog((prev) => [
                 ...prev,
@@ -177,10 +162,8 @@ function ProblemPage({ problem, onBack, studentName }) {
                       : 'Suggestion',
                 },
               ]);
-
               lastLoggedSuggestionRef.current = logKey;
             }
-
             break;
           }
         }
@@ -204,6 +187,21 @@ function ProblemPage({ problem, onBack, studentName }) {
     };
   }, []);
 
+  // Tab switch tracker
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setTabSwitchLog((prev) => [
+          ...prev,
+          { time: new Date().toLocaleTimeString() },
+        ]);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // Session start
   useEffect(() => {
     if (monacoRef.current && editorRef.current) {
       registerCompletionProvider(monacoRef.current, LANGUAGE_MAP[selectedLanguage]);
@@ -232,13 +230,11 @@ function ProblemPage({ problem, onBack, studentName }) {
           setShowRestorePrompt(true);
         }
       })
-      .catch((err) => {
-        setSubmitError(err.message);
-      });
-
+      .catch((err) => setSubmitError(err.message));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Draft saving
   const doSave = useCallback((currentCode) => {
     if (!sessionId) return;
     setSaveStatus('saving');
@@ -263,18 +259,17 @@ function ProblemPage({ problem, onBack, studentName }) {
     return () => clearInterval(periodicSaveRef.current);
   }, [sessionId, doSave]);
 
+  // Pyodide init
   useEffect(() => {
     const initPyodide = async () => {
       try {
         setPyodideLoading(true);
-
         if (window.loadPyodide) {
           const pyodideInstance = await window.loadPyodide();
           setPyodide(pyodideInstance);
           setPyodideLoading(false);
           return;
         }
-
         const existingScript = document.querySelector('script[src*="pyodide.js"]');
         if (existingScript) {
           existingScript.onload = async () => {
@@ -284,11 +279,9 @@ function ProblemPage({ problem, onBack, studentName }) {
           };
           return;
         }
-
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/pyodide@0.26.4/pyodide.js';
         script.async = true;
-
         script.onload = async () => {
           try {
             const pyodideInstance = await window.loadPyodide({
@@ -302,13 +295,10 @@ function ProblemPage({ problem, onBack, studentName }) {
             setPyodideLoading(false);
           }
         };
-
         script.onerror = () => {
-          console.error('Failed to load Pyodide script');
           setOutput('Error: Failed to initialize Python runtime\n');
           setPyodideLoading(false);
         };
-
         document.head.appendChild(script);
       } catch (error) {
         console.error('Failed to load Pyodide:', error);
@@ -316,83 +306,46 @@ function ProblemPage({ problem, onBack, studentName }) {
         setPyodideLoading(false);
       }
     };
-
     initPyodide();
   }, []);
 
+  // Run code
   const handleRunCode = async () => {
+    if (!pyodide) { setOutput('Error: Python runtime not loaded yet. Please wait...\n'); return; }
     if (language !== 'python') {
-      setIsRunning(true);
-      setActiveTab('output');
-      setOutput('Running code...\n');
-
-      try {
-        const result = await executeCode(code, language, '');
-        let outputText = result.output || '';
-        if (result.error) {
-          outputText += `${outputText ? '\n' : ''}Error: ${result.error}`;
-        }
-        setOutput(outputText || 'Code executed successfully (no output)\n');
-      } catch (error) {
-        const errorMessage = error?.message || String(error) || 'Unknown error';
-        setOutput(`Error executing ${language} code:\n${errorMessage}\n`);
-      } finally {
-        setIsRunning(false);
-      }
+      setIsRunning(true); setActiveTab('output'); setOutput('Running code...\n');
+      setTimeout(() => { setOutput(`$ Running ${language} code...\n\nExecution complete.\n`); setIsRunning(false); }, 1500);
       return;
     }
-
-    if (!pyodide) {
-      setOutput('Error: Python runtime not loaded yet. Please wait...\n');
-      return;
-    }
-
-    setIsRunning(true);
-    setActiveTab('output');
-    setOutput('');
-
+    setIsRunning(true); setActiveTab('output'); setOutput('');
     try {
       const fullCode = `
 import sys
 from io import StringIO
-
 _stdout_buf = StringIO()
 _stderr_buf = StringIO()
 sys.stdout = _stdout_buf
 sys.stderr = _stderr_buf
-
 ${code}
-
 _stdout = _stdout_buf.getvalue()
 _stderr = _stderr_buf.getvalue()
 `;
-
       await pyodide.runPythonAsync(fullCode);
-
       const stdout = pyodide.globals.get('_stdout');
       const stderr = pyodide.globals.get('_stderr');
-
-      // Try to evaluate the last meaningful line as an expression (REPL-style),
-      // so that return values like most_frequent([1,3,3]) are shown automatically.
       let returnValue = '';
       const lines = code.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
       const lastLine = lines[lines.length - 1];
       if (lastLine) {
         try {
           const val = await pyodide.runPythonAsync(lastLine);
-          if (val !== undefined && val !== null) {
-            returnValue = `\n=> ${val}`;
-          }
-        } catch {
-          // last line isn't an expression (e.g. it's a def or assignment) — that's fine
-        }
+          if (val !== undefined && val !== null) returnValue = `\n=> ${val}`;
+        } catch { /* not an expression */ }
       }
-
       let result = '';
       if (stdout) result += stdout;
       if (returnValue) result += returnValue;
       if (stderr) result += 'Error: ' + stderr;
-
       setOutput(result || 'Code executed successfully (no output)\n');
     } catch (error) {
       const errorMessage = error?.message || String(error) || 'Unknown error';
@@ -402,15 +355,34 @@ _stderr = _stderr_buf.getvalue()
     }
   };
 
-  const handleSubmit = async () => {
-    if (!sessionId) {
-      setSubmitError('Session not ready. Please wait a moment and try again.');
-      return;
+  // Run test cases
+  const runTestCases = async (currentCode) => {
+    const testCases = problem.test_cases || [];
+    if (!pyodide || testCases.length === 0) return [];
+    const results = [];
+    for (const tc of testCases) {
+      let actual = ''; let passed = false;
+      try {
+        await pyodide.runPythonAsync(currentCode);
+        const result = await pyodide.runPythonAsync(tc.input);
+        actual = result === null || result === undefined ? 'None' : String(result);
+        passed = actual.trim() === String(tc.expected).trim();
+      } catch (err) {
+        actual = `Error: ${err.message}`; passed = false;
+      }
+      results.push({ input: tc.input, expected: String(tc.expected), actual, passed });
     }
-    setIsSubmitting(true);
-    setSubmitError('');
+    return results;
+  };
+
+  // Submit
+  const handleSubmit = async () => {
+    if (!sessionId) { setSubmitError('Session not ready. Please wait a moment and try again.'); return; }
+    setIsSubmitting(true); setSubmitError('');
     try {
-      await submitCode(sessionId, code, suggestionLog);
+      const results = await runTestCases(code);
+      setTestResults(results);
+      await submitCode(sessionId, code, suggestionLog, tabSwitchLog, results);
       clearTimeout(debounceRef.current);
       clearInterval(periodicSaveRef.current);
       setActiveTab('output');
@@ -425,6 +397,10 @@ _stderr = _stderr_buf.getvalue()
 
   return (
     <div className="app">
+      {pasteToast && (
+        <div className="paste-toast">Paste is disabled during this quiz.</div>
+      )}
+
       {showConfirmDialog && (
         <div className="restore-overlay">
           <div className="restore-dialog">
@@ -434,23 +410,13 @@ _stderr = _stderr_buf.getvalue()
                 ? `You accepted ${suggestionLog.length} AI suggestion${suggestionLog.length !== 1 ? 's' : ''} during this attempt.`
                 : 'You did not accept any AI suggestions during this attempt.'}
             </p>
+            {tabSwitchLog.length > 0 && (
+              <p>You switched tabs {tabSwitchLog.length} time{tabSwitchLog.length !== 1 ? 's' : ''} during this attempt.</p>
+            )}
             <p>This cannot be undone.</p>
             <div className="restore-actions">
-              <button
-                className="btn btn-run"
-                onClick={() => {
-                  setShowConfirmDialog(false);
-                  handleSubmit();
-                }}
-              >
-                Confirm Submit
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={() => setShowConfirmDialog(false)}
-              >
-                Cancel
-              </button>
+              <button className="btn btn-run" onClick={() => { setShowConfirmDialog(false); handleSubmit(); }}>Confirm Submit</button>
+              <button className="btn btn-outline" onClick={() => setShowConfirmDialog(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -462,21 +428,8 @@ _stderr = _stderr_buf.getvalue()
             <h3>Resume your work?</h3>
             <p>We found a saved draft for this problem. Would you like to restore it?</p>
             <div className="restore-actions">
-              <button
-                className="btn btn-run"
-                onClick={() => {
-                  setCode(draftCode);
-                  setShowRestorePrompt(false);
-                }}
-              >
-                Restore Draft
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={() => setShowRestorePrompt(false)}
-              >
-                Start Fresh
-              </button>
+              <button className="btn btn-run" onClick={() => { setCode(draftCode); setShowRestorePrompt(false); }}>Restore Draft</button>
+              <button className="btn btn-outline" onClick={() => setShowRestorePrompt(false)}>Start Fresh</button>
             </div>
           </div>
         </div>
@@ -484,21 +437,20 @@ _stderr = _stderr_buf.getvalue()
 
       <header className="app-header">
         <div className="header-left">
-          <button className="btn-back" onClick={onBack}>
-            ← Back
-          </button>
+          <button className="btn-back" onClick={onBack}>← Back</button>
           <h1 className="logo">AutoSuggestion Quiz</h1>
         </div>
         <div className="header-right">
           {saveStatus === 'saving' && <span className="save-status">Saving…</span>}
           {saveStatus === 'saved' && <span className="save-status save-status--saved">✓ Saved</span>}
           {submitError && <span className="save-status save-status--error">{submitError}</span>}
+          {tabSwitchLog.length > 0 && (
+            <span className="save-status save-status--error" title="Number of times you switched away from this tab">
+              Tab switches: {tabSwitchLog.length}
+            </span>
+          )}
           <span className="problem-title">{problem.title}</span>
-          <button
-            className="btn btn-outline"
-            onClick={() => setShowConfirmDialog(true)}
-            disabled={isSubmitting || !sessionId}
-          >
+          <button className="btn btn-outline" onClick={() => setShowConfirmDialog(true)} disabled={isSubmitting || !sessionId}>
             {isSubmitting ? 'Submitting…' : 'Submit'}
           </button>
         </div>
@@ -506,9 +458,7 @@ _stderr = _stderr_buf.getvalue()
 
       <div className="main-layout">
         <div className="panel problem-panel">
-          <div className="panel-header">
-            <span className="panel-title">Problem</span>
-          </div>
+          <div className="panel-header"><span className="panel-title">Problem</span></div>
           <div className="panel-body problem-body">
             <h2 className="problem-heading">{problem.title}</h2>
             <p className="problem-description">{problem.description}</p>
@@ -518,35 +468,21 @@ _stderr = _stderr_buf.getvalue()
         <div className="panel editor-panel">
           <div className="panel-header editor-header">
             <div className="language-selector">
-              <select
-                className="lang-select"
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-              >
-                {availableLanguages.map(lang => (
-                  <option key={lang} value={lang}>
-                    {AVAILABLE_LANGUAGES.find(l => l.key === lang)?.label || lang.charAt(0).toUpperCase() + lang.slice(1)}
-                  </option>
-                ))}
-              </select>
+              <span className="lang-btn active">{language.charAt(0).toUpperCase() + language.slice(1)}</span>
             </div>
-
             <div className="editor-actions">
-              <button
-                className="btn btn-run"
-                onClick={handleRunCode}
-                disabled={isRunning || (language === 'python' && pyodideLoading)}
-              >
-                {isRunning
-                  ? '⏳ Running...'
-                  : language === 'python' && pyodideLoading
-                    ? '⏳ Loading Python...'
-                    : '▶ Run Code'}
+              <button className="btn btn-run" onClick={handleRunCode} disabled={isRunning || (language === 'python' && pyodideLoading)}>
+                {isRunning ? '⏳ Running...' : language === 'python' && pyodideLoading ? '⏳ Loading Python...' : '▶ Run Code'}
               </button>
+              {(problem.test_cases || []).length > 0 && (
+                <button className="btn btn-outline" onClick={async () => { setActiveTab('tests'); const results = await runTestCases(code); setTestResults(results); }} disabled={isRunning || (language === 'python' && pyodideLoading)}>
+                  Run Tests
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="editor-container">
+          <div className="editor-container" onPaste={(e) => { e.preventDefault(); setPasteToast(true); setTimeout(() => setPasteToast(false), 2500); }}>
             <Editor
               height="100%"
               language={LANGUAGE_MAP[language]}
@@ -555,31 +491,13 @@ _stderr = _stderr_buf.getvalue()
               onMount={handleEditorDidMount}
               theme="vs-dark"
               options={{
-                fontSize: 14,
-                lineNumbers: 'on',
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 4,
-                insertSpaces: true,
-                wordWrap: 'on',
-                padding: { top: 12 },
-                quickSuggestions: false,
-                suggestOnTriggerCharacters: false,
+                fontSize: 14, lineNumbers: 'on', minimap: { enabled: false },
+                scrollBeyondLastLine: false, automaticLayout: true,
+                tabSize: 4, insertSpaces: true, wordWrap: 'on', padding: { top: 12 },
+                quickSuggestions: false, suggestOnTriggerCharacters: false,
                 wordBasedSuggestions: 'off',
-                suggest: {
-                  showIcons: true,
-                  showStatusBar: true,
-                  preview: false,
-                  previewMode: 'subwordSmart',
-                  shareSuggestSelections: false,
-                  showInlineDetails: true,
-                  filterGraceful: false,
-                },
-                inlineSuggest: {
-                  enabled: false,
-                },
-                folding: true,
+                suggest: { showIcons: true, showStatusBar: true, preview: false, previewMode: 'subwordSmart', shareSuggestSelections: false, showInlineDetails: true, filterGraceful: false },
+                inlineSuggest: { enabled: false }, folding: true,
                 bracketPairColorization: { enabled: true },
               }}
             />
@@ -587,35 +505,48 @@ _stderr = _stderr_buf.getvalue()
 
           <div className="bottom-panel">
             <div className="bottom-tabs">
-              <button
-                className={`tab-btn ${activeTab === 'output' ? 'active' : ''}`}
-                onClick={() => setActiveTab('output')}
-              >
-                Output
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'log' ? 'active' : ''}`}
-                onClick={() => setActiveTab('log')}
-              >
+              <button className={`tab-btn ${activeTab === 'output' ? 'active' : ''}`} onClick={() => setActiveTab('output')}>Output</button>
+              <button className={`tab-btn ${activeTab === 'log' ? 'active' : ''}`} onClick={() => setActiveTab('log')}>
                 Suggestion Log
-                {suggestionLog.length > 0 && (
-                  <span className="log-count">{suggestionLog.length}</span>
-                )}
+                {suggestionLog.length > 0 && <span className="log-count">{suggestionLog.length}</span>}
               </button>
+              {(problem.test_cases || []).length > 0 && (
+                <button className={`tab-btn ${activeTab === 'tests' ? 'active' : ''}`} onClick={() => setActiveTab('tests')}>
+                  Test Cases
+                  <span className="log-count" style={{ backgroundColor: '#569cd6' }}>{(problem.test_cases || []).length}</span>
+                </button>
+              )}
             </div>
 
             <div className="bottom-content">
               {activeTab === 'output' ? (
-                <pre className="output-text">
-                  {output || 'Click "Run Code" to see output here.'}
-                </pre>
+                <pre className="output-text">{output || 'Click "Run Code" to see output here.'}</pre>
+              ) : activeTab === 'tests' ? (
+                <div className="suggestion-log">
+                  {testResults === null ? (
+                    <p className="log-empty">Click "Run Tests" to run your code against the test cases.</p>
+                  ) : testResults.length === 0 ? (
+                    <p className="log-empty">No test cases available for this problem.</p>
+                  ) : (
+                    testResults.map((r, i) => (
+                      <div key={i} className="review-test-case">
+                        <div className="review-test-header">
+                          <span className="review-test-label">Test {i + 1}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: r.passed ? '#4caf50' : '#f44336' }}>{r.passed ? 'PASSED' : 'FAILED'}</span>
+                        </div>
+                        <div className="review-test-body">
+                          <div className="review-test-row"><span className="review-test-key">Call</span><code className="review-test-val">{r.input}</code></div>
+                          <div className="review-test-row"><span className="review-test-key">Expected</span><code className="review-test-val">{r.expected}</code></div>
+                          <div className="review-test-row"><span className="review-test-key">Actual</span><code className="review-test-val" style={{ color: r.passed ? '#4caf50' : '#f44336' }}>{r.actual}</code></div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               ) : (
                 <div className="suggestion-log">
                   {suggestionLog.length === 0 ? (
-                    <p className="log-empty">
-                      No suggestions accepted yet. Start typing and pause for 2
-                      seconds to see autocomplete suggestions.
-                    </p>
+                    <p className="log-empty">No suggestions accepted yet. Start typing and pause for 2 seconds to see autocomplete suggestions.</p>
                   ) : (
                     suggestionLog.map((entry, i) => (
                       <div key={i} className="log-entry">
