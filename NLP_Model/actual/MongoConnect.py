@@ -28,7 +28,7 @@ class MongoConnect:
             print(e)
 
 
-    def extract(self,database):
+
     def extract(self,database,collection,col_filter):
         '''
         Maps a collection name to all of the messages 
