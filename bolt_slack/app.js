@@ -28,6 +28,10 @@ const { insertMessageModels, insertSingleMessageToDB, insertUserModels, buildCha
 const tokenCache = new Map(); // Cache tokens by team_id
 const channelLabelCache = new Map(); // Cache channel_id -> resolved label (name or fallback id)
 
+function normalizeTeamId(teamId) {
+  return typeof teamId === 'string' ? teamId.trim() : '';
+}
+
 async function safePostEphemeral(client, payload, logger, contextLabel = 'ephemeral message') {
   try {
     return await client.chat.postEphemeral(payload);
@@ -68,30 +72,69 @@ async function resolveChannelLabel(client, channelId, logger, contextLabel = 'ch
 }
 
 async function getWorkspaceToken(teamId) {
-  // Check cache first
-  if (tokenCache.has(teamId)) {
-    return tokenCache.get(teamId);
-  }
-  
-  // Fall back to environment variable for the default workspace
-  if (teamId === process.env.SLACK_TEAM_ID || !teamId) {
+  const normalizedTeamId = normalizeTeamId(teamId);
+  const defaultTeamId = normalizeTeamId(process.env.SLACK_TEAM_ID);
+
+  console.log('[Auth:getWorkspaceToken] Resolving token', {
+    incomingTeamId: teamId || null,
+    normalizedTeamId: normalizedTeamId || null,
+    defaultTeamId: defaultTeamId || null,
+    hasDefaultEnvToken: Boolean(config.slackBotToken)
+  });
+
+  // The default workspace keeps using the configured env token.
+  if (!normalizedTeamId || normalizedTeamId === defaultTeamId) {
+    console.log('[Auth:getWorkspaceToken] Using default workspace env token fallback', {
+      reason: !normalizedTeamId ? 'missing-team-id' : 'matched-default-team-id'
+    });
     return config.slackBotToken;
   }
+
+  // Check cache first for installed workspaces.
+  if (tokenCache.has(normalizedTeamId)) {
+    const cachedToken = tokenCache.get(normalizedTeamId);
+    console.log('[Auth:getWorkspaceToken] Cache hit for workspace token', {
+      teamId: normalizedTeamId,
+      tokenPresent: Boolean(cachedToken)
+    });
+    return cachedToken;
+  }
+
+  console.log('[Auth:getWorkspaceToken] Cache miss, querying WorkspaceToken collection', {
+    teamId: normalizedTeamId
+  });
   
   // Try to fetch from database
   try {
     const WorkspaceToken = require('../mongo_storage/models/WorkspaceToken');
-    const record = await WorkspaceToken.findOne({ team_id: teamId });
+    const record = await WorkspaceToken.findOne({ team_id: normalizedTeamId });
     if (record) {
-      tokenCache.set(teamId, record.access_token);
+      tokenCache.set(normalizedTeamId, record.access_token);
+      console.log('[Auth:getWorkspaceToken] Database token found and cached', {
+        teamId: normalizedTeamId,
+        hasAccessToken: Boolean(record.access_token),
+        hasBotUserId: Boolean(record.bot_user_id),
+        updatedLastUsedAt: record.last_used || null
+      });
       return record.access_token;
     }
+
+    console.warn('[Auth:getWorkspaceToken] Database query returned no token record', {
+      teamId: normalizedTeamId
+    });
   } catch (error) {
-    console.error(`Failed to fetch token for team ${teamId}:`, error.message);
+    console.error('[Auth:getWorkspaceToken] Failed while querying WorkspaceToken', {
+      teamId: normalizedTeamId,
+      errorMessage: error.message,
+      errorName: error.name
+    });
   }
+
+  console.warn('[Auth:getWorkspaceToken] Returning null token', {
+    teamId: normalizedTeamId
+  });
   
-  // Return default token as fallback
-  return config.slackBotToken;
+  return null;
 }
 
 async function authorizeWorkspace({ teamId }) {
@@ -176,6 +219,33 @@ function getSelectedOptionValueFromViewState(viewState, actionId) {
   return '';
 }
 
+function getWorkspaceIdFromPayload(payload) {
+  return payload?.team_id
+    || payload?.team?.id
+    || payload?.authorizations?.[0]?.team_id
+    || payload?.context_team_id
+    || payload?.enterprise?.id
+    || payload?.authorizations?.[0]?.enterprise_id
+    || payload?.context_enterprise_id
+    || null;
+}
+
+function getWorkspaceNameFromPayload(payload) {
+  return payload?.team?.name
+    || payload?.team_name
+    || payload?.team?.domain
+    || payload?.team_domain
+    || payload?.authorizations?.[0]?.team_name
+    || null;
+}
+
+function getHomeWorkspaceContext(payload) {
+  return {
+    teamId: getWorkspaceIdFromPayload(payload),
+    workspaceName: getWorkspaceNameFromPayload(payload)
+  };
+}
+
 // Initialize Express and Slack App based on mode
 let receiver;
 let expressApp;
@@ -219,8 +289,12 @@ const API_BASE_URL = config.apiBaseUrl; // MongoDB API endpoint
 // ====================
 
 // Fetch select number of messages via conversations.history
-async function getConversationHistory(channelId, limit = 100, client = app.client) {
+async function fetchConversationHistory(channelId, limit = 100, client) {
   try {
+    if (!client) {
+      throw new Error('Slack client is required to fetch conversation history');
+    }
+
     console.log(`🚀 Attempting to pull messages from: ${channelId}`);
     
     const result = await client.conversations.history({
@@ -236,27 +310,13 @@ async function getConversationHistory(channelId, limit = 100, client = app.clien
   }
 }
 
-// Fetch select number of messages via conversations.history, ONLY collecting messages posted AFTER the last call
-async function getRecentConversationHistory(channelId, lastTimestamp, client = app.client) {
-  try {
-    console.log(`🚀 Attempting to pull messages from: ${channelId} since ${lastTimestamp}`);
-    
-    const result = await client.conversations.history({
-      channel: channelId,
-      oldest: lastTimestamp,
-      // limit = 1000 per call
-    });
-
-    console.log(`✅ Success! Found ${result.messages.length} new messages.`);
-    console.log(JSON.stringify(result.messages, null, 2));
-  } catch (error) {
-    console.error("❌ Extraction Error:", error.data ? error.data.error : error.message);
-  }
-}
-
 // Fetch info about channel via conversations.info
-async function getConversationInfo(channelId, client = app.client) {
+async function getConversationInfo(channelId, client) {
   try {  
+    if (!client) {
+      throw new Error('Slack client is required to fetch conversation info');
+    }
+
     const result = await client.conversations.info({
       channel: channelId,
       include_num_members: true
@@ -341,9 +401,12 @@ app.event('app_mention', async ({ event, client, logger }) => {
 });
 
 // Publish Home tab when a user opens the app's Home.
-app.event('app_home_opened', async ({ event, client, logger }) => {
+app.event('app_home_opened', async ({ event, body, client, logger }) => {
   console.log('🏠 [app_home_opened] Event triggered for user:', event.user);
   const userId = event.user;
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+  const resolvedTeamId = teamId || getWorkspaceIdFromPayload(event);
+  const resolvedWorkspaceName = workspaceName || getWorkspaceNameFromPayload(event);
   
   // Publish a loading view immediately (within Slack's 3-second timeout)
   try {
@@ -384,6 +447,8 @@ app.event('app_home_opened', async ({ event, client, logger }) => {
       await publishHomeTab({
         client,
         userId,
+        teamId: resolvedTeamId,
+        workspaceName: resolvedWorkspaceName,
         logger,
         apiClient
       });
@@ -442,7 +507,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
     
     // Try to fetch from API first
     try {
-      const channelKey = await buildChannelKey(channelName);
+      const channelKey = await buildChannelKey(channelName, { client });
       const messages = await fetchMessagesFromAPI(channelKey);
       
       if (messages && messages.length > 0) {
@@ -452,7 +517,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
 
             if (msg.user) {
               try {
-                const resolvedName = await userIDToName(msg.user);
+                const resolvedName = await userIDToName(msg.user, client);
                 if (resolvedName) {
                   displayName = resolvedName;
                 }
@@ -479,7 +544,7 @@ app.command('/messages', async ({ command, ack, respond, client }) => {
       }
     } catch (error) {
       // If API fails, fetch directly from Slack
-  const messages = await getConversationHistory(command.channel_id, 5, client);
+      const messages = await fetchConversationHistory(command.channel_id, 5, client);
       const messageText = messages.map((msg, idx) => 
         `${idx + 1}. ${msg.text || '(no text)'}`
       ).join('\n');
@@ -580,7 +645,7 @@ app.command('/summarize-week', async ({ command, ack, respond, client }) => {
         const channel_id = command.channel_id;
         const channel_name = command.channel_name;
 
-        const databaseKey = await buildChannelKey(channel_name);
+        const databaseKey = await buildChannelKey(channel_name, { client });
 
         if (!databaseKey) {
             throw new Error(`Failed to build database key for channel: ${channel_name}`);
@@ -647,7 +712,7 @@ app.command('/members-info', async ({ command, ack, respond, client }) => {
   try {
   const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
-    const collectionName = await buildChannelKey(channelName);
+    const collectionName = await buildChannelKey(channelName, { client });
 
     const membersData = await apiClient.get(`/api/users/${collectionName}`);
 
@@ -678,6 +743,7 @@ app.command('/members-info', async ({ command, ack, respond, client }) => {
 // /refresh-home - Refresh the Home dashboard for the current user
 app.command('/refresh-home', async ({ command, ack, respond, client, logger }) => {
   await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(command);
 
   // Send immediate response to avoid timeout
   // publishHomeTab() is slow due to paginated channel list and API calls
@@ -691,6 +757,8 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
   publishHomeTab({
     client,
     userId: command.user_id,
+    teamId,
+    workspaceName,
     logger,
     apiClient
   })
@@ -705,6 +773,7 @@ app.command('/refresh-home', async ({ command, ack, respond, client, logger }) =
 // Home tab channel dropdown: republish with selected channel data.
 app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
 
   try {
     const selectedChannelName = body.actions && body.actions[0] && body.actions[0].selected_option
@@ -715,6 +784,8 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
     publishHomeTab({
       client,
       userId: body.user.id,
+      teamId,
+      workspaceName,
       logger,
       apiClient,
       selectedChannelName,
@@ -731,6 +802,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
 // Home tab refresh button: republish the dashboard on click.
 app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
 
   const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
@@ -745,6 +817,8 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
   publishHomeTab({
     client,
     userId: body.user.id,
+    teamId,
+    workspaceName,
     logger,
     apiClient,
     selectedChannelName,
@@ -758,6 +832,7 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
 // Home tab week dropdown: republish with selected week updates.
 app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
   await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
 
   const selectedWeekRaw = body.actions && body.actions[0] && body.actions[0].selected_option
     ? body.actions[0].selected_option.value
@@ -767,6 +842,8 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
   publishHomeTab({
     client,
     userId: body.user.id,
+    teamId,
+    workspaceName,
     logger,
     apiClient,
     selectedChannelName,
@@ -955,7 +1032,7 @@ app.action('unsave_message', async ({ ack, body, client, logger, respond }) => {
 
     // Actually delete from MongoDB
     try {
-      const channelKey = await buildChannelKey(savedMessage.channelName);
+      const channelKey = await buildChannelKey(savedMessage.channelName, { client });
       await apiClient.delete(`/api/messages/${encodeURIComponent(channelKey)}/${savedMessage.timestamp}`);
     } catch (deleteErr) {
       logger.error('Failed to delete message from DB:', deleteErr);
