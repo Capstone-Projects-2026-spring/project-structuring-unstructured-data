@@ -29,8 +29,17 @@ router.post('/api/users/:channelName', async (req, res) => {
     }
 
     const UserModel = getUserModel(channelName);
-    await UserModel.insertMany(membersData);
-    console.log(`Array of ${membersData.length} members inserted into channel ${channelName}`);
+    const ops = membersData.map((member) => ({
+      updateOne: {
+        filter: { member_id: member.member_id },
+        update: { $set: member },
+        upsert: true
+      }
+    }));
+    const result = await UserModel.bulkWrite(ops);
+    const upserted = result.upsertedCount;
+    const updated = result.modifiedCount;
+    console.log(`Channel ${channelName}: ${upserted} inserted, ${updated} updated`);
     return res.status(200).json({ message: `Members from channel ${channelName} inserted into the database successfully.` });
   } catch (err) {
     console.error("Database insertion error:", err);

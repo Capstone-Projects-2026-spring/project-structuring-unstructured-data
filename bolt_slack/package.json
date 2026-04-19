@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "npm install",
+    "postinstall": "node ../scripts/install-python-deps.js",
     "start": "node app.js",
     "dev": "nodemon app.js",
     "test": "jest",
