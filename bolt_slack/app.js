@@ -1058,35 +1058,7 @@ app.message(async ({ message, client, logger, context }) => {
           autoSavedMessages.delete(key);
         }, 1800000); // 30 minutes
 
-        // Notify user privately with unsave option
-        const expiresAt = new Date(Date.now() + 1800000).toLocaleTimeString();
-        await safePostEphemeral(client, {
-          channel: message.channel,
-          user: message.user,
-          text: `✅ Your message was auto-saved. You can unsave it until ${expiresAt}.`,
-          blocks: [
-            {
-              type: 'section',
-              text: {
-                type: 'mrkdwn',
-                text: `✅ *Your message was saved to the database.*\nYou can unsave it any time in the next 30 minutes _(until ${expiresAt})_.\nTo stop auto-saving, use \`/autosave-off\`.`
-              }
-            },
-            {
-              type: 'actions',
-              block_id: 'unsave_actions',
-              elements: [
-                {
-                  type: 'button',
-                  text: { type: 'plain_text', text: '↩️ Unsave This Message', emoji: true },
-                  style: 'danger',
-                  value: `unsave_${message.channel}_${message.ts}_${message.user}`,
-                  action_id: 'unsave_message'
-                }
-              ]
-            }
-          ]
-        }, logger, 'autosave success notice');
+       
 
       } catch (saveError) {
         logger.error('Auto-save failed:', saveError);
@@ -1238,6 +1210,120 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
     response_type: 'ephemeral',
     text: `✅ *Auto-save turned on.* Your messages will be saved automatically with a 30-minute unsave window.`
   });
+});
+
+// /review-saves - DM the user a weekly digest of their saved messages
+app.command('/review-saves', async ({ command, ack, client, logger }) => {
+  await ack();
+  try {
+    const channelInfo = await getConversationInfo(command.channel_id, client);
+    const channelName = channelInfo.name;
+    const channelKey = await buildChannelKey(channelName, { client });
+
+    // Fetch all saved messages for this channel
+    const response = await apiClient.get(`/api/messages/${encodeURIComponent(channelKey)}`);
+    const allMessages = response.data || [];
+
+    // Filter to only this user's messages from the past 7 days
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const userMessages = allMessages.filter(msg =>
+      msg.user === command.user_id &&
+      parseFloat(msg.ts) * 1000 >= oneWeekAgo
+    );
+
+    // Open a DM with the user
+    const dm = await client.conversations.open({ users: command.user_id });
+
+    if (userMessages.length === 0) {
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `📭 No saved messages found for you in *#${channelName}* from the past 7 days.`
+      });
+      return;
+    }
+
+    // Build the digest message with unsave buttons
+    const blocks = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `📋 *Your saved messages from #${channelName} this week* (${userMessages.length} total):\nClick any message to unsave it.`
+        }
+      },
+      { type: 'divider' }
+    ];
+
+    // Add each message as a block with an unsave button
+    for (const msg of userMessages.slice(0, 10)) {
+      const time = new Date(parseFloat(msg.ts) * 1000).toLocaleString();
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `_${time}_\n>${msg.text || '(no text)'}`
+        },
+        accessory: {
+          type: 'button',
+          text: { type: 'plain_text', text: '↩️ Unsave', emoji: true },
+          style: 'danger',
+          value: `weeklyunsave_${channelKey}_${msg.ts}_${command.user_id}`,
+          action_id: 'weekly_unsave_message'
+        }
+      });
+      blocks.push({ type: 'divider' });
+    }
+
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `Your saved messages from #${channelName} this week`,
+      blocks
+    });
+
+  } catch (error) {
+    logger.error('Error in /review-saves command:', error);
+    try {
+      const dm = await client.conversations.open({ users: command.user_id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `❌ Error fetching your saved messages: ${error.message}`
+      });
+    } catch (dmError) {
+      logger.error('Error sending DM:', dmError);
+    }
+  }
+});
+
+// Handle unsave button from weekly digest
+app.action('weekly_unsave_message', async ({ ack, body, client, logger, respond }) => {
+  await ack();
+  try {
+    const value = body.actions[0].value;
+    // value format: weeklyunsave_CHANNELKEY_TIMESTAMP_USER
+    const firstUnderscore = value.indexOf('_');
+    const secondUnderscore = value.indexOf('_', firstUnderscore + 1);
+    const lastUnderscore = value.lastIndexOf('_');
+    const secondLastUnderscore = value.lastIndexOf('_', lastUnderscore - 1);
+    const channelKey = value.slice(firstUnderscore + 1, secondLastUnderscore);
+    const timestamp = value.slice(secondLastUnderscore + 1, lastUnderscore);
+    const originalUser = value.slice(lastUnderscore + 1);
+
+    if (body.user.id !== originalUser) {
+      await respond({ text: '⚠️ Only the message author can unsave this message.', replace_original: false });
+      return;
+    }
+
+    await apiClient.delete(`/api/messages/${encodeURIComponent(channelKey)}/${timestamp}`);
+
+    await respond({
+      text: '↩️ *Message unsaved* and removed from the database.',
+      replace_original: false
+    });
+
+  } catch (error) {
+    logger.error('Error handling weekly unsave:', error);
+    await respond({ text: `❌ Error unsaving message: ${error.message}`, replace_original: false });
+  }
 });
 
 // ====================
