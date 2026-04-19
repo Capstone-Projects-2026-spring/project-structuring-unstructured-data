@@ -7,7 +7,7 @@ import pandas as pd
 import sys
 import json
 from datetime import datetime, timezone, timedelta
-# Type py -3.14 model.py to run
+# Type `py -3.14 model.py {channelKey}` to run
 
 MODEL_RESULT_PREFIX = '__MODEL_RESULT__'
 
@@ -157,7 +157,12 @@ ext_db = dbName
 
 # Creating mongo connection instance
 inst = MongoConnect(mongo_user,mongo_password)
-chan_df = inst.extract(ext_db)
+chan_df = inst.extract(ext_db,'raw_messages',['user', 'type', 'text', 'ts'])
+mem_df = inst.extract(ext_db,'members',['member_id','team_id','name','real_name'])
+#print(mem_df)
+#print("Columns:", chan_df.columns.tolist())  
+#print("Shape:", chan_df.shape)               
+#print(chan_df.head())   
 
 required_cols = {'text', 'ts'}
 missing_cols = required_cols - set(chan_df.columns)
@@ -254,6 +259,7 @@ emit_model_result(
 
 
 '''
+
 dp_inst = DataProcess()
 
 

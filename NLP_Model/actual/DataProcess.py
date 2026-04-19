@@ -262,6 +262,12 @@ class DataProcess:
 
         grouped.sort(key=lambda item: day_order.get(item[0], 99))
         return {day: text for day, text in grouped}
+    
+    def user_list(self,df):
+        user_list = df['user'].unique()
+
+        return user_list
+
 
     
     
