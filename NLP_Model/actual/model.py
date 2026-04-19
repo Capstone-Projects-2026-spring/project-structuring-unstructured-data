@@ -7,7 +7,7 @@ import pandas as pd
 import sys
 import json
 from datetime import datetime, timezone, timedelta
-# Type py -3.14 model.py to run
+# Type `py -3.14 model.py {channelKey}` to run
 
 MODEL_RESULT_PREFIX = '__MODEL_RESULT__'
 
