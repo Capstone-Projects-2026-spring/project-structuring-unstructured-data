@@ -375,6 +375,24 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, logger }
   }
 }
 
+async function getUnstoredMembers(client, apiClient, channelName, channelId) {
+  try {
+    const channelKey = buildChannelKey(channelName, channelId);
+
+    const membersResult = await client.conversations.members({ channel: channelId });
+    const slackMemberIds = membersResult.members || [];
+
+    const response = await apiClient.get(`/api/users/${encodeURIComponent(channelKey)}`);
+    const storedMembers = response.data || [];
+    const storedMemberIds = new Set(storedMembers.map(m => m.member_id || m.id));
+
+    const unstoredCount = slackMemberIds.filter(id => !storedMemberIds.has(id)).length;
+    return { channelName, total: slackMemberIds.length, stored: storedMembers.length, unstored: unstoredCount };
+  } catch (error) {
+    return { channelName, total: 'N/A', stored: 'N/A', unstored: 'N/A', notInChannel: error.data?.error === 'not_in_channel' };
+  }
+}
+
 async function getUnstoredMessages(client, apiClient, channelName, channelId) {
   try {
     const slackResult = await client.conversations.history({
@@ -571,7 +589,8 @@ function buildSampleHomeView({
   summaries,
   errorMessage,
   isAdmin,
-  channelStorageStats=[]
+  channelStorageStats=[],
+  memberStats=null
 }) {
   const generatedAt = new Date().toLocaleString();
   const selectedOption = channelOptions.find((option) => option.value === selectedChannelName);
@@ -721,6 +740,16 @@ function buildSampleHomeView({
         }
       ]
     },
+    ...(memberStats && memberStats.totalUnsaved > 0
+      ? [{
+          type: 'context',
+          elements: [{
+            type: 'mrkdwn',
+            text: `:warning: ${memberStats.totalUnsaved} member${memberStats.totalUnsaved !== 1 ? 's' : ''} not saved in ${memberStats.channelsWithUnsaved} channel${memberStats.channelsWithUnsaved !== 1 ? 's' : ''}`
+          }]
+        }]
+      : []
+    ),
     {
       type: 'header',
       text: {
@@ -818,12 +847,22 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
 
     const isAdmin = await checkIfUserIsAdmin(client, userId);
     let channelStorageStats = [];
+    let memberStats = null;
     if (isAdmin) {
-      channelStorageStats = await Promise.all(
-        channels.slice(0, 10).map(channel =>
+      const channelsToCheck = channels.slice(0, 10);
+      [channelStorageStats] = await Promise.all([
+        Promise.all(channelsToCheck.map(channel =>
           getUnstoredMessages(client, apiClient, channel.name, channel.id)
+        ))
+      ]);
+      const memberStatsPerChannel = await Promise.all(
+        channelsToCheck.map(channel =>
+          getUnstoredMembers(client, apiClient, channel.name, channel.id)
         )
       );
+      const totalUnsaved = memberStatsPerChannel.reduce((sum, s) => sum + (typeof s.unstored === 'number' ? s.unstored : 0), 0);
+      const channelsWithUnsaved = memberStatsPerChannel.filter(s => typeof s.unstored === 'number' && s.unstored > 0).length;
+      memberStats = { totalUnsaved, channelsWithUnsaved };
     }
 
     const {
@@ -860,7 +899,8 @@ async function publishHomeTab({ client, userId, logger, apiClient, selectedChann
       summaries,
       errorMessage,
       isAdmin,
-      channelStorageStats
+      channelStorageStats,
+      memberStats
     });
 
     if (logger) {
