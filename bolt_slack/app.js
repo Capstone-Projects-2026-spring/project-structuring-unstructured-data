@@ -13,7 +13,10 @@ const {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
-  encodeDashboardState
+  HOME_ADMIN_STORE_MEMBERS,
+  HOME_ADMIN_VIEW_UNSTORED,
+  encodeDashboardState,
+  checkIfUserIsAdmin
 } = require('./homeDashboard');
 
 console.log('DEBUG ENV:', {
@@ -592,28 +595,25 @@ app.command('/store-messages', async ({ command, ack, respond, client }) => {
 });
 
 // /store-members - Store channel members data to database
-app.command('/store-members', async ({ command, ack, respond, client }) => {
+app.command('/store-members', async ({ command, ack, client }) => {
   await ack();
   try {
-  const channelInfo = await getConversationInfo(command.channel_id, client);
+    const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
 
-    await respond({
-      response_type: 'ephemeral',
+    const dm = await client.conversations.open({ users: command.user_id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
       text: `⏳ Storing member data from *${channelName}*...`
     });
-  await insertUserModels(channelName, { client });
+    await insertUserModels(channelName, { client });
 
-    await respond({
-      response_type: 'in_channel',
+    await client.chat.postMessage({
+      channel: dm.channel.id,
       text: `✅ Member data from *${channelName}* stored successfully to the database!`
     });
   } catch (error) {
     console.error('Error in /store-members command:', error);
-    await respond({
-      response_type: 'ephemeral',
-      text: `❌ Error storing member data: ${error.message}`
-    });
   }
 });
 
@@ -852,6 +852,111 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);
     });
+});
+
+//Home tab ADMIN controls
+//Stores the members of every conversation the bot is in
+app.action(HOME_ADMIN_STORE_MEMBERS, async ({ ack, body, client, logger }) => {
+  await ack();
+  try {
+    const isAdmin = await checkIfUserIsAdmin(client, body.user.id);
+    if (!isAdmin) {
+      logger.warn(`Non-admin user ${body.user.id} attempted to store members.`);
+      return;
+    }
+    const channels = [];
+    let cursor;
+    do {
+      const response = await client.conversations.list({
+        types: 'public_channel,private_channel',
+        exclude_archived: true,
+        limit: 200,
+        cursor
+      });
+      for (const channel of response.channels || []) {
+        if (channel.id && channel.name) {
+          channels.push(channel.name);
+        }
+      }
+      cursor = response.response_metadata?.next_cursor;
+    } while (cursor);
+    console.log(`Admin ${body.user.id} triggered store members for ${channels.length} channels`);
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Storing members for ${channels.length} channels...`
+    });
+    let failed = 0;
+    for (const channelName of channels) {
+      try {
+        await insertUserModels(channelName);
+        console.log(`Stored members for #${channelName}`);
+      } catch (error) {
+        console.error(`Failed to store members for #${channelName}:`, error.message);
+        failed++;
+      }
+    }
+    const succeeded = channels.length - failed;
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: failed === 0
+        ? `✅ Successfully stored members for all ${succeeded} channels.`
+        : `⚠️ Stored members for ${succeeded}/${channels.length} channels. ${failed} failed — check logs for details.`
+    });
+    publishHomeTab({
+      client,
+      userId: body.user.id,
+      logger,
+      apiClient
+    }).catch((error) => logger.error('Error refreshing home tab:', error));
+  } catch (error) {
+    logger.error('Error handling admin store members:', error);
+  }
+});
+
+// Home tab admin: show unstored messages for a channel in DM
+app.action(HOME_ADMIN_VIEW_UNSTORED, async ({ ack, body, client, logger }) => {
+  await ack();
+  try {
+    const { channelId, channelName, channelKey } = JSON.parse(body.actions[0].value);
+
+    const [slackResult, storedResult] = await Promise.all([
+      client.conversations.history({ channel: channelId, limit: 1000 }),
+      apiClient.get(`/api/messages/${encodeURIComponent(channelKey)}`)
+    ]);
+
+    const isHumanMessage = (msg) => !msg.bot_id && msg.subtype !== 'bot_message' && msg.user;
+    const slackMessages = (slackResult.messages || []).filter(isHumanMessage);
+    const storedTimestamps = new Set(
+      (storedResult.data || []).filter(isHumanMessage).map((msg) => msg.ts)
+    );
+    const unstoredMessages = slackMessages.filter((msg) => !storedTimestamps.has(msg.ts));
+
+    const dm = await client.conversations.open({ users: body.user.id });
+
+    if (unstoredMessages.length === 0) {
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `✅ All messages in *#${channelName}* are stored.`
+      });
+      return;
+    }
+
+    const CHUNK = 20;
+    for (let i = 0; i < unstoredMessages.length; i += CHUNK) {
+      const chunk = unstoredMessages.slice(i, i + CHUNK);
+      const header = i === 0
+        ? `📋 *Unstored messages in #${channelName}* (${unstoredMessages.length} total):\n\n`
+        : '';
+      const lines = chunk.map((msg, idx) => {
+        const time = new Date(parseFloat(msg.ts) * 1000).toLocaleString();
+        return `${i + idx + 1}. <@${msg.user}> _${time}_\n>${(msg.text || '(no text)').replace(/\n/g, '\n>')}`;
+      }).join('\n\n');
+      await client.chat.postMessage({ channel: dm.channel.id, text: header + lines });
+    }
+  } catch (error) {
+    logger.error('Error viewing unstored messages:', error);
+  }
 });
 
 // ====================

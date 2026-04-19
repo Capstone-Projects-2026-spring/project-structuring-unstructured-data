@@ -1,9 +1,12 @@
 const { channelNameToID } = require('./slack_to_DB');
 const { buildChannelKey } = require('../shared-utils/channelUtils');
 
+
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
+const HOME_ADMIN_STORE_MEMBERS = 'home_admin_store_members';
+const HOME_ADMIN_VIEW_UNSTORED = 'home_admin_view_unstored';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
 const CHANNEL_CACHE_TTL_MS = 30 * 60 * 1000; // Increased from 5 to 30 minutes to reduce API calls
 const MAX_STATIC_SELECT_OPTIONS = 100;
@@ -44,6 +47,19 @@ async function resolveWorkspaceContext({ client, teamId, workspaceName, logger }
       workspaceName: normalizedWorkspaceName
     };
   }
+}
+
+async function checkIfUserIsAdmin(client, userId) {
+  console.log('ADMIN_OVERRIDE value:', process.env.ADMIN_OVERRIDE);
+  
+  if (process.env.ADMIN_OVERRIDE === 'true') {
+    console.log('Admin override is active!');
+    return true;
+  }
+
+  const result = await client.users.info({ user: userId });
+  console.log('Slack admin check result:', result.user.is_admin, result.user.is_owner);
+  return result.user.is_admin || result.user.is_owner;
 }
 
 function formatSummaryTimestamp(ts) {
@@ -322,7 +338,6 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, client, 
       errorMessage: ''
     };
   }
-
   try {
     if (logger) {
       logger.info(`[fetchWeeklySummariesForChannel] Starting for channel: ${channelName}`);
@@ -414,6 +429,60 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, client, 
       summaryRecords: 0,
       messagesSummarized: 0,
       errorMessage: error.message || 'Unknown API error'
+    };
+  }
+}
+
+async function getUnstoredMembers(client, apiClient, channelName, channelId) {
+  try {
+    const channelKey = buildChannelKey(channelName, channelId);
+
+    const membersResult = await client.conversations.members({ channel: channelId });
+    const slackMemberIds = membersResult.members || [];
+
+    const response = await apiClient.get(`/api/users/${encodeURIComponent(channelKey)}`);
+    const storedMembers = response.data || [];
+    const storedMemberIds = new Set(storedMembers.map(m => m.member_id || m.id));
+
+    const unstoredCount = slackMemberIds.filter(id => !storedMemberIds.has(id)).length;
+    return { channelName, total: slackMemberIds.length, stored: storedMembers.length, unstored: unstoredCount };
+  } catch (error) {
+    return { channelName, total: 'N/A', stored: 'N/A', unstored: 'N/A', notInChannel: error.data?.error === 'not_in_channel' };
+  }
+}
+
+async function getUnstoredMessages(client, apiClient, channelName, channelId) {
+  try {
+    const slackResult = await client.conversations.history({
+      channel: channelId,
+      limit: 1000
+    });
+    const isHumanMessage = (msg) => !msg.bot_id && msg.subtype !== 'bot_message';
+
+    const slackMessages = (slackResult.messages || []).filter(isHumanMessage);
+
+    const channelKey = buildChannelKey(channelName, channelId);
+    const response = await apiClient.get(`/api/messages/${encodeURIComponent(channelKey)}`);
+    const storedMessages = (response.data || []).filter(isHumanMessage);
+
+    const storedTimestamps = new Set(storedMessages.map(msg => msg.ts));
+    const unstoredCount = slackMessages.filter(msg => !storedTimestamps.has(msg.ts)).length;
+
+    return {
+      channelName,
+      channelId,
+      channelKey,
+      total: slackMessages.length,
+      stored: storedMessages.length,
+      unstored: unstoredCount
+    };
+  } catch (error) {
+    return {
+      channelName,
+      total: 'N/A',
+      stored: 'N/A',
+      unstored: 'N/A',
+      notInChannel: error.data?.error === 'not_in_channel'
     };
   }
 }
@@ -595,7 +664,10 @@ function buildSampleHomeView({
   apiStatus,
   dbName,
   summaries,
-  errorMessage
+  errorMessage,
+  isAdmin,
+  channelStorageStats=[],
+  memberStats=null
 }) {
   const generatedAt = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
   const selectedOption = channelOptions.find((option) => option.value === selectedChannelName);
@@ -719,6 +791,102 @@ function buildSampleHomeView({
     });
   }
 
+  if (isAdmin) {
+    blocks.splice(3,0, {
+      type: 'divider'
+    },
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: '🔑 Admin Controls'
+      }
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: 'Store Members In All Channels',
+            emoji: true
+          },
+          style: 'primary',
+          action_id: HOME_ADMIN_STORE_MEMBERS
+        }
+      ]
+    },
+    ...(memberStats && memberStats.totalUnsaved > 0
+      ? [{
+          type: 'context',
+          elements: [{
+            type: 'mrkdwn',
+            text: `:warning: ${memberStats.totalUnsaved} member${memberStats.totalUnsaved !== 1 ? 's' : ''} not saved in ${memberStats.channelsWithUnsaved} channel${memberStats.channelsWithUnsaved !== 1 ? 's' : ''}`
+          }]
+        }]
+      : []
+    ),
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'Channel Storage Overview',
+        emoji: true
+      }
+    },
+    { type: 'divider' },
+    ...(channelStorageStats.length === 0
+      ? [{
+          type: 'section',
+          text: { type: 'mrkdwn', text: '_No channel data available._' }
+        }]
+      : channelStorageStats.map(ch => {
+          if (ch.notInChannel || ch.total === 'N/A') {
+            return {
+              type: 'section',
+              fields: [
+                { type: 'mrkdwn', text: `*#${ch.channelName}*` },
+                { type: 'mrkdwn', text: `⛔ Bot is not in this channel` }
+              ]
+            };
+          }
+          if (ch.total === 0) {
+            return {
+              type: 'section',
+              fields: [
+                { type: 'mrkdwn', text: `*#${ch.channelName}*` },
+                { type: 'mrkdwn', text: `💬 No messages to store yet` }
+              ]
+            };
+          }
+          const allStored = ch.unstored === 0;
+          const statusIcon = allStored ? '✅' : '⚠️';
+          const statusText = allStored ? 'All messages stored' : `${ch.unstored} messages not stored`;
+          const block = {
+            type: 'section',
+            fields: [
+              { type: 'mrkdwn', text: `*#${ch.channelName}*` },
+              { type: 'mrkdwn', text: `${statusIcon} ${statusText}\n${ch.stored} / ${ch.total} stored` }
+            ]
+          };
+          if (!allStored) {
+            block.accessory = {
+              type: 'button',
+              text: { type: 'plain_text', text: '🔍 View Unstored', emoji: true },
+              value: JSON.stringify({ channelId: ch.channelId, channelName: ch.channelName, channelKey: ch.channelKey }),
+              action_id: HOME_ADMIN_VIEW_UNSTORED
+            };
+          }
+          return block;
+        })
+    ),
+    {
+      type: 'divider'
+    }
+  )
+  }
+
   const view = {
     type: 'home',
     callback_id: 'home_dashboard_v1',
@@ -770,6 +938,26 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       console.log(`[publishHomeTab] Fetching summaries for channel: ${resolvedChannelName}`);
     }
 
+    const isAdmin = await checkIfUserIsAdmin(client, userId);
+    let channelStorageStats = [];
+    let memberStats = null;
+    if (isAdmin) {
+      const channelsToCheck = channels.slice(0, 10);
+      [channelStorageStats] = await Promise.all([
+        Promise.all(channelsToCheck.map(channel =>
+          getUnstoredMessages(client, apiClient, channel.name, channel.id)
+        ))
+      ]);
+      const memberStatsPerChannel = await Promise.all(
+        channelsToCheck.map(channel =>
+          getUnstoredMembers(client, apiClient, channel.name, channel.id)
+        )
+      );
+      const totalUnsaved = memberStatsPerChannel.reduce((sum, s) => sum + (typeof s.unstored === 'number' ? s.unstored : 0), 0);
+      const channelsWithUnsaved = memberStatsPerChannel.filter(s => typeof s.unstored === 'number' && s.unstored > 0).length;
+      memberStats = { totalUnsaved, channelsWithUnsaved };
+    }
+
     const {
       apiStatus,
       dbName,
@@ -804,7 +992,10 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       apiStatus,
       dbName,
       summaries,
-      errorMessage
+      errorMessage,
+      isAdmin,
+      channelStorageStats,
+      memberStats
     });
 
     if (logger) {
@@ -851,7 +1042,10 @@ module.exports = {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_ADMIN_STORE_MEMBERS,
+  HOME_ADMIN_VIEW_UNSTORED,
   buildSampleHomeView,
   publishHomeTab,
-  encodeDashboardState
+  encodeDashboardState,
+  checkIfUserIsAdmin
 };

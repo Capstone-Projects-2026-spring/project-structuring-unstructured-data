@@ -148,6 +148,7 @@ describe('POST /api/users/:channelName - Unit Tests', () => {
     const channelName = 'test-channel';
     const mockMembers = [
       {
+        member_id: 'U001',
         team_id: 'T001',
         name: 'alice',
         real_name: 'Alice Smith',
@@ -157,8 +158,11 @@ describe('POST /api/users/:channelName - Unit Tests', () => {
       }
     ];
 
-    const mockInsertMany = jest.fn().mockResolvedValue();
-    getUserModel.mockReturnValue({ insertMany: mockInsertMany });
+    const mockBulkWrite = jest.fn().mockResolvedValue({
+      upsertedCount: 1,
+      modifiedCount: 0
+    });
+    getUserModel.mockReturnValue({ bulkWrite: mockBulkWrite });
 
     const response = await request(app)
       .post(`/api/users/${channelName}`)
@@ -169,21 +173,29 @@ describe('POST /api/users/:channelName - Unit Tests', () => {
       `Members from channel ${channelName} inserted into the database successfully.`
     );
     expect(getUserModel).toHaveBeenCalledWith(channelName);
-    expect(mockInsertMany).toHaveBeenCalledWith(mockMembers);
+    expect(mockBulkWrite).toHaveBeenCalledWith([
+      {
+        updateOne: {
+          filter: { member_id: 'U001' },
+          update: { $set: mockMembers[0] },
+          upsert: true
+        }
+      }
+    ]);
   });
 
   test('should return 400 and error message on insertion failure', async () => {
     const channelName = 'test-channel';
     const errorMessage = 'Database insertion failed';
 
-    const mockInsertMany = jest.fn().mockRejectedValue(new Error(errorMessage));
-    getUserModel.mockReturnValue({ insertMany: mockInsertMany });
+    const mockBulkWrite = jest.fn().mockRejectedValue(new Error(errorMessage));
+    getUserModel.mockReturnValue({ bulkWrite: mockBulkWrite });
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
     const response = await request(app)
       .post(`/api/users/${channelName}`)
-      .send([{}]);
+      .send([{ member_id: 'U001' }]);
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(errorMessage);
@@ -193,8 +205,11 @@ describe('POST /api/users/:channelName - Unit Tests', () => {
   });
 
   test('should return 400 when channelName path parameter is blank or whitespace', async () => {
-    const mockInsertMany = jest.fn().mockResolvedValue();
-    getUserModel.mockReturnValue({ insertMany: mockInsertMany });
+    const mockBulkWrite = jest.fn().mockResolvedValue({
+      upsertedCount: 0,
+      modifiedCount: 0
+    });
+    getUserModel.mockReturnValue({ bulkWrite: mockBulkWrite });
 
     const response = await request(app)
       .post('/api/users/%20%20%20')
@@ -203,6 +218,6 @@ describe('POST /api/users/:channelName - Unit Tests', () => {
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('channelName path parameter is required');
     expect(getUserModel).not.toHaveBeenCalled();
-    expect(mockInsertMany).not.toHaveBeenCalled();
+    expect(mockBulkWrite).not.toHaveBeenCalled();
   });
 });

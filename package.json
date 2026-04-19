@@ -4,5 +4,8 @@
   "scripts": {
     "build": "npm --prefix bolt_slack install && npm --prefix mongo_storage install && node scripts/install-python-deps.js",
     "test": "npm --prefix bolt_slack test -- --passWithNoTests && npm --prefix mongo_storage test -- --passWithNoTests"
+  },
+  "dependencies": {
+    "ngrok": "^5.0.0-beta.2"
   }
 }
