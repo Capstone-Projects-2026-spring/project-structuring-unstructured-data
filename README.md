@@ -10,7 +10,7 @@
 
 ## Keywords
 
-Section #, as well as any words that quickly give your peers insights into the application like programming language, development platform, type of application, etc.
+**Section 001, Slack API, JavaScript, Bolt, Node.js Python, MongoDB, Google Gemini, Generative AI, Render**.
 
 ## Project Abstract
 
