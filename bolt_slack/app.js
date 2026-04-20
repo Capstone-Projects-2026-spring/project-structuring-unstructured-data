@@ -1215,6 +1215,12 @@ app.command('/autosave-on', async ({ command, ack, respond }) => {
 // /review-saves - DM the user a weekly digest of their saved messages
 app.command('/review-saves', async ({ command, ack, client, logger }) => {
   await ack();
+  // Open DM and send loading message immediately to avoid Slack's 3-second timeout
+  const dm = await client.conversations.open({ users: command.user_id });
+  await client.chat.postMessage({
+    channel: dm.channel.id,
+    text: '⏳ Fetching your saved messages...'
+  });
   try {
     const channelInfo = await getConversationInfo(command.channel_id, client);
     const channelName = channelInfo.name;
