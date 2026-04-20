@@ -405,7 +405,7 @@ function ProblemCard({ problem, onShare, onDelete, onEdit, onViewSubmissions }) 
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function Dashboard({ problems = [], problemsLoading = false, problemsError = '', onCreateProblem, onDeleteProblem, onLogout, user, onProblemsUpdate, onRefresh, onReview }) {
+function Dashboard({ problems = [], problemsLoading = false, problemsError = '', onCreateProblem, onDeleteProblem, onLogout, user, onProblemsUpdate, onRefresh, onReview, autofillPending = false }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [shareModal, setShareModal] = useState(null);
     const [deleteModal, setDeleteModal] = useState(null);
@@ -477,8 +477,21 @@ function Dashboard({ problems = [], problemsLoading = false, problemsError = '',
                     <button className="btn btn-outline" onClick={onRefresh} disabled={problemsLoading} title="Refresh problems">
                         {problemsLoading ? '↻ Loading…' : '↻ Refresh'}
                     </button>
-                    <button className="btn btn-outline" onClick={onCreateProblem}>
+                    <button className="btn btn-outline" onClick={onCreateProblem} style={{ position: 'relative' }}>
                         + New Problem
+                        {autofillPending && (
+                            <span style={{
+                                position: 'absolute',
+                                top: '-6px',
+                                right: '-6px',
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '50%',
+                                backgroundColor: '#569cd6',
+                                boxShadow: '0 0 0 2px #1e1e1e',
+                                animation: 'pulse 1.5s ease-in-out infinite',
+                            }} />
+                        )}
                     </button>
                     <button className="btn btn-outline" onClick={onLogout}>
                         Log Out

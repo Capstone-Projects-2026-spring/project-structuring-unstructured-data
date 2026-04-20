@@ -122,7 +122,7 @@ export async function saveDraft(sessionId, code) {
     return response.json();
 }
 
-export async function submitCode(sessionId, code, suggestionLog = [], tabSwitchLog = [], testResults = []) {
+export async function submitCode(sessionId, code, suggestionLog = [], tabSwitchLog = [], testResults = [], pasteLog = []) {
     const response = await fetch(`${API_URL}/submissions/${sessionId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,6 +131,7 @@ export async function submitCode(sessionId, code, suggestionLog = [], tabSwitchL
             suggestion_log: suggestionLog,
             tab_switch_log: tabSwitchLog,
             test_results: testResults,
+            paste_log: pasteLog,
         }),
     });
     if (!response.ok) {

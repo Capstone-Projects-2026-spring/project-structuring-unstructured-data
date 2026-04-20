@@ -33,11 +33,19 @@ class TestResult(BaseModel):
     passed: bool
 
 
+class PasteLogEntry(BaseModel):
+    time: str
+    type: str
+    charCount: int
+    preview: str
+
+
 class SubmitRequest(BaseModel):
     code: str
     suggestion_log: list[SuggestionLogEntry] = []
     tab_switch_log: list[TabSwitchEntry] = []
     test_results: list[TestResult] = []
+    paste_log: list[PasteLogEntry] = []
 
 
 @router.post("/start", status_code=201)
@@ -171,12 +179,13 @@ def submit_session(session_id: int, req: SubmitRequest):
     log_json = json.dumps([e.dict() for e in req.suggestion_log])
     tab_log_json = json.dumps([e.dict() for e in req.tab_switch_log])
     test_results_json = json.dumps([e.dict() for e in req.test_results])
+    paste_log_json = json.dumps([e.dict() for e in req.paste_log])
     cursor.execute(
         """UPDATE sessions
            SET code = %s, suggestion_log = %s, tab_switch_log = %s,
-               test_results = %s, submitted_at = NOW()
+               test_results = %s, paste_log = %s, submitted_at = NOW()
            WHERE id = %s""",
-        (req.code, log_json, tab_log_json, test_results_json, session_id),
+        (req.code, log_json, tab_log_json, test_results_json, paste_log_json, session_id),
     )
     conn.commit()
     conn.close()
