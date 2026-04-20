@@ -17,8 +17,8 @@ function parseSuggestionLog(raw) {
   }
 }
 
-// re-used for tab switch log which has the same shape requirement
 const parseTabSwitchLog = parseSuggestionLog;
+const parsePasteLog = parseSuggestionLog;
 
 function parseTestResults(raw) {
   if (!raw) return [];
@@ -46,6 +46,23 @@ function getHighlightedLines(code, suggestionLog) {
   return highlighted;
 }
 
+function getPasteHighlightedLines(code, pasteLog) {
+  if (!code || !pasteLog.length) return new Set();
+  const lines = code.split('\n');
+  const highlighted = new Set();
+  pasteLog.forEach(({ preview }) => {
+    if (!preview) return;
+    const needle = preview.trim().toLowerCase();
+    if (needle.length < 4) return;
+    lines.forEach((line, idx) => {
+      if (line.trim().toLowerCase().includes(needle)) {
+        highlighted.add(idx + 1);
+      }
+    });
+  });
+  return highlighted;
+}
+
 function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
   const language = problem.language || 'python';
 
@@ -53,10 +70,13 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
   const sorted = allSubmissions.length > 0 ? allSubmissions : [submission];
   const [activeSubmission, setActiveSubmission] = useState(sorted[0]);
 
-  const { student_name, submitted_at, code = '', suggestion_log: rawLog, tab_switch_log: rawTabLog, test_results: rawTestResults } = activeSubmission;
+  const { student_name, submitted_at, code = '', suggestion_log: rawLog, tab_switch_log: rawTabLog, test_results: rawTestResults, paste_log: rawPasteLog } = activeSubmission;
   const suggestionLog = parseSuggestionLog(rawLog);
   const tabSwitchLog = parseTabSwitchLog(rawTabLog);
   const testResults = parseTestResults(rawTestResults);
+  const pasteLog = parsePasteLog(rawPasteLog);
+  const externalPastes = pasteLog.filter(e => e.type === 'external_paste').length;
+  const totalPastes = pasteLog.length;
   const passedCount = testResults.filter(r => r.passed).length;
 
   const [activeTab, setActiveTab] = useState('log');
@@ -64,11 +84,11 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
   const monacoRef = useRef(null);
   const decorationsRef = useRef([]);
 
-  const applyDecorations = useCallback((editor, monaco, currentCode, currentLog) => {
-    const highlighted = getHighlightedLines(currentCode, currentLog);
-    decorationsRef.current = editor.deltaDecorations(
-      decorationsRef.current,
-      Array.from(highlighted).map((lineNumber) => ({
+  const applyDecorations = useCallback((editor, monaco, currentCode, currentLog, currentPasteLog) => {
+    const aiLines = getHighlightedLines(currentCode, currentLog);
+    const pasteLines = getPasteHighlightedLines(currentCode, currentPasteLog);
+    const decorations = [
+      ...Array.from(aiLines).map((lineNumber) => ({
         range: new monaco.Range(lineNumber, 1, lineNumber, 1),
         options: {
           isWholeLine: true,
@@ -79,15 +99,27 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
             position: monaco.editor.OverviewRulerLane.Right,
           },
         },
-      }))
-    );
+      })),
+      ...Array.from(pasteLines).map((lineNumber) => ({
+        range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+        options: {
+          isWholeLine: true,
+          className: 'paste-highlight-line',
+          overviewRuler: {
+            color: 'rgba(86, 156, 214, 0.6)',
+            position: monaco.editor.OverviewRulerLane.Left,
+          },
+        },
+      })),
+    ];
+    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorations);
   }, []);
 
   const handleEditorDidMount = useCallback(
     (editor, monaco) => {
       editorRef.current = editor;
       monacoRef.current = monaco;
-      applyDecorations(editor, monaco, code, suggestionLog);
+      applyDecorations(editor, monaco, code, suggestionLog, pasteLog);
     },
     [applyDecorations, code, suggestionLog]
   );
@@ -95,7 +127,7 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
   // Re-apply decorations whenever the active submission changes
   useEffect(() => {
     if (editorRef.current && monacoRef.current) {
-      applyDecorations(editorRef.current, monacoRef.current, code, suggestionLog);
+      applyDecorations(editorRef.current, monacoRef.current, code, suggestionLog, pasteLog);
     }
   }, [activeSubmission, applyDecorations, code, suggestionLog]);
 
@@ -163,6 +195,12 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
                 <span className="review-info-label">AI Suggestions Used</span>
                 <span className="review-info-value" style={{ color: suggestionLog.length > 0 ? '#c08b30' : '#16825d' }}>
                   {suggestionLog.length}
+                </span>
+              </div>
+              <div className="review-info-row">
+                <span className="review-info-label">Pastes</span>
+                <span className="review-info-value" style={{ color: externalPastes > 0 ? '#c08b30' : totalPastes > 0 ? '#569cd6' : '#16825d' }}>
+                  {totalPastes}{externalPastes > 0 ? ` (${externalPastes} external)` : ''}
                 </span>
               </div>
               <div className="review-info-row">
@@ -254,6 +292,17 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
                 )}
               </button>
               <button
+                className={`tab-btn ${activeTab === 'paste' ? 'active' : ''}`}
+                onClick={() => setActiveTab('paste')}
+              >
+                Paste Log
+                {pasteLog.length > 0 && (
+                  <span className="log-count" style={{ backgroundColor: externalPastes > 0 ? '#c08b30' : '#569cd6' }}>
+                    {pasteLog.length}
+                  </span>
+                )}
+              </button>
+              <button
                 className={`tab-btn ${activeTab === 'tabs' ? 'active' : ''}`}
                 onClick={() => setActiveTab('tabs')}
               >
@@ -278,7 +327,25 @@ function ReviewPage({ submission, allSubmissions = [], problem, onBack }) {
             </div>
 
             <div className="bottom-content">
-              {activeTab === 'log' ? (
+              {activeTab === 'paste' ? (
+                <div className="suggestion-log">
+                  {pasteLog.length === 0 ? (
+                    <p className="log-empty">No paste events were recorded during this submission.</p>
+                  ) : (
+                    pasteLog.map((entry, i) => (
+                      <div key={i} className="log-entry">
+                        <span className="log-time">{entry.time}</span>
+                        <span className="log-action" style={{ color: entry.type === 'external_paste' ? '#c08b30' : '#569cd6' }}>
+                          {entry.type === 'external_paste' ? 'external paste' : 'internal paste'}
+                        </span>
+                        <span className="log-label" style={{ color: '#888', fontFamily: 'monospace', fontSize: '11px' }}>
+                          {entry.charCount} chars{entry.preview ? ` · "${entry.preview}${entry.preview.length >= 60 ? '…' : ''}"` : ''}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : activeTab === 'log' ? (
                 <div className="suggestion-log">
                   {suggestionLog.length === 0 ? (
                     <p className="log-empty">No AI suggestions were accepted during this submission.</p>

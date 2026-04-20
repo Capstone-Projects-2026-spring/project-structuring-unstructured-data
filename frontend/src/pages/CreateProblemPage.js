@@ -508,39 +508,16 @@ function StepTestCases({ testCases, setTestCases }) {
 
 // ─── Autofill Modal ──────────────────────────────────────────────────────────
 
-function AutofillModal({ onClose, onApply }) {
+function AutofillModal({ onClose, onStartBackgroundGenerate }) {
   const [rawText, setRawText] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (rawText.trim().length < 30) {
       setError('Please provide more detail before generating.');
       return;
     }
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API_URL}/ai/autofill`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_text: rawText }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.detail || 'Something went wrong. Please try again.');
-        return;
-      }
-      if (data.error) {
-        setError(data.error);
-        return;
-      }
-      onApply(data);
-    } catch (err) {
-      setError('Failed to reach the server. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    onStartBackgroundGenerate(rawText);
   };
 
   return (
@@ -556,21 +533,17 @@ function AutofillModal({ onClose, onApply }) {
           placeholder="e.g. Write a function add(x, y) that returns the sum of two numbers. add(1, 2) should return 3."
           value={rawText}
           onChange={e => { setRawText(e.target.value); setError(''); }}
-          style={{ fontFamily: 'monospace', fontSize: '13px' }}
+          style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
           autoFocus
         />
         {error && (
           <p style={{ color: '#f44336', fontSize: '13px', margin: '0.5rem 0 0' }}>{error}</p>
         )}
         <div className="restore-actions" style={{ marginTop: '1.25rem' }}>
-          <button
-            className="btn btn-run"
-            onClick={handleGenerate}
-            disabled={loading}
-          >
-            {loading ? 'Generating...' : 'Generate'}
+          <button className="btn btn-run" onClick={handleGenerate}>
+            Generate in Background
           </button>
-          <button className="btn btn-outline" onClick={onClose} disabled={loading}>
+          <button className="btn btn-outline" onClick={onClose}>
             Cancel
           </button>
         </div>
@@ -581,13 +554,14 @@ function AutofillModal({ onClose, onApply }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-function CreateProblemPage({ onBack, onCreated }) {
+function CreateProblemPage({ onBack, onCreated, autofillResult, onAutofillConsumed, onAutofillReady }) {
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [showAutofill, setShowAutofill] = useState(false);
+  const autofillAppliedRef = React.useRef(false);
   // Step 1
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -615,6 +589,15 @@ function CreateProblemPage({ onBack, onCreated }) {
   const [maxSubmissions, setMaxSubmissions] = useState('');
   const [allowCopyPaste, setAllowCopyPaste] = useState(true);
   const [trackTabSwitching, setTrackTabSwitching] = useState(false);
+
+  React.useEffect(() => {
+    if (autofillResult && !autofillAppliedRef.current) {
+      autofillAppliedRef.current = true;
+      applyAutofill(autofillResult);
+      if (onAutofillConsumed) onAutofillConsumed();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autofillResult]);
 
   // ── Autofill handler — maps OpenAI response into all form state ──
   const applyAutofill = (data) => {
@@ -768,7 +751,21 @@ function CreateProblemPage({ onBack, onCreated }) {
       {showAutofill && (
         <AutofillModal
           onClose={() => setShowAutofill(false)}
-          onApply={applyAutofill}
+          onStartBackgroundGenerate={(rawText) => {
+            setShowAutofill(false);
+            onBack();
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+            fetch(`${apiUrl}/ai/autofill`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ raw_text: rawText }),
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data && !data.error && onAutofillReady) onAutofillReady(data);
+              })
+              .catch(() => {});
+          }}
         />
       )}
       <header className="app-header">

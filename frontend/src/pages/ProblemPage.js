@@ -42,8 +42,7 @@ function ProblemPage({ problem, onBack, studentName }) {
   const [draftCode, setDraftCode] = useState(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [tabSwitchLog, setTabSwitchLog] = useState([]);
-  // eslint-disable-next-line no-unused-vars
-  const [pasteToast, setPasteToast] = useState(false);
+  const [pasteLog, setPasteLog] = useState([]);
   const [testResults, setTestResults] = useState(null);
 
   const periodicSaveRef = useRef(null);
@@ -58,6 +57,7 @@ function ProblemPage({ problem, onBack, studentName }) {
   const completionProviderRef = useRef(null);
   const latestSuggestionsRef = useRef([]);
   const lastLoggedSuggestionRef = useRef(null);
+  const editorSnapshotRef = useRef('');
 
   const registerCompletionProvider = useCallback(
     (monaco, lang) => {
@@ -148,6 +148,39 @@ function ProblemPage({ problem, onBack, studentName }) {
       editorRef.current = editor;
       monacoRef.current = monaco;
 
+      // Paste tracking via Monaco's built-in onDidPaste event.
+      // Only fires for keyboard pastes (source === 'keyboard') — exactly what we want.
+      // e.range is the range that was just filled by the paste, so we read the pasted
+      // text directly from the model — no clipboard API, no async, no race conditions.
+      // Snapshot the editor value before every keydown — this is the last moment
+      // we have a clean pre-change value. onDidPaste fires after the model has
+      // already changed, so we can't snapshot there. onDidChangeModelContent is
+      // also too late. keydown is the only reliable pre-change hook.
+      const domNode = editor.getDomNode();
+      if (domNode) {
+        domNode.addEventListener('keydown', () => {
+          editorSnapshotRef.current = editor.getValue();
+        });
+      }
+
+      editor.onDidPaste((e) => {
+        const model = editor.getModel();
+        if (!model) return;
+        const pastedText = model.getValueInRange(e.range);
+        if (!pastedText.trim()) return;
+        const snapshotBefore = editorSnapshotRef.current;
+        const isInternal = snapshotBefore.includes(pastedText.trim());
+        setPasteLog((prev) => [
+          ...prev,
+          {
+            time: new Date().toLocaleTimeString(),
+            type: isInternal ? 'internal_paste' : 'external_paste',
+            charCount: pastedText.length,
+            preview: pastedText.replace(/\s+/g, ' ').trim().slice(0, 60),
+          },
+        ]);
+      });
+
       editor.onDidChangeModelContent((event) => {
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
 
@@ -176,6 +209,7 @@ function ProblemPage({ problem, onBack, studentName }) {
             break;
           }
         }
+
 
         idleTimerRef.current = setTimeout(() => {
           if (!editor.hasTextFocus()) return;
@@ -429,7 +463,10 @@ _stderr = _stderr_buf.getvalue()
         actual = result === null || result === undefined ? 'None' : String(result);
         passed = actual.trim() === String(tc.expected).trim();
       } catch (err) {
-        actual = `Error: ${err.message}`; passed = false;
+        const rawMsg = err.message || String(err);
+        const firstLine = rawMsg.split('\n').find(l => l.trim()) || rawMsg;
+        actual = firstLine.length > 80 ? firstLine.slice(0, 77) + '...' : firstLine;
+        passed = false;
       }
       results.push({ input: tc.input, expected: String(tc.expected), actual, passed });
     }
@@ -443,7 +480,7 @@ _stderr = _stderr_buf.getvalue()
     try {
       const results = await runTestCases(code);
       setTestResults(results);
-      await submitCode(sessionId, code, suggestionLog, tabSwitchLog, results);
+      await submitCode(sessionId, code, suggestionLog, tabSwitchLog, results, pasteLog);
       clearTimeout(debounceRef.current);
       clearInterval(periodicSaveRef.current);
       setActiveTab('output');
@@ -564,7 +601,7 @@ _stderr = _stderr_buf.getvalue()
             </div>
           </div>
 
-          <div className="editor-container" onPaste={(e) => { e.preventDefault(); setPasteToast(true); setTimeout(() => setPasteToast(false), 2500); }}>
+          <div className="editor-container">
             <Editor
               height="100%"
               language={LANGUAGE_MAP[language]}
