@@ -72,7 +72,6 @@ def build_user_summary(full_df, user_list, db_name, summarizer, data_process, me
         user_summaries.append({
             'user_id': user_id,
             'real_name': real_name,
-            'channel_db': db_name,
             'generated_at_utc': datetime.now(timezone.utc).isoformat(),
             'message_count': message_count,
             'summary_text': summary_text,
