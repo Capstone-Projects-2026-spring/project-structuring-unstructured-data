@@ -13,6 +13,7 @@ const {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
   HOME_ADMIN_VIEW_UNSTORED,
   encodeDashboardState,
@@ -163,7 +164,8 @@ function parseDashboardState(rawValue) {
   if (!rawValue) {
     return {
       channelName: '',
-      selectedWeek: null
+      selectedWeek: null,
+      selectedUser: null
     };
   }
 
@@ -171,7 +173,8 @@ function parseDashboardState(rawValue) {
   if (!rawValue.startsWith('{')) {
     return {
       channelName: rawValue,
-      selectedWeek: null
+      selectedWeek: null,
+      selectedUser: null
     };
   }
 
@@ -180,15 +183,20 @@ function parseDashboardState(rawValue) {
     const parsedSelectedWeek = typeof parsed.selectedWeek === 'string'
       ? parsed.selectedWeek.trim()
       : '';
+    const parsedSelectedUser = typeof parsed.selectedUser === 'string'
+      ? parsed.selectedUser.trim()
+      : '';
 
     return {
       channelName: typeof parsed.channelName === 'string' ? parsed.channelName : '',
-      selectedWeek: parsedSelectedWeek || null
+      selectedWeek: parsedSelectedWeek || null,
+      selectedUser: parsedSelectedUser || null
     };
   } catch (_error) {
     return {
       channelName: '',
-      selectedWeek: null
+      selectedWeek: null,
+      selectedUser: null
     };
   }
 }
@@ -780,6 +788,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       ? body.actions[0].selected_option.value
       : '';
     const selectedWeekRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
+    const selectedUserRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_USER_SUMMARY_SELECT_ACTION_ID);
 
     publishHomeTab({
       client,
@@ -789,7 +798,8 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       logger,
       apiClient,
       selectedChannelName,
-      selectedWeek: selectedWeekRaw || null
+      selectedWeek: selectedWeekRaw || null,
+      selectedUser: selectedUserRaw || null
     })
       .catch((error) => {
         logger.error('Error handling Home channel selection:', error);
@@ -806,11 +816,12 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
 
   const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
-    : encodeDashboardState({ channelName: '', selectedWeek: null });
+    : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
 
   const {
     channelName: selectedChannelName,
-    selectedWeek
+    selectedWeek,
+    selectedUser
   } = parseDashboardState(actionValue);
 
   // Republish asynchronously so ack is never blocked by dashboard work.
@@ -822,7 +833,8 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
     logger,
     apiClient,
     selectedChannelName,
-    selectedWeek
+    selectedWeek,
+    selectedUser
   })
     .catch((error) => {
       logger.error('Error handling Home refresh action:', error);
@@ -838,6 +850,7 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     ? body.actions[0].selected_option.value
     : '';
   const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
+  const selectedUserRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_USER_SUMMARY_SELECT_ACTION_ID);
 
   publishHomeTab({
     client,
@@ -847,10 +860,38 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     logger,
     apiClient,
     selectedChannelName,
-    selectedWeek: selectedWeekRaw || null
+    selectedWeek: selectedWeekRaw || null,
+    selectedUser: selectedUserRaw || null
   })
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);
+    });
+});
+
+// Home tab user summary dropdown: republish with selected user summary updates.
+app.action(HOME_USER_SUMMARY_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  const selectedUserRaw = body.actions && body.actions[0] && body.actions[0].selected_option
+    ? body.actions[0].selected_option.value
+    : '';
+  const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
+  const selectedWeekRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
+
+  publishHomeTab({
+    client,
+    userId: body.user.id,
+    teamId,
+    workspaceName,
+    logger,
+    apiClient,
+    selectedChannelName,
+    selectedWeek: selectedWeekRaw || null,
+    selectedUser: selectedUserRaw || null
+  })
+    .catch((error) => {
+      logger.error('Error handling Home user summary selection action:', error);
     });
 });
 

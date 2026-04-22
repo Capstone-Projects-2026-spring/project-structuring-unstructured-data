@@ -203,6 +203,85 @@ async function runModel(dbName, runOptions = {}) {
     }
 }
 
+async function runUserModel(databaseKey) {
+    const args = [databaseKey];
+
+    const isWindows = process.platform === 'win32';
+    const configuredPythonPath = process.env.PYTHON_PATH || process.env.PYTHON || '';
+    const basePythonPath = configuredPythonPath || (isWindows ? 'py' : 'python3');
+    const { command: basePythonCommand, prefixArgs: basePrefixArgs } = buildBasePythonInvocation(basePythonPath, isWindows);
+
+    const venvPythonPath = ensureVirtualEnv(basePythonCommand, basePrefixArgs, isWindows);
+    const pythonOptions = ['-u'];
+
+    const scriptPath = path.resolve(__dirname, '../NLP_Model/actual');
+
+    const pythonShellOptions = {
+        pythonPath: venvPythonPath,
+        pythonOptions,
+        scriptPath,
+        args
+    };
+
+    if (!pythonDepsChecked) {
+        // Best effort bootstrap before first execution in this process.
+        installPythonDependencies(venvPythonPath);
+        pythonDepsChecked = true;
+    }
+
+    try {
+        const messages = await PythonShell.run('user_model.py', pythonShellOptions);
+        const modelResult = parseModelResult(messages);
+        // messages is an array of messages collected during execution
+        console.log(`[runUserModel] Successfully executed user model for database: ${databaseKey}`);
+        console.log(`[runUserModel] Results: %j`, messages);
+        
+        return {
+            success: true,
+            databaseKey: databaseKey,
+            message: `User model execution completed successfully for ${databaseKey}`,
+            results: messages,
+            modelResult,
+        };
+    } catch (err) {
+        // Self-heal once if Python modules are missing at runtime.
+        if (isMissingPythonModuleError(err)) {
+            console.warn('[runUserModel] Detected missing Python module. Attempting dependency install + one retry...');
+            const installed = installPythonDependencies(venvPythonPath);
+            if (installed) {
+                try {
+                    const retryMessages = await PythonShell.run('user_model.py', pythonShellOptions);
+                    const retryModelResult = parseModelResult(retryMessages);
+                    console.log(`[runUserModel] Retry succeeded for database: ${databaseKey}`);
+                    return {
+                        success: true,
+                        databaseKey: databaseKey,
+                        message: `User model execution completed successfully for ${databaseKey} after dependency install retry`,
+                        results: retryMessages,
+                        modelResult: retryModelResult,
+                    };
+                } catch (retryErr) {
+                    console.error(`[runUserModel] Retry failed for database ${databaseKey}:`, retryErr);
+                    return {
+                        success: false,
+                        databaseKey: databaseKey,
+                        message: `User model execution failed for ${databaseKey} after dependency install retry`,
+                        error: retryErr.message
+                    };
+                }
+            }
+        }
+
+        console.error(`[runUserModel] Error executing user model for database ${databaseKey}:`, err);
+        return {
+            success: false,
+            databaseKey: databaseKey,
+            message: `User model execution failed for ${databaseKey}`,
+            error: err.message
+        };
+    }
+}
+
 async function postSummaries(channel_id, channel_name) {
     const client = mongoose.connection.client;
 
@@ -272,4 +351,4 @@ async function postSummaries(channel_id, channel_name) {
     }
 }
 
-module.exports = { runModel, postSummaries };
+module.exports = { runModel, runUserModel, postSummaries };

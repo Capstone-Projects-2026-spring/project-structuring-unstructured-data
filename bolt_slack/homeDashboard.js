@@ -5,6 +5,7 @@ const { buildChannelKey } = require('../shared-utils/channelUtils');
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
+const HOME_USER_SUMMARY_SELECT_ACTION_ID = 'home_user_summary_select';
 const HOME_ADMIN_STORE_MEMBERS = 'home_admin_store_members';
 const HOME_ADMIN_VIEW_UNSTORED = 'home_admin_view_unstored';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
@@ -175,14 +176,18 @@ function truncateText(text, maxLength) {
   return `${normalizedText.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 }
 
-function encodeDashboardState({ channelName, selectedWeek }) {
+function encodeDashboardState({ channelName, selectedWeek, selectedUser }) {
   const normalizedSelectedWeek = typeof selectedWeek === 'string' && selectedWeek.trim()
     ? selectedWeek.trim()
+    : null;
+  const normalizedSelectedUser = typeof selectedUser === 'string' && selectedUser.trim()
+    ? selectedUser.trim()
     : null;
 
   return JSON.stringify({
     channelName: channelName || '',
-    selectedWeek: normalizedSelectedWeek
+    selectedWeek: normalizedSelectedWeek,
+    selectedUser: normalizedSelectedUser
   });
 }
 
@@ -433,6 +438,51 @@ async function fetchWeeklySummariesForChannel({ apiClient, channelName, client, 
   }
 }
 
+async function fetchUserSummariesForChannel({ apiClient, channelName, client, logger }) {
+  if (!channelName) {
+    return {
+      userSummaries: [],
+      userSummaryRecords: 0,
+      errorMessage: ''
+    };
+  }
+
+  try {
+    const channelId = await channelNameToID(channelName, client);
+    if (!channelId) {
+      return {
+        userSummaries: [],
+        userSummaryRecords: 0,
+        errorMessage: `Channel ID not found for channel name: ${channelName}`
+      };
+    }
+
+    const databaseKey = buildChannelKey(channelName, channelId);
+    const response = await apiClient.get(`/api/user_summaries/${encodeURIComponent(databaseKey)}`);
+    const userSummaries = response.data && Array.isArray(response.data.userSummaries)
+      ? response.data.userSummaries
+      : [];
+
+    return {
+      userSummaries,
+      userSummaryRecords: userSummaries.length,
+      errorMessage: ''
+    };
+  } catch (error) {
+    if (logger) {
+      logger.error('Error fetching user summaries for Home tab:', error);
+    } else {
+      console.error('Error fetching user summaries for Home tab:', error);
+    }
+
+    return {
+      userSummaries: [],
+      userSummaryRecords: 0,
+      errorMessage: error.message || 'Unknown API error'
+    };
+  }
+}
+
 async function getUnstoredMembers(client, apiClient, channelName, channelId) {
   try {
     const channelKey = buildChannelKey(channelName, channelId);
@@ -528,6 +578,164 @@ function buildSummaryDetailsMarkdown(summary) {
     {
       type: 'mrkdwn',
       text: `*Generated*\n${generatedAt}`
+    }
+  ];
+}
+
+function truncateOptionLabel(label) {
+  const trimmed = String(label || '').trim();
+  if (!trimmed) {
+    return 'Unknown user';
+  }
+
+  if (trimmed.length <= 75) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, 74).trimEnd()}…`;
+}
+
+function buildUserSummaryBuckets(userSummaries) {
+  const buckets = new Map();
+
+  for (const summary of userSummaries) {
+    const userId = String(summary && summary.user_id ? summary.user_id : '').trim();
+    if (!userId) {
+      continue;
+    }
+
+    const realName = String(summary && summary.real_name ? summary.real_name : '').trim();
+    const label = realName ? realName : `<@${userId}>`;
+    const generatedAt = Date.parse(summary && summary.generated_at_utc ? summary.generated_at_utc : '');
+
+    if (!buckets.has(userId)) {
+      buckets.set(userId, {
+        userId,
+        label,
+        latestSummary: summary,
+        sortValue: Number.isFinite(generatedAt) ? generatedAt : 0
+      });
+      continue;
+    }
+
+    const existing = buckets.get(userId);
+    const summarySortValue = Number.isFinite(generatedAt) ? generatedAt : 0;
+    if (summarySortValue >= existing.sortValue) {
+      existing.latestSummary = summary;
+      existing.sortValue = summarySortValue;
+    }
+  }
+
+  return Array.from(buckets.values()).sort((left, right) => right.sortValue - left.sortValue);
+}
+
+function buildUserSummaryBlocks({ selectedChannelName, userSummaries, selectedUser }) {
+  if (!selectedChannelName) {
+    return [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: 'Select a channel above to load individual user summaries.'
+        }
+      }
+    ];
+  }
+
+  if (!userSummaries.length) {
+    return [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `No user summaries found yet for *#${selectedChannelName}*.`
+        }
+      }
+    ];
+  }
+
+  const userBuckets = buildUserSummaryBuckets(userSummaries);
+  const userOptions = userBuckets.slice(0, MAX_STATIC_SELECT_OPTIONS).map((bucket) => ({
+    text: {
+      type: 'plain_text',
+      text: truncateOptionLabel(bucket.label)
+    },
+    value: bucket.userId
+  }));
+
+  const selectedUserId = typeof selectedUser === 'string' ? selectedUser.trim() : '';
+  const resolvedSelectedUserId = userOptions.some((option) => option.value === selectedUserId)
+    ? selectedUserId
+    : (userOptions[0] ? userOptions[0].value : '');
+
+  const selectedUserOption = userOptions.find((option) => option.value === resolvedSelectedUserId) || null;
+  const selectedUserBucket = userBuckets.find((bucket) => bucket.userId === resolvedSelectedUserId) || null;
+  const selectedSummary = selectedUserBucket ? selectedUserBucket.latestSummary : null;
+  const selectedSummaryText = truncateText(selectedSummary && selectedSummary.summary_text, MAX_SUMMARY_TEXT_LENGTH);
+  const selectedGeneratedAt = formatSummaryTimestamp(selectedSummary && selectedSummary.generated_at_utc);
+  const selectedMessageCount = selectedSummary && selectedSummary.message_count != null
+    ? selectedSummary.message_count
+    : 'n/a';
+  const selectedUserLabel = selectedUserBucket
+    ? selectedUserBucket.label
+    : 'Unknown user';
+
+  return [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'User Summaries'
+      }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `Select a user in *#${selectedChannelName}* to view their latest summary:`
+      },
+      accessory: {
+        type: 'static_select',
+        placeholder: {
+          type: 'plain_text',
+          text: 'Select user'
+        },
+        action_id: HOME_USER_SUMMARY_SELECT_ACTION_ID,
+        options: userOptions,
+        ...(selectedUserOption ? { initial_option: selectedUserOption } : {})
+      }
+    },
+    {
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `Showing latest summary for *${selectedUserLabel}*.`
+        }
+      ]
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `:bust_in_silhouette: *<@${resolvedSelectedUserId}>*\n${selectedSummaryText}`
+      }
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: `*Messages*\n${selectedMessageCount}`
+        },
+        {
+          type: 'mrkdwn',
+          text: `*Generated*\n${selectedGeneratedAt}`
+        }
+      ]
+    },
+    {
+      type: 'divider'
     }
   ];
 }
@@ -657,13 +865,16 @@ function buildSampleHomeView({
   channelOptions,
   selectedChannelName,
   selectedWeek,
+  selectedUser,
   activeChannels,
   selectableChannels,
   summaryRecords,
+  userSummaryRecords,
   messagesSummarized,
   apiStatus,
   dbName,
   summaries,
+  userSummaries,
   errorMessage,
   isAdmin,
   channelStorageStats=[],
@@ -701,7 +912,8 @@ function buildSampleHomeView({
           action_id: HOME_REFRESH_ACTION_ID,
           value: encodeDashboardState({
             channelName: selectedChannelName,
-            selectedWeek
+            selectedWeek,
+            selectedUser
           })
         }
       ]
@@ -742,6 +954,10 @@ function buildSampleHomeView({
         },
         {
           type: 'mrkdwn',
+          text: `*User Summaries*\n${userSummaryRecords}`
+        },
+        {
+          type: 'mrkdwn',
           text: `*Messages Summarized*\n${messagesSummarized}`
         },
         {
@@ -759,6 +975,12 @@ function buildSampleHomeView({
       ]
     }
   ];
+
+  blocks.push(...buildUserSummaryBlocks({
+    selectedChannelName,
+    userSummaries,
+    selectedUser
+  }));
 
   blocks.push(...buildWeeklySummaryBlocks({
     selectedChannelName,
@@ -903,7 +1125,7 @@ function buildSampleHomeView({
   return view;
 }
 
-async function publishHomeTab({ client, userId, teamId, workspaceName, logger, apiClient, selectedChannelName, selectedWeek = null }) {
+async function publishHomeTab({ client, userId, teamId, workspaceName, logger, apiClient, selectedChannelName, selectedWeek = null, selectedUser = null }) {
   try {
     const resolvedWorkspaceContext = await resolveWorkspaceContext({
       client,
@@ -958,6 +1180,21 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       memberStats = { totalUnsaved, channelsWithUnsaved };
     }
 
+    const [weeklySummaryResult, userSummaryResult] = await Promise.all([
+      fetchWeeklySummariesForChannel({
+        apiClient,
+        channelName: resolvedChannelName,
+        client,
+        logger
+      }),
+      fetchUserSummariesForChannel({
+        apiClient,
+        channelName: resolvedChannelName,
+        client,
+        logger
+      })
+    ]);
+
     const {
       apiStatus,
       dbName,
@@ -965,13 +1202,14 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       availableWeeks,
       summaryRecords,
       messagesSummarized,
-      errorMessage
-    } = await fetchWeeklySummariesForChannel({
-      apiClient,
-      channelName: resolvedChannelName,
-      client,
-      logger
-    });
+      errorMessage: weeklySummaryErrorMessage
+    } = weeklySummaryResult;
+    const {
+      userSummaries,
+      userSummaryRecords,
+      errorMessage: userSummaryErrorMessage
+    } = userSummaryResult;
+    const errorMessage = weeklySummaryErrorMessage || userSummaryErrorMessage;
 
     if (logger) {
       logger.info(`[publishHomeTab] Summaries fetched - Records: ${summaryRecords}, Messages: ${messagesSummarized}, Status: ${apiStatus}`);
@@ -985,13 +1223,16 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       channelOptions,
       selectedChannelName: resolvedChannelName,
       selectedWeek: availableWeeks.includes(selectedWeek) ? selectedWeek : availableWeeks[0],
+      selectedUser,
       activeChannels: channels.length,
       selectableChannels: channelOptions.length,
       summaryRecords,
+      userSummaryRecords,
       messagesSummarized,
       apiStatus,
       dbName,
       summaries,
+      userSummaries,
       errorMessage,
       isAdmin,
       channelStorageStats,
@@ -1042,6 +1283,7 @@ module.exports = {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
   HOME_ADMIN_VIEW_UNSTORED,
   buildSampleHomeView,

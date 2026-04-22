@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const { runModel } = require('../python');
+const { runModel, runUserModel } = require('../python');
 const {
   parseWeekQuery,
   toCanonicalWeekStartIso,
@@ -162,6 +162,69 @@ router.post('/api/summaries/:databaseKey', async (req, res) => {
     });
   } catch (err) {
     console.error(`[POST /api/summaries/:databaseKey] Error:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// USER SUMMARIES ROUTES
+
+// GET /api/user_summaries/:databaseKey - Retrieve all user summary documents from a given channel database.
+router.get('/api/user_summaries/:databaseKey', async (req, res) => {
+  try {
+    const { databaseKey } = req.params;
+    const client = mongoose.connection.client;
+    const dbs = await client.db().admin().listDatabases();
+    const matchingDb = dbs.databases.find((db) => db.name === databaseKey);
+
+    if (!matchingDb) {
+      console.warn(`[GET /api/user_summaries/:databaseKey] No database found for key: ${databaseKey}`);
+      return res.status(404).json({ error: `No database found for channelKey: ${databaseKey}` });
+    }
+    
+    const db = client.db(matchingDb.name);
+    const userSummaries = await db.collection('user_summaries').find({}).toArray();
+    console.log(`[GET /api/user_summaries/:databaseKey] Retrieved ${userSummaries.length} user summaries from ${matchingDb.name}`);
+
+    res.status(200).json({ dbName: matchingDb.name, userSummaries });
+  } catch (err) {
+    console.error(`[GET /api/user_summaries/:databaseKey] Error:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/user_summaries/:databaseKey - Insert user summary documents into the appropriate channel database.
+router.post('/api/user_summaries/:databaseKey', async (req, res) => {
+  try {
+    const { databaseKey } = req.params;
+    const userSummaries = req.body;
+    const client = mongoose.connection.client;
+
+    const dbs = await client.db().admin().listDatabases();
+    const matchingDb = dbs.databases.find((db) => db.name === databaseKey);
+    if (!matchingDb) {
+      console.warn(`[POST /api/user_summaries/:databaseKey] No database found for key: ${databaseKey}`);
+      return res.status(404).json({ error: `No database found for channelKey: ${databaseKey}` });
+    }
+    const db = client.db(matchingDb.name);
+
+    const modelResult = await runUserModel(databaseKey);
+    
+    if (!modelResult.success) {
+      console.warn(`[POST /api/user_summaries/:databaseKey] User model execution failed for ${databaseKey}: ${modelResult.error}`);
+      return res.status(500).json({ error: modelResult.message, details: modelResult.error });
+    }
+
+    console.log(`[POST /api/user_summaries/:databaseKey] User model execution successful. Results:`, modelResult.results);
+    console.log(`[POST /api/user_summaries/:databaseKey] User summaries processed for databaseKey: ${databaseKey}`);
+    
+    res.status(200).json({
+      message: 'User summaries processed successfully',
+      databaseKey: databaseKey,
+      modelMetadata: modelResult.modelResult,
+      modelResults: modelResult.results,
+    });
+  } catch (err) {
+    console.error(`[POST /api/user_summaries/:databaseKey] Error:`, err);
     res.status(500).json({ error: err.message });
   }
 });
