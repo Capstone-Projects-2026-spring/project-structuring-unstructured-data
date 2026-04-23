@@ -6,6 +6,7 @@ const {
   toCanonicalWeekStartIso,
   toNextWeekIso,
 } = require('../../shared-utils/dateUtils');
+const e = require('express');
 
 const router = express.Router();
 
@@ -168,10 +169,10 @@ router.post('/api/summaries/:databaseKey', async (req, res) => {
 
 // USER SUMMARIES ROUTES
 
-// GET /api/user_summaries/:databaseKey - Retrieve all user summary documents from a given channel database.
-router.get('/api/user_summaries/:databaseKey', async (req, res) => {
+// GET /api/user_summaries/:databaseKey/:userId? - Retrieve user summary documents from a given channel database, optionally filtered by userId.
+router.get('/api/user_summaries/:databaseKey/:userId?', async (req, res) => {
   try {
-    const { databaseKey } = req.params;
+    const databaseKey  = req.params.databaseKey;
     const client = mongoose.connection.client;
     const dbs = await client.db().admin().listDatabases();
     const matchingDb = dbs.databases.find((db) => db.name === databaseKey);
@@ -182,10 +183,17 @@ router.get('/api/user_summaries/:databaseKey', async (req, res) => {
     }
     
     const db = client.db(matchingDb.name);
-    const userSummaries = await db.collection('user_summaries').find({}).toArray();
-    console.log(`[GET /api/user_summaries/:databaseKey] Retrieved ${userSummaries.length} user summaries from ${matchingDb.name}`);
 
-    res.status(200).json({ dbName: matchingDb.name, userSummaries });
+    if (req.query.userId) {
+      const userId = req.query.userId;
+      const userSummary = await db.collection('user_summaries').findOne({ user: userId });
+      console.log(`[GET /api/user_summaries/:databaseKey] Retrieved user summary for userId ${userId} from ${matchingDb.name}:`, userSummary);
+      return res.status(200).json({ dbName: matchingDb.name, userSummary });
+    } else {
+      const userSummaries = await db.collection('user_summaries').find({}).toArray();
+      console.log(`[GET /api/user_summaries/:databaseKey] Retrieved ${userSummaries.length} user summaries from ${matchingDb.name}`);
+      res.status(200).json({ dbName: matchingDb.name, userSummaries });
+    }
   } catch (err) {
     console.error(`[GET /api/user_summaries/:databaseKey] Error:`, err);
     res.status(500).json({ error: err.message });
