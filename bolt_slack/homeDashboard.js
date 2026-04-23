@@ -692,7 +692,7 @@ function buildUserSummaryBlocks({ selectedChannelName, userSummaries, selectedUs
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `Select a user in *#${selectedChannelName}* to view their latest summary:`
+        text: `Select a user in *#${selectedChannelName}* to view a summary of their messages:`
       },
       accessory: {
         type: 'static_select',
@@ -973,6 +973,9 @@ function buildSampleHomeView({
           text: `*Last Refresh*\n${generatedAt}`
         }
       ]
+    },
+    {
+      type: 'divider'
     }
   ];
 
