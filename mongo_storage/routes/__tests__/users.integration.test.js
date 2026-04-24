@@ -42,9 +42,48 @@ describe('Users API - Integration Tests', () => {
           throw new Error('Members payload must be an array');
         }
 
-        const normalized = payload.map((item) => clone(item));
-        members.push(...normalized);
-        return normalized;
+        const ops = payload.map((item) => ({
+          updateOne: {
+            filter: { member_id: item.member_id },
+            update: { $set: item },
+            upsert: true
+          }
+        }));
+
+        return MockUserModel.bulkWrite(ops);
+      }
+
+      static async bulkWrite(ops) {
+        if (!Array.isArray(ops)) {
+          throw new Error('bulkWrite operations must be an array');
+        }
+
+        let upsertedCount = 0;
+        let modifiedCount = 0;
+
+        ops.forEach((op) => {
+          const updateOne = op && op.updateOne;
+          const member = updateOne && updateOne.update && updateOne.update.$set;
+
+          if (!member) {
+            return;
+          }
+
+          const memberId = updateOne.filter && updateOne.filter.member_id;
+          const existingIndex = members.findIndex((item) => item.member_id === memberId);
+          const nextMember = clone(member);
+
+          if (existingIndex === -1) {
+            members.push(nextMember);
+            upsertedCount += 1;
+            return;
+          }
+
+          members[existingIndex] = nextMember;
+          modifiedCount += 1;
+        });
+
+        return { upsertedCount, modifiedCount };
       }
     }
 
