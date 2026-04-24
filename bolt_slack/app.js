@@ -812,7 +812,7 @@ app.action(HOME_ADMIN_STORE_MEMBERS, async ({ ack, body, client, logger }) => {
     let failed = 0;
     for (const channelName of channels) {
       try {
-        await insertUserModels(channelName);
+        await insertUserModels(channelName, { client });
         console.log(`Stored members for #${channelName}`);
       } catch (error) {
         console.error(`Failed to store members for #${channelName}:`, error.message);
