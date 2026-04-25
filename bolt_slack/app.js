@@ -15,6 +15,7 @@ const {
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
+  HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
   HOME_ADMIN_VIEW_UNSTORED,
   encodeDashboardState,
@@ -984,6 +985,109 @@ app.action(HOME_GENERATE_USER_SUMMARIES_ACTION_ID, async ({ ack, body, client, l
       });
     } catch (dmError) {
       logger.error('Failed sending generation error via DM:', dmError);
+    }
+  }
+});
+
+// Home tab generate single user summary button: run the user model for only the selected user.
+app.action(HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  try {
+    const actionValue = body.actions && body.actions[0] && body.actions[0].value
+      ? body.actions[0].value
+      : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
+    const {
+      channelName: selectedChannelName,
+      selectedWeek,
+      selectedUser
+    } = parseDashboardState(actionValue);
+
+    if (!selectedChannelName) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a channel in Home first, then click *Generate Summary for This User*.'
+      });
+      return;
+    }
+
+    if (!selectedUser) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a user in Home first, then click *Generate Summary for This User*.'
+      });
+      return;
+    }
+
+    const databaseKey = await buildChannelKey(selectedChannelName, { client });
+    const encodedUserId = encodeURIComponent(selectedUser);
+
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Generating a summary for <@${selectedUser}> in *#${selectedChannelName}*... I’ll send a follow-up when it finishes.`
+    });
+
+    void (async () => {
+      try {
+        const response = await apiClient.post(
+          `/api/user_summaries/${encodeURIComponent(databaseKey)}?userId=${encodedUserId}`,
+          {},
+          { timeout: 0 }
+        );
+
+        const modelMetadata = response && response.data && response.data.modelMetadata;
+        const savedCount = modelMetadata && Number.isInteger(modelMetadata.saved_count)
+          ? modelMetadata.saved_count
+          : null;
+
+        await client.chat.postMessage({
+          channel: dm.channel.id,
+          text: savedCount == null
+            ? `✅ User summary generation completed for <@${selectedUser}> in *#${selectedChannelName}*.`
+            : `✅ User summary generation completed for <@${selectedUser}> in *#${selectedChannelName}*. Saved ${savedCount} summary.`
+        });
+
+        publishHomeTab({
+          client,
+          userId: body.user.id,
+          teamId,
+          workspaceName,
+          logger,
+          apiClient,
+          selectedChannelName,
+          selectedWeek,
+          selectedUser
+        }).catch((refreshError) => {
+          logger.error('Error refreshing Home after single user summary generation:', refreshError);
+        });
+      } catch (generationError) {
+        logger.error('Background single user summary generation failed:', generationError);
+
+        try {
+          await client.chat.postMessage({
+            channel: dm.channel.id,
+            text: `❌ Failed to generate summary for <@${selectedUser}>: ${generationError.message}`
+          });
+        } catch (dmError) {
+          logger.error('Failed sending single-user generation error via DM:', dmError);
+        }
+      }
+    })();
+  } catch (error) {
+    logger.error('Error handling generate single user summary action:', error);
+
+    try {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `❌ Failed to generate single-user summary: ${error.message}`
+      });
+    } catch (dmError) {
+      logger.error('Failed sending single-user generation handler error via DM:', dmError);
     }
   }
 });

@@ -220,7 +220,9 @@ router.get('/api/user_summaries/:databaseKey/:userId?', async (req, res) => {
 router.post('/api/user_summaries/:databaseKey', async (req, res) => {
   try {
     const { databaseKey } = req.params;
-    const userSummaries = req.body;
+    const userIdFromQuery = String(req.query.userId || '').trim();
+    const userIdFromBody = String((req.body && req.body.userId) || '').trim();
+    const userId = userIdFromQuery || userIdFromBody || null;
     const client = mongoose.connection.client;
 
     const dbs = await client.db().admin().listDatabases();
@@ -231,7 +233,7 @@ router.post('/api/user_summaries/:databaseKey', async (req, res) => {
     }
     const db = client.db(matchingDb.name);
 
-    const modelResult = await runUserModel(databaseKey);
+    const modelResult = await runUserModel(databaseKey, userId || undefined);
     
     if (!modelResult.success) {
       console.warn(`[POST /api/user_summaries/:databaseKey] User model execution failed for ${databaseKey}: ${modelResult.error}`);
@@ -242,8 +244,11 @@ router.post('/api/user_summaries/:databaseKey', async (req, res) => {
     console.log(`[POST /api/user_summaries/:databaseKey] User summaries processed for databaseKey: ${databaseKey}`);
     
     res.status(200).json({
-      message: 'User summaries processed successfully',
+      message: userId
+        ? `User summary processed successfully for userId ${userId}`
+        : 'User summaries processed successfully',
       databaseKey: databaseKey,
+      userId,
       modelMetadata: modelResult.modelResult,
       modelResults: modelResult.results,
     });

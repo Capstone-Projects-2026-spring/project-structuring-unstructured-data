@@ -7,6 +7,7 @@ const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
 const HOME_USER_SUMMARY_SELECT_ACTION_ID = 'home_user_summary_select';
 const HOME_GENERATE_USER_SUMMARIES_ACTION_ID = 'home_generate_user_summaries';
+const HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID = 'home_generate_single_user_summary';
 const HOME_ADMIN_STORE_MEMBERS = 'home_admin_store_members';
 const HOME_ADMIN_VIEW_UNSTORED = 'home_admin_view_unstored';
 const MAX_SUMMARY_TEXT_LENGTH = 750;
@@ -972,6 +973,28 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
   const selectedUserLabel = selectedUserBucket
     ? selectedUserBucket.label
     : 'Unknown user';
+  const singleUserSummaryActionBlock = resolvedSelectedUserId
+    ? {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: selectedSummary ? 'Regenerate Summary' : 'Generate Summary',
+            emoji: true
+          },
+          ...(selectedSummary ? { style: 'primary' } : {}),
+          action_id: HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
+          value: encodeDashboardState({
+            channelName: selectedChannelName || '',
+            selectedWeek: null,
+            selectedUser: resolvedSelectedUserId
+          })
+        }
+      ]
+    }
+    : null;
 
   const blocks = [
     {
@@ -1002,7 +1025,7 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
   ];
 
   // Handle the case where no summary exists for selected user
-  if (!selectedUserSummary) {
+  if (!selectedSummary) {
     blocks.push({
       type: 'section',
       text: {
@@ -1042,6 +1065,10 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
         ]
       }
     );
+  }
+
+  if (singleUserSummaryActionBlock) {
+    blocks.push(singleUserSummaryActionBlock);
   }
 
   blocks.push({
@@ -1606,6 +1633,7 @@ module.exports = {
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
+  HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
   HOME_ADMIN_VIEW_UNSTORED,
   buildSampleHomeView,
