@@ -170,9 +170,12 @@ router.post('/api/summaries/:databaseKey', async (req, res) => {
 // USER SUMMARIES ROUTES
 
 // GET /api/user_summaries/:databaseKey/:userId? - Retrieve user summary documents from a given channel database, optionally filtered by userId.
+// Supports userId as both route param (/:userId) and query param (?userId=).
+// Returns 200 with userSummary: null if user exists but has no summary.
 router.get('/api/user_summaries/:databaseKey/:userId?', async (req, res) => {
   try {
     const databaseKey  = req.params.databaseKey;
+    const userId = String(req.params.userId || req.query.userId || '').trim();
     const client = mongoose.connection.client;
     const dbs = await client.db().admin().listDatabases();
     const matchingDb = dbs.databases.find((db) => db.name === databaseKey);
@@ -184,9 +187,22 @@ router.get('/api/user_summaries/:databaseKey/:userId?', async (req, res) => {
     
     const db = client.db(matchingDb.name);
 
-    if (req.query.userId) {
-      const userId = req.query.userId;
-      const userSummary = await db.collection('user_summaries').findOne({ user: userId });
+    if (userId) {
+      const userSummary = await db.collection('user_summaries').findOne({
+        $or: [
+          { user_id: userId },
+          { user: userId },
+        ],
+      });
+
+      if (!userSummary) {
+        const sampleDoc = await db.collection('user_summaries').findOne({}, { projection: { _id: 0 } });
+        const sampleKeys = sampleDoc ? Object.keys(sampleDoc) : [];
+        console.warn(
+          `[GET /api/user_summaries/:databaseKey] No summary found for userId=${userId} in ${matchingDb.name}. Sample keys: [${sampleKeys.join(', ')}]`
+        );
+      }
+
       console.log(`[GET /api/user_summaries/:databaseKey] Retrieved user summary for userId ${userId} from ${matchingDb.name}:`, userSummary);
       return res.status(200).json({ dbName: matchingDb.name, userSummary });
     } else {

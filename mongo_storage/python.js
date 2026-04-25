@@ -203,8 +203,12 @@ async function runModel(dbName, runOptions = {}) {
     }
 }
 
-async function runUserModel(databaseKey) {
+async function runUserModel(databaseKey, userId) {
     const args = [databaseKey];
+
+    if (userId) {
+        args.push(`--userId=${userId}`);
+    }
 
     const isWindows = process.platform === 'win32';
     const configuredPythonPath = process.env.PYTHON_PATH || process.env.PYTHON || '';

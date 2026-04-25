@@ -17,6 +17,8 @@ const MAX_DISTINCT_USER_MENTIONS_DISPLAY = 8;
 
 const channelCacheByWorkspace = new Map();
 const userSummaryBucketsCacheByWorkspaceChannel = new Map();
+const userInfoCacheByWorkspace = new Map();
+const USER_INFO_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 function getWorkspaceCacheKey(teamId) {
   return typeof teamId === 'string' && teamId.trim() ? teamId.trim() : null;
@@ -322,6 +324,27 @@ function setCachedUserSummaryBuckets(teamId, channelName, userBuckets) {
   });
 }
 
+function getCachedUserInfo(teamId, userId) {
+  const workspace = userInfoCacheByWorkspace.get(teamId);
+  if (!workspace) return null;
+  
+  const cached = workspace[userId];
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.info;
+  }
+  return null;
+}
+
+function setCachedUserInfo(teamId, userId, info) {
+  if (!userInfoCacheByWorkspace.has(teamId)) {
+    userInfoCacheByWorkspace.set(teamId, {});
+  }
+  userInfoCacheByWorkspace.get(teamId)[userId] = {
+    info,
+    expiresAt: Date.now() + USER_INFO_CACHE_TTL_MS
+  };
+}
+
 async function getBotChannels(client, teamId) {
   const cachedChannels = getCachedChannels(teamId);
   if (cachedChannels) {
@@ -502,15 +525,68 @@ async function fetchSelectedUserSummary({ apiClient, databaseKey, selectedUserId
   const encodedDatabaseKey = encodeURIComponent(databaseKey);
   const encodedUserId = encodeURIComponent(selectedUserId);
 
-  const routeParamResponse = await apiClient.get(`/api/user_summaries/${encodedDatabaseKey}/${encodedUserId}`);
-  const summaryFromRouteParam = extractSingleUserSummaryFromResponse(routeParamResponse.data, selectedUserId);
-
-  if (summaryFromRouteParam) {
-    return summaryFromRouteParam;
+  try {
+    const response = await apiClient.get(`/api/user_summaries/${encodedDatabaseKey}/${encodedUserId}`);
+    return response.data && response.data.userSummary ? response.data.userSummary : null;
+  } catch (error) {
+    // If route param fails, try query param as fallback
+    try {
+      const response = await apiClient.get(`/api/user_summaries/${encodedDatabaseKey}?userId=${encodedUserId}`);
+      return extractSingleUserSummaryFromResponse(response.data, selectedUserId);
+    } catch (fallbackError) {
+      return null;
+    }
   }
+}
 
-  const queryParamResponse = await apiClient.get(`/api/user_summaries/${encodedDatabaseKey}?userId=${encodedUserId}`);
-  return extractSingleUserSummaryFromResponse(queryParamResponse.data, selectedUserId);
+async function fetchUserDisplayNames(client, teamId, userIds, logger) {
+  const result = {};
+  const userIdsToFetch = [];
+  
+  // Check cache first
+  for (const userId of userIds) {
+    const cached = getCachedUserInfo(teamId, userId);
+    if (cached) {
+      result[userId] = cached;
+    } else {
+      userIdsToFetch.push(userId);
+    }
+  }
+  
+  // Fetch uncached users in parallel
+  if (userIdsToFetch.length > 0) {
+    try {
+      const responses = await Promise.all(
+        userIdsToFetch.map(userId => 
+          client.users.info({ user: userId }).catch(() => ({ user: null }))
+        )
+      );
+      
+      for (let i = 0; i < userIdsToFetch.length; i++) {
+        const userId = userIdsToFetch[i];
+        const resp = responses[i];
+        const info = resp.user ? {
+          id: resp.user.id,
+          name: resp.user.name,
+          real_name: resp.user.real_name || resp.user.name,
+          profile: resp.user.profile
+        } : null;
+        
+        if (info) {
+          result[userId] = info;
+          setCachedUserInfo(teamId, userId, info);
+        }
+      }
+    } catch (error) {
+      if (logger) {
+        logger.warn('Error fetching user display names:', error);
+      } else {
+        console.warn('Error fetching user display names:', error);
+      }
+    }
+  }
+  
+  return result;
 }
 
 async function fetchUserSummariesForChannel({ apiClient, channelName, client, logger, teamId, selectedUser }) {
@@ -540,18 +616,71 @@ async function fetchUserSummariesForChannel({ apiClient, channelName, client, lo
     let userBuckets = getCachedUserSummaryBuckets(teamId, channelName);
 
     if (!userBuckets) {
+      // Fetch all channel members from Slack API
+      const membersResult = await client.conversations.members({ channel: channelId });
+      const memberIds = membersResult.members || [];
+
+      // Fetch all user summaries from database
       const response = await apiClient.get(`/api/user_summaries/${encodeURIComponent(databaseKey)}`);
-      const userSummaries = response.data && Array.isArray(response.data.userSummaries)
+      const allSummaries = response.data && Array.isArray(response.data.userSummaries)
         ? response.data.userSummaries
         : [];
 
-      userBuckets = buildUserSummaryBuckets(userSummaries);
+      // Build map of userId -> summary for quick lookup
+      const summariesByUserId = new Map();
+      for (const summary of allSummaries) {
+        const userId = String(summary && (summary.user_id || summary.user) ? (summary.user_id || summary.user) : '').trim();
+        if (userId) {
+          summariesByUserId.set(userId, summary);
+        }
+      }
+
+      // Fetch display names for members without summaries
+      const membersWithoutSummaries = memberIds.filter(id => !summariesByUserId.has(id));
+      const userInfoMap = await fetchUserDisplayNames(client, teamId, membersWithoutSummaries, logger);
+
+      // Build buckets for all members
+      userBuckets = memberIds
+        .map(userId => {
+          const summary = summariesByUserId.get(userId);
+          const userInfo = userInfoMap[userId];
+          
+          let label = 'Unknown user';
+          if (summary && summary.real_name) {
+            label = summary.real_name;
+          } else if (userInfo && userInfo.real_name) {
+            label = userInfo.real_name;
+          } else if (userInfo && userInfo.name) {
+            label = userInfo.name;
+          }
+          
+          const sortValue = summary 
+            ? (Number.isFinite(Date.parse(summary.generated_at_utc)) ? Date.parse(summary.generated_at_utc) : 0)
+            : 0;
+          
+          return {
+            userId,
+            label,
+            latestSummary: summary || null,
+            sortValue
+          };
+        })
+        .sort((a, b) => {
+          // Sort by whether they have a summary (summaries first), then by date
+          const aHasSummary = a.latestSummary !== null;
+          const bHasSummary = b.latestSummary !== null;
+          if (aHasSummary !== bHasSummary) {
+            return bHasSummary ? 1 : -1;
+          }
+          return b.sortValue - a.sortValue;
+        });
+
       setCachedUserSummaryBuckets(teamId, channelName, userBuckets);
 
       if (logger) {
-        logger.info(`[fetchUserSummariesForChannel] Fetched and cached ${userBuckets.length} user buckets for channel: ${channelName}`);
+        logger.info(`[fetchUserSummariesForChannel] Fetched and cached ${userBuckets.length} user buckets for channel: ${channelName} (${summariesByUserId.size} with summaries)`);
       } else {
-        console.log(`[fetchUserSummariesForChannel] Fetched and cached ${userBuckets.length} user buckets for channel: ${channelName}`);
+        console.log(`[fetchUserSummariesForChannel] Fetched and cached ${userBuckets.length} user buckets for channel: ${channelName} (${summariesByUserId.size} with summaries)`);
       }
     }
 
@@ -570,16 +699,12 @@ async function fetchUserSummariesForChannel({ apiClient, channelName, client, lo
         });
       } catch (selectedSummaryError) {
         if (logger) {
-          logger.warn(`[fetchUserSummariesForChannel] Failed to fetch selected user summary for userId=${resolvedSelectedUserId}; falling back to cached latest summary.`, selectedSummaryError);
+          logger.warn(`[fetchUserSummariesForChannel] Failed to fetch selected user summary for userId=${resolvedSelectedUserId}.`, selectedSummaryError);
         } else {
-          console.warn(`[fetchUserSummariesForChannel] Failed to fetch selected user summary for userId=${resolvedSelectedUserId}; falling back to cached latest summary.`, selectedSummaryError);
+          console.warn(`[fetchUserSummariesForChannel] Failed to fetch selected user summary for userId=${resolvedSelectedUserId}.`, selectedSummaryError);
         }
       }
-
-      if (!selectedUserSummary) {
-        const selectedUserBucket = userBuckets.find((bucket) => bucket.userId === resolvedSelectedUserId) || null;
-        selectedUserSummary = selectedUserBucket ? selectedUserBucket.latestSummary : null;
-      }
+      // Note: selectedUserSummary can be null, which is valid (user has no summary yet)
     }
 
     return {
@@ -848,7 +973,7 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
     ? selectedUserBucket.label
     : 'Unknown user';
 
-  return [
+  const blocks = [
     {
       type: 'header',
       text: {
@@ -873,40 +998,57 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
         options: userOptions,
         ...(selectedUserOption ? { initial_option: selectedUserOption } : {})
       }
-    },
-    {
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `Showing latest summary for *${selectedUserLabel}*.`
-        }
-      ]
-    },
-    {
+    }
+  ];
+
+  // Handle the case where no summary exists for selected user
+  if (!selectedUserSummary) {
+    blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `:bust_in_silhouette: *<@${resolvedSelectedUserId}>*\n${selectedSummaryText}`
+        text: `:bust_in_silhouette: *${selectedUserLabel}*\n\n:hourglass_flowing_sand: No summary available yet for this user. Click "Generate Summaries for All Members" to create one.`
       }
-    },
-    {
-      type: 'section',
-      fields: [
-        {
+    });
+  } else {
+    blocks.push(
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `Showing latest summary for *${selectedUserLabel}*.`
+          }
+        ]
+      },
+      {
+        type: 'section',
+        text: {
           type: 'mrkdwn',
-          text: `*Messages*\n${selectedMessageCount}`
-        },
-        {
-          type: 'mrkdwn',
-          text: `*Generated*\n${selectedGeneratedAt}`
+          text: `:bust_in_silhouette: *<@${resolvedSelectedUserId}>*\n${selectedSummaryText}`
         }
-      ]
-    },
-    {
-      type: 'divider'
-    }
-  ];
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: `*Messages*\n${selectedMessageCount}`
+          },
+          {
+            type: 'mrkdwn',
+            text: `*Generated*\n${selectedGeneratedAt}`
+          }
+        ]
+      }
+    );
+  }
+
+  blocks.push({
+    type: 'divider'
+  });
+
+  return blocks;
 }
 
 function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, selectedWeek }) {
