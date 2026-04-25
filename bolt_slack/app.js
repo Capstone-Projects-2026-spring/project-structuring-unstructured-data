@@ -14,6 +14,7 @@ const {
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
   HOME_USER_SUMMARY_SELECT_ACTION_ID,
+  HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
   HOME_ADMIN_VIEW_UNSTORED,
   encodeDashboardState,
@@ -893,6 +894,98 @@ app.action(HOME_USER_SUMMARY_SELECT_ACTION_ID, async ({ ack, body, client, logge
     .catch((error) => {
       logger.error('Error handling Home user summary selection action:', error);
     });
+});
+
+// Home tab generate user summaries button: run the user model for the selected channel.
+app.action(HOME_GENERATE_USER_SUMMARIES_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  try {
+    const actionValue = body.actions && body.actions[0] && body.actions[0].value
+      ? body.actions[0].value
+      : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
+    const {
+      channelName: selectedChannelName,
+      selectedWeek,
+      selectedUser
+    } = parseDashboardState(actionValue);
+
+    if (!selectedChannelName) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a channel in Home first, then click *Generate Member Summaries*.'
+      });
+      return;
+    }
+
+    const databaseKey = await buildChannelKey(selectedChannelName, { client });
+
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Generating user summaries for *#${selectedChannelName}*... I’ll send a follow-up when it finishes.`
+    });
+
+    void (async () => {
+      try {
+        const response = await apiClient.post(
+          `/api/user_summaries/${encodeURIComponent(databaseKey)}`,
+          {},
+          { timeout: 0 }
+        );
+        const modelMetadata = response && response.data && response.data.modelMetadata;
+        const savedCount = modelMetadata && Number.isInteger(modelMetadata.saved_count)
+          ? modelMetadata.saved_count
+          : null;
+
+        await client.chat.postMessage({
+          channel: dm.channel.id,
+          text: savedCount == null
+            ? `✅ User summary generation completed for *#${selectedChannelName}*.`
+            : `✅ User summary generation completed for *#${selectedChannelName}*. Saved ${savedCount} summaries.`
+        });
+
+        publishHomeTab({
+          client,
+          userId: body.user.id,
+          teamId,
+          workspaceName,
+          logger,
+          apiClient,
+          selectedChannelName,
+          selectedWeek,
+          selectedUser
+        }).catch((refreshError) => {
+          logger.error('Error refreshing Home after user summary generation:', refreshError);
+        });
+      } catch (generationError) {
+        logger.error('Background user summary generation failed:', generationError);
+
+        try {
+          await client.chat.postMessage({
+            channel: dm.channel.id,
+            text: `❌ Failed to generate user summaries: ${generationError.message}`
+          });
+        } catch (dmError) {
+          logger.error('Failed sending generation error via DM:', dmError);
+        }
+      }
+    })();
+  } catch (error) {
+    logger.error('Error handling generate user summaries action:', error);
+
+    try {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `❌ Failed to generate user summaries: ${error.message}`
+      });
+    } catch (dmError) {
+      logger.error('Failed sending generation error via DM:', dmError);
+    }
+  }
 });
 
 //Home tab ADMIN controls
