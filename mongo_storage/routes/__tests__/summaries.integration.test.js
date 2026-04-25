@@ -43,9 +43,6 @@ describe('Summaries API - Integration Tests', () => {
       const dbData = fixtures[dbName] || { collections: {} };
 
       return {
-        listCollections: () => ({
-          toArray: async () => Object.keys(dbData.collections).map((name) => ({ name }))
-        }),
         collection: (collectionName) => ({
           find: (query = {}) => ({
             toArray: async () => {
@@ -59,6 +56,9 @@ describe('Summaries API - Integration Tests', () => {
               return docs.filter((doc) => doc.summary_day_utc >= $gte && doc.summary_day_utc < $lt);
             }
           })
+        }),
+        listCollections: () => ({
+          toArray: async () => Object.keys(dbData.collections).map((name) => ({ name }))
         })
       };
     }
@@ -81,23 +81,9 @@ describe('Summaries API - Integration Tests', () => {
           ]
         }
       },
-      team_alpha_C123_cw: {
-        collections: {
-          summaries: [
-            { user: 'alice', summary_day_utc: '2026-04-11T00:00:00Z', summary_text: 'Current week summary' }
-          ]
-        }
-      },
-      team_alpha_C123_pw: {
-        collections: {
-          summaries: [
-            { user: 'bob', summary_day_utc: '2026-04-04T00:00:00Z', summary_text: 'Past week summary' }
-          ]
-        }
-      },
       misc_data: {
         collections: {
-          notes: [{ text: 'ignore for /all endpoint suffix filtering test' }]
+          notes: [{ text: 'ignore for route filtering test' }]
         }
       }
     };
@@ -209,15 +195,25 @@ describe('Summaries API - Integration Tests', () => {
       expect(runModel).not.toHaveBeenCalled();
     });
 
-    test('should return 400 for invalid week query', async () => {
+    test('should return 400 when week is out of range', async () => {
       const res = await request(app)
         .post('/api/summaries/team_alpha_C123')
-        .query({ week: 99 });
+        .query({ week: 90 });
 
       expect(res.status).toBe(400);
       expect(res.body).toMatchObject({
         error: 'week query must be an integer between 0 and 53.'
       });
+      expect(runModel).not.toHaveBeenCalled();
+    });
+
+    test('should return 400 when weekStart is invalid', async () => {
+      const res = await request(app)
+        .post('/api/summaries/team_alpha_C123')
+        .query({ weekStart: 'invalid-date' });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: 'weekStart must be a valid date or ISO timestamp.' });
       expect(runModel).not.toHaveBeenCalled();
     });
 
@@ -228,15 +224,13 @@ describe('Summaries API - Integration Tests', () => {
         error: 'python crashed'
       });
 
-      const res = await request(app)
-        .post('/api/summaries/team_alpha_C123');
+      const res = await request(app).post('/api/summaries/team_alpha_C123');
 
       expect(res.status).toBe(500);
-      expect(res.body).toMatchObject({
+      expect(res.body).toEqual({
         error: 'Model execution failed for team_alpha_C123',
         details: 'python crashed'
       });
     });
   });
-
 });

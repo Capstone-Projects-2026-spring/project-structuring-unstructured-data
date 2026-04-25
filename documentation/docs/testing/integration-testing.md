@@ -50,3 +50,16 @@ npm run test:integration
 - POST rejects requests containing both `week` and `weekStart`
 - POST rejects invalid `week` values outside the accepted range
 - POST returns model execution errors from the summary generation pipeline
+
+### User Summaries Route (`/api/user_summaries/:databaseKey/:userId?`)
+
+- GET `/api/user_summaries/:databaseKey` returns all stored user summaries for an existing database key
+- GET `/api/user_summaries/:databaseKey/:userId` returns a single user summary for the requested userId
+- GET `/api/user_summaries/:databaseKey?userId=...` returns a single user summary when userId is provided as a query parameter
+- GET `/api/user_summaries/:databaseKey/:userId` returns `userSummary: null` when the user has no summary yet
+- GET `/api/user_summaries/:databaseKey/:userId` returns 404 when no matching summary database exists
+- POST `/api/user_summaries/:databaseKey` returns all-user generation metadata when no userId is provided
+- POST `/api/user_summaries/:databaseKey?userId=...` returns single-user generation metadata for the requested userId
+- POST `/api/user_summaries/:databaseKey` also accepts `userId` in the request body and returns single-user generation metadata
+- POST `/api/user_summaries/:databaseKey` returns 404 when no matching summary database exists
+- POST `/api/user_summaries/:databaseKey` returns model execution errors from the user summary generation pipeline
