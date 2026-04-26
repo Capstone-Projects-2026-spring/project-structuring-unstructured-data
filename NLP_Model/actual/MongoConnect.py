@@ -126,10 +126,23 @@ class MongoConnect:
         db_inst = Database(client, database)
         summaries_coll = db_inst.get_collection('user_summaries')
 
-        summaries_coll.delete_many({})
-        result = summaries_coll.insert_many(summaries)
+        upserted_count = 0
+        for summary_doc in summaries:
+            user_id = summary_doc.get('user_id')
 
-        return len(summaries)
+            if user_id is None:
+                continue
+
+            result = summaries_coll.update_one(
+                {'user_id': user_id},
+                {'$set': summary_doc},
+                upsert=True
+            )
+
+            if result.modified_count > 0 or result.upserted_id is not None:
+                upserted_count += 1
+
+        return upserted_count
 
 
 
