@@ -1,31 +1,23 @@
 ---
 sidebar_position: 1
 ---
+# Architecture Design
 
-**Purpose**
+## Purpose
 
 The Design Document - Part I Architecture describes the software architecture and how the requirements are mapped into the design. This document will be a combination of diagrams and text that describes what the diagrams are showing.
 
-**Overview**
+## Overview
 
 For the scope of the SUD Bud project, our application's design will utilize the Slack API to access all user, message, and channel data, but development of a codebase compatible with multiple communication platforms is anticipated. For the best compatibility with the existing Web API that communication platforms generally provide, the application will integrate with the target platform using routes composed in JavaScript and Node.js; this version of the app specifically will leverege the Bolt for JavaScript open-source framework in the backend designed directly for Slack, allowing both the access of Slack data and interaction with Slack's UI. The tool's backend also will have the ability to extract context from conversations and structure data into daily summaries via a Google Gemini LLM. The Gemini model, configured through the Google GenAI SDK for Python, will be primarily prompt-engineered to convert message objects within specified time ranges into concise text summaries that identify key tasks, terms and user responsibilities. All instances of raw user and message data, as well as all the resulting strucutred conversation data will be placed in a MongoDB cluster as a persistent storage source. The application will directly address individual user privacy by designing settings that allow members to specify the extent they wish their messages to be collected for summaries within the Slack bot's UI. The app scales to process across multiple workspaces, meaning that the SUD Bud will be designed to manage and store different user, channel, and summary data from entirely seperate organizations.
 
-**Requirements**
+## Components & Interfaces
 
-***TODO:***
+SUD Bud's architecture contains 3 primary layers: User Interface, Integration & Logic, and Data Processing. View the [System Block Diagram](/docs/requirements/system-block-diagram.md) in the Requirements Specification for more details on these components and visualizations of their workflows.
 
-In addition to the general requirements the Design Document - Part I Architecture will contain:
+## Data Flow
 
-A description the different components and their interfaces. For example: client, server, database.
-
-For each component provide class diagrams showing the classes to be developed (or used) and their relationship.
-
-Sequence diagrams showing the data flow for _all_ use cases. One sequence diagram corresponds to one use case and different use cases should have different corresponding sequence diagrams.
-
-Describe algorithms employed in your project, e.g. neural network paradigm, training and training data set, etc.
-
-A check list for architecture design is attached here [architecture\_design\_checklist.pdf](https://templeu.instructure.com/courses/106563/files/16928870/download?wrap=1 "architecture_design_checklist.pdf")  and should be used as a guidance.
-
+***TODO:*** Sequence diagrams showing the data flow for _all_ use cases. One sequence diagram corresponds to one use case and different use cases should have different corresponding sequence diagrams.
 
 ## Client-Server Workflow
 ```mermaid
@@ -69,7 +61,108 @@ An archieve of the final daily output for each week
 Overviews of each month based on the LLM processing the Past Weeks Processed table
 
 
-# Database Design
+## Database Design
+SUD Bud stores all the relevant data about users and their messages sent across a workspace using 4 primary components. Each component, as shown below, belongs to its own collection in MongoDB and has inferred relationships with one another that can be highlighted through frontend user interactions occuring post-structuring.
+
+The 4 collections contain the following relationships:
+
+- **Member creates RawMessage** : There is an aggregation between a member of a channel and the messages they send, since they are not strictly dependent on one another, but members/users send raw messages.
+- **Summaries include Members** : There is also an aggregation between summaries and members, where each daily channel summary will contain a list of one or multiple members/users that are a part of the summary.
+- **Member has UserSummary** : This relation is a composition, as user summaries can only exist as long as the select user is a member of a given channel.
+- **Summaries are derived from RawMessage** : Each daily channel summary has a dependency on raw messages, as they are directly used in the structuring model to find main tasks to-do and completed tasks.
+
+****
+```mermaid
+classDiagram
+
+%% =========================
+%% MEMBER COLLECTION
+%% =========================
+class Member {
+  ObjectId _id
+  int __v
+  string member_id
+  string name
+  object profile
+  string real_name
+  string team_id
+  string tz
+  string tz_label
+  int tz_offset
+  int updated
+  bool deleted
+  bool is_admin
+  bool is_bot
+  bool is_owner
+  bool is_primary_owner
+  bool is_restricted
+  bool is_ultra_restricted
+}
+
+
+%% =========================
+%% RAW MESSAGE COLLECTION
+%% =========================
+class RawMessage {
+  ObjectId _id
+  int __v
+  string user
+  string type
+  string text
+  string ts
+  string team
+  string subtype
+  string bot_id
+  array attachments
+  array blocks
+  string client_msg_id
+  object edited
+  array reactions
+}
+
+
+%% =========================
+%% SUMMARY COLLECTION
+%% =========================
+class Summary {
+  ObjectId _id
+  string channel_db
+  string summary_text
+  any distinct_users
+  int message_count
+  string summary_day_utc
+  string week_start_utc
+  string generated_at_utc
+}
+
+
+%% =========================
+%% USER SUMMARY COLLECTION
+%% =========================
+class UserSummary {
+  ObjectId _id
+  string user_id
+  string real_name
+  string summary_text
+  int message_count
+  string status
+  string generated_at_utc
+}
+
+
+%% =========================
+%% RELATIONSHIPS (SEMANTIC)
+%% =========================
+
+Member o-- RawMessage : creates
+Member *-- UserSummary : has
+
+Summary o-- Member : includes
+Summary ..> RawMessage : derived from
+```
+*Figure 2: Class diagram of collections of data stored in a given Mongo database -- SUD Bud creates a new database per new channel it collects data for.*
+
+In the Entity Relationship Diagrams below, the associations between each component's fields are visualized in more depth along with specifying cardinalities.
 
 ## Raw Data Schema
 ```mermaid
@@ -125,7 +218,7 @@ erDiagram
         string block_id FK
     }
 ```
-*Figure 2: ER Diagram of relations between Slack data objects collected directly from Slack API*
+*Figure 3: ER Diagram of relations between Slack data objects collected directly from Slack API*
 
 ### Workspace
 Stores organizational data of an entire workspace
@@ -174,10 +267,10 @@ Composed element/section that makes up a message block. This can include a URL a
 
 ```mermaid
 erDiagram
-    BIO ||--|| USER : contains
+    USER_SUMMARY ||--|| USER : contains
     SUMMARY }|--|{ USER : contains
 
-    BIO {
+    USER_SUMMARY {
         string id PK
         string tasks_todo
         string tasks_completed
@@ -203,10 +296,10 @@ erDiagram
         string real_name
     }
 ```
-*Figure 3: ER Diagram of structured message data from the LLM model, which includes a daily task summary and user bio*
+*Figure 4: ER Diagram of structured message data from the LLM model, which includes a daily task summary and user summary*
 
 
-### Bio
+### User Summary
 Collection of structuring model's outputs of holistic user summaries; includes data from all channels & workspaces user is a member of
 - id: string - primary key
 - tasks_todo: string - Structured summary of upcoming tasks and projects the user is a part of / mentions they will be working on.
