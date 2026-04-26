@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Backend API | Project Structuring Unstructured Data</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Capstone-Projects-2026-spring.github.io/project-structuring-unstructured-data/docs/api-specification/design-api-intro"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Backend API | Project Structuring Unstructured Data"><meta data-rh="true" name="description" content="API reference for implemented message routes."><meta data-rh="true" property="og:description" content="API reference for implemented message routes."><link data-rh="true" rel="icon" href="/project-structuring-unstructured-data/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://Capstone-Projects-2026-spring.github.io/project-structuring-unstructured-data/docs/api-specification/design-api-intro"><link data-rh="true" rel="alternate" href="https://Capstone-Projects-2026-spring.github.io/project-structuring-unstructured-data/docs/api-specification/design-api-intro" hreflang="en"><link data-rh="true" rel="alternate" href="https://Capstone-Projects-2026-spring.github.io/project-structuring-unstructured-data/docs/api-specification/design-api-intro" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"API Specification","item":"https://Capstone-Projects-2026-spring.github.io/project-structuring-unstructured-data/docs/category/api-specification"},{"@type":"ListItem","position":2,"name":"Backend API","item":"https://Capstone-Projects-2026-spring.github.io/project-structuring-unstructured-data/docs/api-specification/design-api-intro"}]}</script><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script><link rel="stylesheet" href="/project-structuring-unstructured-data/assets/css/styles.7aa687c6.css">
-<script src="/project-structuring-unstructured-data/assets/js/runtime~main.35cef712.js" defer="defer"></script>
+<script src="/project-structuring-unstructured-data/assets/js/runtime~main.7caf7ca3.js" defer="defer"></script>
 <script src="/project-structuring-unstructured-data/assets/js/main.5cf693f1.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -69,6 +69,47 @@
 <p><strong>Error response:</strong></p>
 <ul>
 <li class="">Status: <code>400 Bad Request</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul></div></div></details>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="delete-apimessageschannelnamets"><code>DELETE /api/messages/:channelName/:ts</code><a href="#delete-apimessageschannelnamets" class="hash-link" aria-label="Direct link to delete-apimessageschannelnamets" title="Direct link to delete-apimessageschannelnamets" translate="no">​</a></h2>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Details</summary><div><div class="collapsibleContent_i85q"><ul>
+<li class="">
+<p>Removes a single message document from the MongoDB collection identified by <code>channelName</code> using its timestamp.</p>
+</li>
+<li class="">
+<p><strong>Path Parameters:</strong></p>
+<ul>
+<li class=""><code>channelName</code> (<code>string</code>, required): Slack channel name used to resolve the target MongoDB collection.</li>
+<li class=""><code>ts</code> (<code>string</code>, required): Timestamp of the message to delete.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Request Body:</strong></p>
+<ul>
+<li class="">None.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Success response:</strong></p>
+<ul>
+<li class="">Status: <code>200 OK</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;message&quot;: &quot;Message deleted successfully&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+<li class="">
+<p><strong>Error responses:</strong></p>
+<ul>
+<li class="">Status: <code>404 Not Found</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;Message not found&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>500 Internal Server Error</code></li>
 <li class="">Body:</li>
 </ul>
 <div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
@@ -147,6 +188,231 @@
 <li class="">Possible error case: missing/blank <code>channelName</code> path parameter.</li>
 </ul>
 </li>
-</ul></div></div></details></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/Capstone-Projects-2026-spring/project-structuring-unstructured-data/edit/main/documentation/docs/api-specification/design-api-intro.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"><details><summary>Revision History</summary><table><thead><tr><th scope="row">Author</th><th scope="row">Revision</th><th scope="row">Date</th></tr></thead><tbody><tr><td colspan="3" style="text-align:center;font-style:italic;color:#666">Loading...</td></tr></tbody></table></details><span class="theme-last-updated">Last updated<!-- --> by <b>Wyatt Zantua</b></span></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/project-structuring-unstructured-data/docs/category/api-specification"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">API Specification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/project-structuring-unstructured-data/docs/api-specification/openapi-spec"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">API 1 - Swagger Petstore</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#message-endpoints" class="table-of-contents__link toc-highlight">Message Endpoints</a></li><li><a href="#get-apimessageschannelname" class="table-of-contents__link toc-highlight"><code>GET /api/messages/:channelName</code></a></li><li><a href="#post-apimessageschannelname" class="table-of-contents__link toc-highlight"><code>POST /api/messages/:channelName</code></a></li><li><a href="#user-endpoints" class="table-of-contents__link toc-highlight">User Endpoints</a></li><li><a href="#get-apiuserscollectionname" class="table-of-contents__link toc-highlight"><code>GET /api/users/:collectionName</code></a></li><li><a href="#post-apiuserschannelname" class="table-of-contents__link toc-highlight"><code>POST /api/users/:channelName</code></a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/project-structuring-unstructured-data/docs/intro">Documentation</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/Capstone-Projects-2026-spring/project-structuring-unstructured-data" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/project-structuring-unstructured-data/tutorial/open-source-usage">Template Contributors</a></li></ul></div></div><div class="footer__bottom text--center"><div class="margin-bottom--sm"><img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Temple_T_logo.svg" alt="My Site Logo" class="footer__logo themedComponent_mlkZ themedComponent--light_NVdE"><img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Temple_T_logo.svg" alt="My Site Logo" class="footer__logo themedComponent_mlkZ themedComponent--dark_xIcU"></div><div class="footer__copyright">Copyright © 2026 Project Structuring Unstructured Data, Inc. Built with Docusaurus.</div></div></div></footer></div>
+</ul></div></div></details>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="summary-endpoints">Summary Endpoints<a href="#summary-endpoints" class="hash-link" aria-label="Direct link to Summary Endpoints" title="Direct link to Summary Endpoints" translate="no">​</a></h2>
+<p>Base route prefix: <code>/api/summaries</code></p>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="get-apisummariesall"><code>GET /api/summaries/all</code><a href="#get-apisummariesall" class="hash-link" aria-label="Direct link to get-apisummariesall" title="Direct link to get-apisummariesall" translate="no">​</a></h2>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Details</summary><div><div class="collapsibleContent_i85q"><ul>
+<li class="">Retrieves summary documents from all databases whose names end with <code>_cw</code> or <code>_pw</code>.</li>
+<li class=""><strong>Path Parameters:</strong>
+<ul>
+<li class="">None.</li>
+</ul>
+</li>
+<li class=""><strong>Success response:</strong>
+<ul>
+<li class="">Status: <code>200 OK</code></li>
+<li class="">Body: <code>object</code> keyed by database name, then collection name, containing arrays of summary documents.</li>
+</ul>
+</li>
+</ul><p>Example <code>200</code> response:</p><div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;engineering_cw&quot;: {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;summaries&quot;: [</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">                &quot;summary_day_utc&quot;: &quot;2026-04-19T00:00:00Z&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">                &quot;generated_at_utc&quot;: &quot;2026-04-25T13:22:11.104Z&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">                &quot;message_count&quot;: 57,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">                &quot;summary_text&quot;: &quot;Weekly summary text...&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            }</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        ]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    },</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;engineering_pw&quot;: {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;summaries&quot;: []</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    }</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div><ul>
+<li class=""><strong>Error response:</strong>
+<ul>
+<li class="">Status: <code>500 Internal Server Error</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul></div></div></details>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="get-apisummariesdatabasekey"><code>GET /api/summaries/:databaseKey</code><a href="#get-apisummariesdatabasekey" class="hash-link" aria-label="Direct link to get-apisummariesdatabasekey" title="Direct link to get-apisummariesdatabasekey" translate="no">​</a></h2>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Details</summary><div><div class="collapsibleContent_i85q"><ul>
+<li class="">
+<p>Retrieves all summary documents from a specific channel summary database.</p>
+</li>
+<li class="">
+<p>Supports optional filtering by week start via query parameter.</p>
+</li>
+<li class="">
+<p><strong>Path Parameters:</strong></p>
+<ul>
+<li class=""><code>databaseKey</code> (<code>string</code>, required): Exact database name to query (for example, <code>myChannel_C123</code>).</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li class=""><code>weekStart</code> (<code>string</code>, optional): Date/ISO timestamp normalized to UTC Sunday start and used as a 7-day filter.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Request Body:</strong></p>
+<ul>
+<li class="">None.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Success response:</strong></p>
+<ul>
+<li class="">Status: <code>200 OK</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;dbName&quot;: &quot;&lt;databaseKey&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;weekStart&quot;: &quot;&lt;resolved week start or null&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;summaries&quot;: [</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;summary_day_utc&quot;: &quot;2026-04-19T00:00:00Z&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;generated_at_utc&quot;: &quot;2026-04-25T13:22:11.104Z&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;message_count&quot;: 57,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;summary_text&quot;: &quot;Weekly summary text...&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        }</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    ]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+<li class="">
+<p><strong>Error responses:</strong></p>
+<ul>
+<li class="">Status: <code>400 Bad Request</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;weekStart must be a valid date or ISO timestamp.&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>404 Not Found</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;No database found for channelKey: &lt;databaseKey&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>500 Internal Server Error</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul></div></div></details>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="post-apisummariesdatabasekey"><code>POST /api/summaries/:databaseKey</code><a href="#post-apisummariesdatabasekey" class="hash-link" aria-label="Direct link to post-apisummariesdatabasekey" title="Direct link to post-apisummariesdatabasekey" translate="no">​</a></h2>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Details</summary><div><div class="collapsibleContent_i85q"><ul>
+<li class="">
+<p>Runs the weekly summary model for the specified channel database.</p>
+</li>
+<li class="">
+<p>Optionally targets a specific week using either <code>week</code> or <code>weekStart</code>.</p>
+</li>
+<li class="">
+<p><strong>Path Parameters:</strong></p>
+<ul>
+<li class=""><code>databaseKey</code> (<code>string</code>, required): Exact database name to process.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Query Parameters:</strong></p>
+<ul>
+<li class=""><code>week</code> (<code>integer</code>, optional): Week number in range <code>0..53</code>.</li>
+<li class=""><code>weekStart</code> (<code>string</code>, optional): Date/ISO timestamp normalized to UTC Sunday start.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Request Body:</strong></p>
+<ul>
+<li class="">None.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Success response:</strong></p>
+<ul>
+<li class="">Status: <code>200 OK</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;message&quot;: &quot;Summary processing completed successfully&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;requestedWeek&quot;: 14,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;requestedWeekStart&quot;: null,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;savedCount&quot;: 7,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;modelMetadata&quot;: {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;saved_count&quot;: 7</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    },</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;modelResults&quot;: [&quot;&lt;model output lines&gt;&quot;]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+<li class="">
+<p><strong>Error responses:</strong></p>
+<ul>
+<li class="">Status: <code>400 Bad Request</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;Use either week or weekStart, not both.&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>500 Internal Server Error</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;details&quot;: &quot;&lt;model error details if available&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul></div></div></details>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="user-summary-endpoints">User Summary Endpoints<a href="#user-summary-endpoints" class="hash-link" aria-label="Direct link to User Summary Endpoints" title="Direct link to User Summary Endpoints" translate="no">​</a></h2>
+<p>Base route prefix: <code>/api/user_summaries</code></p>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="get-apiuser_summariesdatabasekeyuserid"><code>GET /api/user_summaries/:databaseKey/:userId?</code><a href="#get-apiuser_summariesdatabasekeyuserid" class="hash-link" aria-label="Direct link to get-apiuser_summariesdatabasekeyuserid" title="Direct link to get-apiuser_summariesdatabasekeyuserid" translate="no">​</a></h2>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Details</summary><div><div class="collapsibleContent_i85q"><ul>
+<li class="">Retrieves user summary data from a specific channel database.</li>
+<li class="">If <code>userId</code> is provided (route or query), returns one summary object or <code>null</code>.</li>
+<li class="">If <code>userId</code> is not provided, returns all user summaries in that database.</li>
+<li class=""><strong>Path Parameters:</strong>
+<ul>
+<li class=""><code>databaseKey</code> (<code>string</code>, required): Exact database name to query.</li>
+<li class=""><code>userId</code> (<code>string</code>, optional): Slack user ID for single-summary lookup.</li>
+</ul>
+</li>
+<li class=""><strong>Query Parameters:</strong>
+<ul>
+<li class=""><code>userId</code> (<code>string</code>, optional): Alternative to route param for single-summary lookup.</li>
+</ul>
+</li>
+<li class=""><strong>Request Body:</strong>
+<ul>
+<li class="">None.</li>
+</ul>
+</li>
+<li class=""><strong>Success responses:</strong>
+<ul>
+<li class="">Status: <code>200 OK</code> (single user)</li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;dbName&quot;: &quot;&lt;databaseKey&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;userSummary&quot;: {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;user_id&quot;: &quot;U12345678&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;real_name&quot;: &quot;Jane Doe&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;generated_at_utc&quot;: &quot;2026-04-25T13:41:22.221Z&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;message_count&quot;: 32,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;summary_text&quot;: &quot;User summary text...&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;status&quot;: &quot;ok&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    }</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>200 OK</code> (all users)</li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;dbName&quot;: &quot;&lt;databaseKey&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;userSummaries&quot;: [</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;user_id&quot;: &quot;U12345678&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;real_name&quot;: &quot;Jane Doe&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;generated_at_utc&quot;: &quot;2026-04-25T13:41:22.221Z&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;message_count&quot;: 32,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;summary_text&quot;: &quot;User summary text...&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">            &quot;status&quot;: &quot;ok&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        }</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    ]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul><p>Example <code>200</code> response when the user has no summary yet:</p><div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;dbName&quot;: &quot;&lt;databaseKey&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;userSummary&quot;: null</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div><ul>
+<li class=""><strong>Error responses:</strong>
+<ul>
+<li class="">Status: <code>404 Not Found</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;No database found for channelKey: &lt;databaseKey&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>500 Internal Server Error</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul></div></div></details>
+<hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="post-apiuser_summariesdatabasekey"><code>POST /api/user_summaries/:databaseKey</code><a href="#post-apiuser_summariesdatabasekey" class="hash-link" aria-label="Direct link to post-apiuser_summariesdatabasekey" title="Direct link to post-apiuser_summariesdatabasekey" translate="no">​</a></h2>
+<details class="details_lb9f alert alert--info details_b_Ee" data-collapsed="true"><summary>Details</summary><div><div class="collapsibleContent_i85q"><ul>
+<li class="">Runs user summary generation for a channel database.</li>
+<li class="">If <code>userId</code> is provided, generates a summary for that user only.</li>
+<li class="">If <code>userId</code> is omitted, generates summaries for all users.</li>
+<li class=""><strong>Path Parameters:</strong>
+<ul>
+<li class=""><code>databaseKey</code> (<code>string</code>, required): Exact database name to process.</li>
+</ul>
+</li>
+<li class=""><strong>Query Parameters:</strong>
+<ul>
+<li class=""><code>userId</code> (<code>string</code>, optional): Slack user ID to generate one user summary.</li>
+</ul>
+</li>
+<li class=""><strong>Request Body:</strong>
+<ul>
+<li class="">Optional object. <code>userId</code> may also be provided in body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;userId&quot;: &quot;U12345678&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+<li class=""><strong>Success response:</strong>
+<ul>
+<li class="">Status: <code>200 OK</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;message&quot;: &quot;User summary processed successfully for userId U12345678&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;databaseKey&quot;: &quot;&lt;databaseKey&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;userId&quot;: &quot;U12345678&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;modelMetadata&quot;: {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;saved_count&quot;: 1</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    },</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;modelResults&quot;: [&quot;&lt;model output lines&gt;&quot;]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul><p>Example <code>200</code> response when generating all users:</p><div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;message&quot;: &quot;User summaries processed successfully&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;databaseKey&quot;: &quot;&lt;databaseKey&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;userId&quot;: null,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;modelMetadata&quot;: {</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        &quot;saved_count&quot;: 12</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    },</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;modelResults&quot;: [&quot;&lt;model output lines&gt;&quot;]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div><ul>
+<li class=""><strong>Error responses:</strong>
+<ul>
+<li class="">Status: <code>404 Not Found</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;No database found for channelKey: &lt;databaseKey&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Status: <code>500 Internal Server Error</code></li>
+<li class="">Body:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">{</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;error&quot;: &quot;&lt;error message&gt;&quot;,</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    &quot;details&quot;: &quot;&lt;model error details if available&gt;&quot;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">}</span><br></span></code></pre></div></div>
+</li>
+</ul></div></div></details></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/Capstone-Projects-2026-spring/project-structuring-unstructured-data/edit/main/documentation/docs/api-specification/design-api-intro.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"><details><summary>Revision History</summary><table><thead><tr><th scope="row">Author</th><th scope="row">Revision</th><th scope="row">Date</th></tr></thead><tbody><tr><td colspan="3" style="text-align:center;font-style:italic;color:#666">Loading...</td></tr></tbody></table></details><span class="theme-last-updated">Last updated<!-- --> by <b>Wyatt Zantua</b></span></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/project-structuring-unstructured-data/docs/category/api-specification"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">API Specification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/project-structuring-unstructured-data/docs/api-specification/openapi-spec"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">API 1 - Swagger Petstore</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#message-endpoints" class="table-of-contents__link toc-highlight">Message Endpoints</a></li><li><a href="#get-apimessageschannelname" class="table-of-contents__link toc-highlight"><code>GET /api/messages/:channelName</code></a></li><li><a href="#post-apimessageschannelname" class="table-of-contents__link toc-highlight"><code>POST /api/messages/:channelName</code></a></li><li><a href="#delete-apimessageschannelnamets" class="table-of-contents__link toc-highlight"><code>DELETE /api/messages/:channelName/:ts</code></a></li><li><a href="#user-endpoints" class="table-of-contents__link toc-highlight">User Endpoints</a></li><li><a href="#get-apiuserscollectionname" class="table-of-contents__link toc-highlight"><code>GET /api/users/:collectionName</code></a></li><li><a href="#post-apiuserschannelname" class="table-of-contents__link toc-highlight"><code>POST /api/users/:channelName</code></a></li><li><a href="#summary-endpoints" class="table-of-contents__link toc-highlight">Summary Endpoints</a></li><li><a href="#get-apisummariesall" class="table-of-contents__link toc-highlight"><code>GET /api/summaries/all</code></a></li><li><a href="#get-apisummariesdatabasekey" class="table-of-contents__link toc-highlight"><code>GET /api/summaries/:databaseKey</code></a></li><li><a href="#post-apisummariesdatabasekey" class="table-of-contents__link toc-highlight"><code>POST /api/summaries/:databaseKey</code></a></li><li><a href="#user-summary-endpoints" class="table-of-contents__link toc-highlight">User Summary Endpoints</a></li><li><a href="#get-apiuser_summariesdatabasekeyuserid" class="table-of-contents__link toc-highlight"><code>GET /api/user_summaries/:databaseKey/:userId?</code></a></li><li><a href="#post-apiuser_summariesdatabasekey" class="table-of-contents__link toc-highlight"><code>POST /api/user_summaries/:databaseKey</code></a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/project-structuring-unstructured-data/docs/intro">Documentation</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/Capstone-Projects-2026-spring/project-structuring-unstructured-data" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/project-structuring-unstructured-data/tutorial/open-source-usage">Template Contributors</a></li></ul></div></div><div class="footer__bottom text--center"><div class="margin-bottom--sm"><img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Temple_T_logo.svg" alt="My Site Logo" class="footer__logo themedComponent_mlkZ themedComponent--light_NVdE"><img src="https://upload.wikimedia.org/wikipedia/commons/1/17/Temple_T_logo.svg" alt="My Site Logo" class="footer__logo themedComponent_mlkZ themedComponent--dark_xIcU"></div><div class="footer__copyright">Copyright © 2026 Project Structuring Unstructured Data, Inc. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
