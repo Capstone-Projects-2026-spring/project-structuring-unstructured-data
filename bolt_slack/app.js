@@ -13,6 +13,7 @@ const {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID,
   HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
   HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
@@ -141,6 +142,35 @@ async function getWorkspaceToken(teamId) {
   });
   
   return null;
+}
+
+function formatWeekRangeForMessage(weekKey) {
+  const normalizedWeekKey = typeof weekKey === 'string' ? weekKey.trim() : '';
+  if (!normalizedWeekKey.startsWith('ws:')) {
+    return normalizedWeekKey || 'Unknown week';
+  }
+
+  const startIso = normalizedWeekKey.slice(3);
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) {
+    return startIso || 'Unknown week';
+  }
+
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+
+  const startText = start.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+  const endText = end.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  return `${startText} - ${endText}`;
 }
 
 async function authorizeWorkspace({ teamId }) {
@@ -868,6 +898,107 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);
     });
+});
+
+// Home tab selected-week summary button: run weekly model for the selected week.
+app.action(HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  try {
+    const actionValue = body.actions && body.actions[0] && body.actions[0].value
+      ? body.actions[0].value
+      : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
+    const {
+      channelName: selectedChannelName,
+      selectedWeek,
+      selectedUser
+    } = parseDashboardState(actionValue);
+
+    if (!selectedChannelName) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a channel in Home first, then click *Generate Summary For Selected Week*.'
+      });
+      return;
+    }
+
+    const selectedWeekRaw = selectedWeek || getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
+    if (!selectedWeekRaw || !selectedWeekRaw.startsWith('ws:')) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a week in Home first, then click *Generate Summary For Selected Week*.'
+      });
+      return;
+    }
+
+    const weekStart = selectedWeekRaw.slice(3);
+    const weekLabel = formatWeekRangeForMessage(selectedWeekRaw);
+    const databaseKey = await buildChannelKey(selectedChannelName, { client });
+
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Starting weekly summarization for *#${selectedChannelName}* (${weekLabel})... I’ll send a follow-up when it finishes.`
+    });
+
+    void (async () => {
+      try {
+        const response = await apiClient.post(
+          `/api/summaries/${encodeURIComponent(databaseKey)}?weekStart=${encodeURIComponent(weekStart)}`,
+          null,
+          { timeout: 0 }
+        );
+
+        const savedCount = Number(response && response.data && response.data.savedCount);
+        await client.chat.postMessage({
+          channel: dm.channel.id,
+          text: Number.isFinite(savedCount)
+            ? `✅ Weekly summarization completed for *#${selectedChannelName}* (${weekLabel}). Saved ${savedCount} summaries.`
+            : `✅ Weekly summarization completed for *#${selectedChannelName}* (${weekLabel}).`
+        });
+
+        publishHomeTab({
+          client,
+          userId: body.user.id,
+          teamId,
+          workspaceName,
+          logger,
+          apiClient,
+          selectedChannelName,
+          selectedWeek: selectedWeekRaw,
+          selectedUser
+        }).catch((refreshError) => {
+          logger.error('Error refreshing Home after selected-week summary generation:', refreshError);
+        });
+      } catch (generationError) {
+        logger.error('Background selected-week summary generation failed:', generationError);
+
+        try {
+          await client.chat.postMessage({
+            channel: dm.channel.id,
+            text: `❌ Failed weekly summarization for *#${selectedChannelName}* (${weekLabel}): ${generationError.message}`
+          });
+        } catch (dmError) {
+          logger.error('Failed sending selected-week generation error via DM:', dmError);
+        }
+      }
+    })();
+  } catch (error) {
+    logger.error('Error handling selected-week summary action:', error);
+
+    try {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `❌ Failed to generate selected-week summary: ${error.message}`
+      });
+    } catch (dmError) {
+      logger.error('Failed sending selected-week handler error via DM:', dmError);
+    }
+  }
 });
 
 // Home tab user summary dropdown: republish with selected user summary updates.

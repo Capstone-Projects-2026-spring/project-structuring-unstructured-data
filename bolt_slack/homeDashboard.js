@@ -5,6 +5,7 @@ const { buildChannelKey } = require('../shared-utils/channelUtils');
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
+const HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID = 'home_generate_selected_week_summary';
 const HOME_USER_SUMMARY_SELECT_ACTION_ID = 'home_user_summary_select';
 const HOME_GENERATE_USER_SUMMARIES_ACTION_ID = 'home_generate_user_summaries';
 const HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID = 'home_generate_single_user_summary';
@@ -1202,6 +1203,27 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
     }
   });
 
+  blocks.push({
+    type: 'actions',
+    elements: [
+      {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: 'Generate Summaries For This Week',
+          emoji: true
+        },
+        ...(!visibleSummaries.length ? { style: 'primary' } : {}),
+        action_id: HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID,
+        value: encodeDashboardState({
+          channelName: selectedChannelName || '',
+          selectedWeek: resolvedSelectedWeek,
+          selectedUser: null
+        })
+      }
+    ]
+  });
+
   blocks.push({ type: 'divider' });
 
   if (!visibleSummaries.length) {
@@ -1694,6 +1716,7 @@ module.exports = {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID,
   HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
   HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
