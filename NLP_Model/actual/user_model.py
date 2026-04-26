@@ -6,15 +6,20 @@ import os
 import sys
 from datetime import datetime, timezone
 # Type `py -3.14 user_model.py {channelKey}` to run
+# Optional: Add --userId=USER_ID to generate summary for a single user only
+# Example: `py -3.14 user_model.py slack --userId=U123456`
 
 def parse_args(argv):
     db_name = 'slack'
+    user_id = None
 
     for arg in argv[1:]:
-        if not arg.startswith('--'):
+        if arg.startswith('--userId='):
+            user_id = arg.split('=', 1)[1]
+        elif not arg.startswith('--'):
             db_name = arg
 
-    return db_name
+    return db_name, user_id
 
 
 def extract_all_channel_messages(inst, db_name):
@@ -72,7 +77,6 @@ def build_user_summary(full_df, user_list, db_name, summarizer, data_process, me
         user_summaries.append({
             'user_id': user_id,
             'real_name': real_name,
-            'channel_db': db_name,
             'generated_at_utc': datetime.now(timezone.utc).isoformat(),
             'message_count': message_count,
             'summary_text': summary_text,
@@ -83,7 +87,7 @@ def build_user_summary(full_df, user_list, db_name, summarizer, data_process, me
 
 
 # Import arguments from command line
-dbName = parse_args(sys.argv)
+dbName, userId = parse_args(sys.argv)
 
 # Connect and extract collections
 load_dotenv()
@@ -104,6 +108,12 @@ proc_df = dp_inst.normal_preprocess(chan_df)
 
 #----------USER SUMMARIES-------------------------------------
 user_list = get_distinct_users(proc_df)
+
+# Filter to single user if userId parameter was provided
+if userId:
+    user_list = [userId] if userId in user_list else []
+    if not user_list:
+        print(f"Warning: User ID '{userId}' not found in the data")
 
 # Fetch member lookup — use the channel-specific DB name
 member_lookup = inst.get_member_lookup(dbName)

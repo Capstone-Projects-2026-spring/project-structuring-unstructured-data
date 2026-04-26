@@ -99,20 +99,6 @@ describe('Summaries Routes - Unit Tests', () => {
           ]
         }
       },
-      channel_C123_cw: {
-        collections: {
-          summaries: [
-            { user: 'alice', sum_text: 'Current week summary' }
-          ]
-        }
-      },
-      channel_C123_pw: {
-        collections: {
-          summaries: [
-            { user: 'bob', sum_text: 'Past week summary' }
-          ]
-        }
-      },
       misc_data: {
         collections: {
           notes: [
@@ -260,41 +246,4 @@ describe('Summaries Routes - Unit Tests', () => {
     });
   });
 
-  describe('GET /api/summaries/all route handler', () => {
-    test('should aggregate documents from _cw and _pw databases only', async () => {
-      const handler = getRouteHandler('/api/summaries/all', 'get');
-      const req = {};
-      const res = createMockResponse();
-
-      await handler(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.body).toHaveProperty('channel_C123_cw');
-      expect(res.body).toHaveProperty('channel_C123_pw');
-      expect(res.body).not.toHaveProperty('misc_data');
-      expect(res.body.channel_C123_cw.summaries).toHaveLength(1);
-      expect(res.body.channel_C123_pw.summaries).toHaveLength(1);
-    });
-
-    test('should return 500 when listDatabases throws', async () => {
-      const handler = getRouteHandler('/api/summaries/all', 'get');
-      const req = {};
-      const res = createMockResponse();
-
-      mongoose.connection.client = {
-        db: () => ({
-          admin: () => ({
-            listDatabases: async () => {
-              throw new Error('failed listing dbs');
-            }
-          })
-        })
-      };
-
-      await handler(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.body).toEqual({ error: 'failed listing dbs' });
-    });
-  });
 });

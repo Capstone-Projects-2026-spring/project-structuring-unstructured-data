@@ -13,6 +13,9 @@ const {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_USER_SUMMARY_SELECT_ACTION_ID,
+  HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
+  HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
   HOME_ADMIN_STORE_MEMBERS,
   HOME_ADMIN_VIEW_UNSTORED,
   encodeDashboardState,
@@ -163,7 +166,8 @@ function parseDashboardState(rawValue) {
   if (!rawValue) {
     return {
       channelName: '',
-      selectedWeek: null
+      selectedWeek: null,
+      selectedUser: null
     };
   }
 
@@ -171,7 +175,8 @@ function parseDashboardState(rawValue) {
   if (!rawValue.startsWith('{')) {
     return {
       channelName: rawValue,
-      selectedWeek: null
+      selectedWeek: null,
+      selectedUser: null
     };
   }
 
@@ -180,15 +185,20 @@ function parseDashboardState(rawValue) {
     const parsedSelectedWeek = typeof parsed.selectedWeek === 'string'
       ? parsed.selectedWeek.trim()
       : '';
+    const parsedSelectedUser = typeof parsed.selectedUser === 'string'
+      ? parsed.selectedUser.trim()
+      : '';
 
     return {
       channelName: typeof parsed.channelName === 'string' ? parsed.channelName : '',
-      selectedWeek: parsedSelectedWeek || null
+      selectedWeek: parsedSelectedWeek || null,
+      selectedUser: parsedSelectedUser || null
     };
   } catch (_error) {
     return {
       channelName: '',
-      selectedWeek: null
+      selectedWeek: null,
+      selectedUser: null
     };
   }
 }
@@ -780,6 +790,7 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       ? body.actions[0].selected_option.value
       : '';
     const selectedWeekRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
+    const selectedUserRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_USER_SUMMARY_SELECT_ACTION_ID);
 
     publishHomeTab({
       client,
@@ -789,7 +800,8 @@ app.action(HOME_CHANNEL_SELECT_ACTION_ID, async ({ ack, body, client, logger }) 
       logger,
       apiClient,
       selectedChannelName,
-      selectedWeek: selectedWeekRaw || null
+      selectedWeek: selectedWeekRaw || null,
+      selectedUser: selectedUserRaw || null
     })
       .catch((error) => {
         logger.error('Error handling Home channel selection:', error);
@@ -806,11 +818,12 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
 
   const actionValue = body.actions && body.actions[0] && body.actions[0].value
     ? body.actions[0].value
-    : encodeDashboardState({ channelName: '', selectedWeek: null });
+    : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
 
   const {
     channelName: selectedChannelName,
-    selectedWeek
+    selectedWeek,
+    selectedUser
   } = parseDashboardState(actionValue);
 
   // Republish asynchronously so ack is never blocked by dashboard work.
@@ -822,7 +835,8 @@ app.action(HOME_REFRESH_ACTION_ID, async ({ ack, body, client, logger }) => {
     logger,
     apiClient,
     selectedChannelName,
-    selectedWeek
+    selectedWeek,
+    selectedUser
   })
     .catch((error) => {
       logger.error('Error handling Home refresh action:', error);
@@ -838,6 +852,7 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     ? body.actions[0].selected_option.value
     : '';
   const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
+  const selectedUserRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_USER_SUMMARY_SELECT_ACTION_ID);
 
   publishHomeTab({
     client,
@@ -847,11 +862,234 @@ app.action(HOME_SUMMARY_WEEK_SELECT_ACTION_ID, async ({ ack, body, client, logge
     logger,
     apiClient,
     selectedChannelName,
-    selectedWeek: selectedWeekRaw || null
+    selectedWeek: selectedWeekRaw || null,
+    selectedUser: selectedUserRaw || null
   })
     .catch((error) => {
       logger.error('Error handling Home week selection action:', error);
     });
+});
+
+// Home tab user summary dropdown: republish with selected user summary updates.
+app.action(HOME_USER_SUMMARY_SELECT_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  const selectedUserRaw = body.actions && body.actions[0] && body.actions[0].selected_option
+    ? body.actions[0].selected_option.value
+    : '';
+  const selectedChannelName = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_CHANNEL_SELECT_ACTION_ID);
+  const selectedWeekRaw = getSelectedOptionValueFromViewState(body.view && body.view.state, HOME_SUMMARY_WEEK_SELECT_ACTION_ID);
+
+  publishHomeTab({
+    client,
+    userId: body.user.id,
+    teamId,
+    workspaceName,
+    logger,
+    apiClient,
+    selectedChannelName,
+    selectedWeek: selectedWeekRaw || null,
+    selectedUser: selectedUserRaw || null
+  })
+    .catch((error) => {
+      logger.error('Error handling Home user summary selection action:', error);
+    });
+});
+
+// Home tab generate user summaries button: run the user model for the selected channel.
+app.action(HOME_GENERATE_USER_SUMMARIES_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  try {
+    const actionValue = body.actions && body.actions[0] && body.actions[0].value
+      ? body.actions[0].value
+      : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
+    const {
+      channelName: selectedChannelName,
+      selectedWeek,
+      selectedUser
+    } = parseDashboardState(actionValue);
+
+    if (!selectedChannelName) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a channel in Home first, then click *Generate Member Summaries*.'
+      });
+      return;
+    }
+
+    const databaseKey = await buildChannelKey(selectedChannelName, { client });
+
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Generating user summaries for *#${selectedChannelName}*... I’ll send a follow-up when it finishes.`
+    });
+
+    void (async () => {
+      try {
+        const response = await apiClient.post(
+          `/api/user_summaries/${encodeURIComponent(databaseKey)}`,
+          {},
+          { timeout: 0 }
+        );
+        const modelMetadata = response && response.data && response.data.modelMetadata;
+        const savedCount = modelMetadata && Number.isInteger(modelMetadata.saved_count)
+          ? modelMetadata.saved_count
+          : null;
+
+        await client.chat.postMessage({
+          channel: dm.channel.id,
+          text: savedCount == null
+            ? `✅ User summary generation completed for *#${selectedChannelName}*.`
+            : `✅ User summary generation completed for *#${selectedChannelName}*. Saved ${savedCount} summaries.`
+        });
+
+        publishHomeTab({
+          client,
+          userId: body.user.id,
+          teamId,
+          workspaceName,
+          logger,
+          apiClient,
+          selectedChannelName,
+          selectedWeek,
+          selectedUser
+        }).catch((refreshError) => {
+          logger.error('Error refreshing Home after user summary generation:', refreshError);
+        });
+      } catch (generationError) {
+        logger.error('Background user summary generation failed:', generationError);
+
+        try {
+          await client.chat.postMessage({
+            channel: dm.channel.id,
+            text: `❌ Failed to generate user summaries: ${generationError.message}`
+          });
+        } catch (dmError) {
+          logger.error('Failed sending generation error via DM:', dmError);
+        }
+      }
+    })();
+  } catch (error) {
+    logger.error('Error handling generate user summaries action:', error);
+
+    try {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `❌ Failed to generate user summaries: ${error.message}`
+      });
+    } catch (dmError) {
+      logger.error('Failed sending generation error via DM:', dmError);
+    }
+  }
+});
+
+// Home tab generate single user summary button: run the user model for only the selected user.
+app.action(HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID, async ({ ack, body, client, logger }) => {
+  await ack();
+  const { teamId, workspaceName } = getHomeWorkspaceContext(body);
+
+  try {
+    const actionValue = body.actions && body.actions[0] && body.actions[0].value
+      ? body.actions[0].value
+      : encodeDashboardState({ channelName: '', selectedWeek: null, selectedUser: null });
+    const {
+      channelName: selectedChannelName,
+      selectedWeek,
+      selectedUser
+    } = parseDashboardState(actionValue);
+
+    if (!selectedChannelName) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a channel in Home first, then click *Generate Summary for This User*.'
+      });
+      return;
+    }
+
+    if (!selectedUser) {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: 'Select a user in Home first, then click *Generate Summary for This User*.'
+      });
+      return;
+    }
+
+    const databaseKey = await buildChannelKey(selectedChannelName, { client });
+    const encodedUserId = encodeURIComponent(selectedUser);
+
+    const dm = await client.conversations.open({ users: body.user.id });
+    await client.chat.postMessage({
+      channel: dm.channel.id,
+      text: `⏳ Generating a summary for <@${selectedUser}> in *#${selectedChannelName}*... I’ll send a follow-up when it finishes.`
+    });
+
+    void (async () => {
+      try {
+        const response = await apiClient.post(
+          `/api/user_summaries/${encodeURIComponent(databaseKey)}?userId=${encodedUserId}`,
+          {},
+          { timeout: 0 }
+        );
+
+        const modelMetadata = response && response.data && response.data.modelMetadata;
+        const savedCount = modelMetadata && Number.isInteger(modelMetadata.saved_count)
+          ? modelMetadata.saved_count
+          : null;
+
+        await client.chat.postMessage({
+          channel: dm.channel.id,
+          text: savedCount == null
+            ? `✅ User summary generation completed for <@${selectedUser}> in *#${selectedChannelName}*.`
+            : `✅ User summary generation completed for <@${selectedUser}> in *#${selectedChannelName}*. Saved ${savedCount} summary.`
+        });
+
+        publishHomeTab({
+          client,
+          userId: body.user.id,
+          teamId,
+          workspaceName,
+          logger,
+          apiClient,
+          selectedChannelName,
+          selectedWeek,
+          selectedUser
+        }).catch((refreshError) => {
+          logger.error('Error refreshing Home after single user summary generation:', refreshError);
+        });
+      } catch (generationError) {
+        logger.error('Background single user summary generation failed:', generationError);
+
+        try {
+          await client.chat.postMessage({
+            channel: dm.channel.id,
+            text: `❌ Failed to generate summary for <@${selectedUser}>: ${generationError.message}`
+          });
+        } catch (dmError) {
+          logger.error('Failed sending single-user generation error via DM:', dmError);
+        }
+      }
+    })();
+  } catch (error) {
+    logger.error('Error handling generate single user summary action:', error);
+
+    try {
+      const dm = await client.conversations.open({ users: body.user.id });
+      await client.chat.postMessage({
+        channel: dm.channel.id,
+        text: `❌ Failed to generate single-user summary: ${error.message}`
+      });
+    } catch (dmError) {
+      logger.error('Failed sending single-user generation handler error via DM:', dmError);
+    }
+  }
 });
 
 //Home tab ADMIN controls

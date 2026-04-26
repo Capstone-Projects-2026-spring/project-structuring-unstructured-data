@@ -101,7 +101,7 @@ class Summarizer:
             response = client.models.generate_content(
                 model="gemini-2.5-flash", 
                 contents=(
-                    "Summarize the following day section using the required structure. "
+                    "Summarize the following user based on their messages using the required structure. "
                     "The output must follow the example format exactly in section order and nesting.\n\n"
                     f"{text}"
                 ),
