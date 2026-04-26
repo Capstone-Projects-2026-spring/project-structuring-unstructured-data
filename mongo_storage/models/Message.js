@@ -3,10 +3,10 @@ const { Schema } = require("mongoose");
 
 const msgSchema = new Schema(
   {
-    user: String,
-    type: String,
-    text: String,
-    ts: String
+    user: { type: String, required: true },
+    type: { type: String, required: true },
+    text: { type: String, required: true },
+    ts: { type: String, required: true }
   },
   { strict: false } // Ensures all raw fields are logged
 );

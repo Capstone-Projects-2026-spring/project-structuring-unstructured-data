@@ -177,6 +177,18 @@ router.post('/api/messages/:channelName', async (req, res) => {
         });
       }
 
+      const requiredFields = ['user', 'type', 'text', 'ts'];
+      const missingFields = requiredFields.filter((field) => {
+        const value = bodyData[field];
+        return value === undefined || value === null || String(value).trim() === '';
+      });
+
+      if (missingFields.length > 0) {
+        return res.status(400).json({
+          error: `Missing required message fields: ${missingFields.join(', ')}`,
+        });
+      }
+
       // If single message, check for duplicate by message identity (user + ts)
       const existingMessage = await MessageModel.findOne({ user: bodyData.user, ts: bodyData.ts });
       
@@ -185,12 +197,7 @@ router.post('/api/messages/:channelName', async (req, res) => {
         return res.status(200).json({ message: 'Message already exists in database', duplicate: true });
       }
       
-      const newMessage = new MessageModel({
-        user: bodyData.user,
-        type: bodyData.type || 'message',
-        text: bodyData.text,
-        ts: bodyData.ts
-      });
+      const newMessage = new MessageModel(bodyData);
       
       await newMessage.save();
       console.log(`Single message stored to ${channelName} database`);
