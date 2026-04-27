@@ -2,4 +2,7 @@
 sidebar_position: 1
 ---
 # Introduction
-
+Project Structuring Unstructured Data is a Slack-integrated application designed to automatically collect, organize, and summarize message data from workplace communication channels. Built as a custom Slack bot named SUD Bud, the application addresses a common problem in modern workplaces: valuable information gets buried in Slack channels and is difficult to retrieve or make sense of after the fact.
+SUD Bud operates directly within Slack's interface, automatically saving messages to a MongoDB database in the background without interrupting the natural flow of conversation. Using a built-in NLP model powered by the Gemini API, the application generates day-by-day and user-by-user summaries of channel activity, which are displayed in an interactive dashboard accessible from within Slack. Users can get fully caught up on a week of team activity in minutes rather than hours.
+The application was built with privacy as a core design principle. Users have full control over what gets saved about them they can turn auto saving off, review their saved messages at any time using the /review-saves command, and remove individual messages from the database. Workspace administrators have additional controls for managing message storage and member data across all channels.
+The system is built on a Node.js and Slack Bolt backend, a MongoDB Atlas database, a Python based NLP model, and is deployed on Render. It supports multiple Slack workspaces and is designed to scale with team size and channel volume.
