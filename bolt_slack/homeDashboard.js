@@ -5,6 +5,7 @@ const { buildChannelKey } = require('../shared-utils/channelUtils');
 const HOME_CHANNEL_SELECT_ACTION_ID = 'home_channel_select';
 const HOME_REFRESH_ACTION_ID = 'home_refresh_button';
 const HOME_SUMMARY_WEEK_SELECT_ACTION_ID = 'home_summary_week_select';
+const HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID = 'home_generate_selected_week_summary';
 const HOME_USER_SUMMARY_SELECT_ACTION_ID = 'home_user_summary_select';
 const HOME_GENERATE_USER_SUMMARIES_ACTION_ID = 'home_generate_user_summaries';
 const HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID = 'home_generate_single_user_summary';
@@ -234,6 +235,64 @@ function getAvailableWeeks(summaries) {
     .map((bucket) => bucket.key);
 }
 
+function getAvailableWeeksFromChannelCreation(channelCreatedAtTs) {
+  const now = new Date();
+  if (Number.isNaN(now.getTime())) {
+    return [];
+  }
+
+  const normalizedCreatedTs = Number(channelCreatedAtTs);
+  const createdAt = Number.isFinite(normalizedCreatedTs) && normalizedCreatedTs > 0
+    ? new Date(normalizedCreatedTs * 1000)
+    : null;
+  const createdAtOrNow = createdAt && !Number.isNaN(createdAt.getTime())
+    ? createdAt
+    : now;
+
+  const startWeekIso = normalizeToUtcSundayStartIso(createdAtOrNow.toISOString());
+  const currentWeekIso = normalizeToUtcSundayStartIso(now.toISOString());
+  if (!startWeekIso || !currentWeekIso) {
+    return [];
+  }
+
+  const startWeekMs = Date.parse(startWeekIso);
+  const currentWeekMs = Date.parse(currentWeekIso);
+  if (!Number.isFinite(startWeekMs) || !Number.isFinite(currentWeekMs)) {
+    return [];
+  }
+
+  if (currentWeekMs < startWeekMs) {
+    return [`ws:${currentWeekIso}`];
+  }
+
+  const weekKeys = [];
+  const cursor = new Date(currentWeekIso);
+  while (cursor.getTime() >= startWeekMs) {
+    weekKeys.push(`ws:${cursor.toISOString().replace('.000Z', 'Z')}`);
+    cursor.setUTCDate(cursor.getUTCDate() - 7);
+  }
+
+  return weekKeys;
+}
+
+function formatWeekRangeForDisplay(weekKey) {
+  const normalizedWeekKey = typeof weekKey === 'string' ? weekKey.trim() : '';
+  if (!normalizedWeekKey) {
+    return 'Unknown week';
+  }
+
+  if (normalizedWeekKey.startsWith('ws:')) {
+    return formatWeekRangeLabel(normalizedWeekKey.slice(3)) || normalizedWeekKey.slice(3);
+  }
+
+  const weekInfo = getWeekInfo({
+    week_start_utc: normalizedWeekKey.startsWith('ws:') ? normalizedWeekKey.slice(3) : null,
+    week_of: normalizedWeekKey.startsWith('wk:') ? normalizedWeekKey.slice(3) : null
+  });
+
+  return weekInfo.label || 'Unknown week';
+}
+
 function buildWeekOptions(availableWeeks) {
   return availableWeeks.slice(0, MAX_STATIC_SELECT_OPTIONS).map((weekKey) => {
     const weekInfo = getWeekInfo({
@@ -372,7 +431,11 @@ async function getBotChannels(client, teamId) {
     const pageChannels = Array.isArray(response.channels) ? response.channels : [];
     for (const channel of pageChannels) {
       if (channel && channel.id && channel.name) {
-        channels.push({ id: channel.id, name: channel.name });
+        channels.push({
+          id: channel.id,
+          name: channel.name,
+          createdAtTs: Number(channel.created)
+        });
       }
     }
 
@@ -1030,7 +1093,7 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `:bust_in_silhouette: *${selectedUserLabel}*\n\n:hourglass_flowing_sand: No summary available yet for this user. Click "Generate Summaries for All Members" to create one.`
+        text: `:bust_in_silhouette: *${selectedUserLabel}*\n\n:hourglass_flowing_sand: No summary available yet for this user.\nSelect "Generate Summary" to create one, or select "Generate Summaries for All Members" to structure summaries for everyone!`
       }
     });
   } else {
@@ -1078,7 +1141,7 @@ function buildUserSummaryBlocks({ selectedChannelName, userBuckets, selectedUser
   return blocks;
 }
 
-function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, selectedWeek }) {
+function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, selectedWeek, selectedChannelCreatedAtTs }) {
   if (!selectedChannelName) {
     return [
       {
@@ -1086,18 +1149,6 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
         text: {
           type: 'mrkdwn',
           text: 'Select a channel above to load its weekly summaries.'
-        }
-      }
-    ];
-  }
-
-  if (!summaries.length) {
-    return [
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `No weekly summaries found yet for *#${selectedChannelName}*.`
         }
       }
     ];
@@ -1111,7 +1162,7 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
       return rightDate - leftDate;
     });
 
-  const availableWeeks = getAvailableWeeks(sortedSummaries);
+  const availableWeeks = getAvailableWeeksFromChannelCreation(selectedChannelCreatedAtTs);
   const selectedWeekKey = typeof selectedWeek === 'string' ? selectedWeek : '';
   const resolvedSelectedWeek = availableWeeks.includes(selectedWeekKey)
     ? selectedWeekKey
@@ -1152,7 +1203,39 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
     }
   });
 
+  blocks.push({
+    type: 'actions',
+    elements: [
+      {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: 'Generate Summaries For This Week',
+          emoji: true
+        },
+        ...(!visibleSummaries.length ? { style: 'primary' } : {}),
+        action_id: HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID,
+        value: encodeDashboardState({
+          channelName: selectedChannelName || '',
+          selectedWeek: resolvedSelectedWeek,
+          selectedUser: null
+        })
+      }
+    ]
+  });
+
   blocks.push({ type: 'divider' });
+
+  if (!visibleSummaries.length) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `No weekly summaries found for *${formatWeekRangeForDisplay(resolvedSelectedWeek)}* in *#${selectedChannelName}*.`
+      }
+    });
+    return blocks;
+  }
 
   blocks.push({
     type: 'context',
@@ -1161,10 +1244,7 @@ function buildWeeklySummaryBlocks({ selectedChannelName, dbName, summaries, sele
         type: 'mrkdwn',
         text: resolvedSelectedWeek == null
           ? `Showing all ${visibleSummaries.length} daily updates.`
-          : `Showing ${visibleSummaries.length} daily updates for *${(getWeekInfo({
-            week_start_utc: resolvedSelectedWeek.startsWith('ws:') ? resolvedSelectedWeek.slice(3) : null,
-            week_of: resolvedSelectedWeek.startsWith('wk:') ? resolvedSelectedWeek.slice(3) : null
-          }).label)}*.`
+          : `Showing ${visibleSummaries.length} daily updates for *${formatWeekRangeForDisplay(resolvedSelectedWeek)}*.`
       }
     ]
   });
@@ -1202,6 +1282,7 @@ function buildSampleHomeView({
   workspaceName,
   channelOptions,
   selectedChannelName,
+  selectedChannelCreatedAtTs,
   selectedWeek,
   selectedUser,
   selectedUserSummary,
@@ -1329,7 +1410,8 @@ function buildSampleHomeView({
     selectedChannelName,
     dbName,
     summaries,
-    selectedWeek
+    selectedWeek,
+    selectedChannelCreatedAtTs
   }));
 
   if (activeChannels > selectableChannels) {
@@ -1495,6 +1577,8 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
     console.log(`[publishHomeTab] Loaded channels for Home dropdown: ${channels.length} total | First 3: ${first3Channels}`);
 
     const resolvedChannelName = selectedChannelName || (channels[0] && channels[0].name) || '';
+    const resolvedChannel = channels.find((channel) => channel.name === resolvedChannelName) || null;
+    const selectedChannelCreatedAtTs = resolvedChannel ? resolvedChannel.createdAtTs : null;
     console.log(`[publishHomeTab] Selected channel: ${resolvedChannelName || '(none)'}`);
 
     if (logger) {
@@ -1544,7 +1628,6 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       apiStatus,
       dbName,
       summaries,
-      availableWeeks,
       summaryRecords,
       messagesSummarized,
       errorMessage: weeklySummaryErrorMessage
@@ -1557,6 +1640,7 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       errorMessage: userSummaryErrorMessage
     } = userSummaryResult;
     const errorMessage = weeklySummaryErrorMessage || userSummaryErrorMessage;
+    const availableWeeks = getAvailableWeeksFromChannelCreation(selectedChannelCreatedAtTs);
 
     if (logger) {
       logger.info(`[publishHomeTab] Summaries fetched - Records: ${summaryRecords}, Messages: ${messagesSummarized}, Status: ${apiStatus}`);
@@ -1569,6 +1653,7 @@ async function publishHomeTab({ client, userId, teamId, workspaceName, logger, a
       workspaceName: resolvedWorkspaceName,
       channelOptions,
       selectedChannelName: resolvedChannelName,
+      selectedChannelCreatedAtTs,
       selectedWeek: availableWeeks.includes(selectedWeek) ? selectedWeek : availableWeeks[0],
       selectedUser: selectedUserId || selectedUser,
       selectedUserSummary,
@@ -1631,6 +1716,7 @@ module.exports = {
   HOME_CHANNEL_SELECT_ACTION_ID,
   HOME_REFRESH_ACTION_ID,
   HOME_SUMMARY_WEEK_SELECT_ACTION_ID,
+  HOME_GENERATE_SELECTED_WEEK_SUMMARY_ACTION_ID,
   HOME_USER_SUMMARY_SELECT_ACTION_ID,
   HOME_GENERATE_USER_SUMMARIES_ACTION_ID,
   HOME_GENERATE_SINGLE_USER_SUMMARY_ACTION_ID,
