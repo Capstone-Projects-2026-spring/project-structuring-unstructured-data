@@ -49,15 +49,105 @@ This project requires significant backround research on existing LLMs that devel
 [Fares Hagos](https://github.com/FaresHagostu)
 </div>
 
-## Quick Start (Recommended)
-Add the slack bot by clicking the button  
+---
+
+# For the User
+
+This section contains everything you need to install, configure, and use the application. If you're looking for information about development or maintenance, see "For the Maintainer" below.
+
+## Quick Start Guide
+
+### One-Click Add (Cloud Hosted - Easiest)
+To add SUD Bud directly to your Slack workspace, click this button  
 <a href="https://slack.com/oauth/v2/authorize?client_id=10472452206738.10715593272068&scope=reactions:write,app_mentions:read,channels:history,channels:read,chat:write,commands,im:history,im:read,im:write,reactions:read,users:read,groups:read,mpim:read&user_scope="><img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcSet="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x" /></a>
 
-Or by clicking this link  
+Or click this link!
 [Click Here](https://slack.com/oauth/v2/authorize?client_id=10472452206738.10715593272068&scope=reactions:write,app_mentions:read,channels:history,channels:read,chat:write,commands,im:history,im:read,im:write,reactions:read,users:read,groups:read,mpim:read&user_scope=)
 
 
-## Manual Setup (Slack Bot + Mongo API)
+
+
+## Setup For Experienced Users
+
+If you've deployed Node.js + MongoDB apps before:
+
+1. **Clone/download** the repository
+2. **Set up a Slack app** at [api.slack.com/apps](https://api.slack.com/apps) (or use manifest file in `bolt_slack/slack-app-manifest.json`)
+3. **Create `.env`** in repo root with tokens from Slack + MongoDB credentials
+4. **Run setup:** `npm install` (both `bolt_slack/` and `mongo_storage/`)
+5. **Start services:**
+   ```powershell
+   # Terminal 1: MongoDB API
+   cd mongo_storage && node server.js
+   
+   # Terminal 2: Slack Bot
+   cd bolt_slack && npm start
+   ```
+6. **Invite bot** to your Slack channels: `/invite @YourBotName`
+7. **Done!** Use `/store-messages`, `/messages`, `/channel-info` in Slack
+
+## System Requirements
+
+Before installing, ensure your system meets these minimum requirements:
+
+### Required Software
+- **Node.js:** 18.0.0 or higher ([Download](https://nodejs.org/))
+- **npm:** 9.0.0 or higher (bundled with Node.js)
+- **MongoDB:** One of the following:
+  - MongoDB Atlas account (cloud-hosted, no local install needed), OR
+  - Docker Desktop 4.0+ (for local MongoDB container), OR
+  - MongoDB Community Edition 5.0+ (for local installation)
+- **Git:** For cloning the repository (optional, can download as ZIP)
+
+### Recommended Hardware
+- **RAM:** 4 GB minimum (8 GB recommended)
+- **Disk Space:** 2 GB free space
+- **Processor:** Dual-core processor minimum
+
+### Network Requirements
+- Stable internet connection for Slack API communication
+- Ability to reach `slack.com` and `api.slack.com`
+- If using MongoDB Atlas: ability to reach Atlas cluster endpoint (firewall/proxy compatible)
+- Ports available: 3000 (Slack bot), 5000 (MongoDB API) must not be in use
+
+### Slack App Requirements
+- Slack workspace where you have app installation permissions
+- Ability to create/configure Slack apps (Admin access recommended)
+
+#### Quick Configuration Checklist
+- [ ] Node.js 18+ installed
+- [ ] MongoDB credentials ready (Atlas or Docker)
+- [ ] Slack App tokens created (Bot Token, App Token, Signing Secret)
+- [ ] `.env` file populated with credentials
+- [ ] Dependencies installed
+- [ ] Both services running on ports 3000 & 5000
+- [ ] Bot invited to at least one Slack channel
+
+## Manual Installation
+
+### Network Considerations
+
+Before installing, ensure your network configuration supports the application:
+
+#### Local Network Setup
+- **Port 3000:** Must be available for the Slack bot service (Node.js app)
+- **Port 5000:** Must be available for the MongoDB API service (Node.js app)
+- **Firewall:** Both ports must not be blocked by local firewall (Windows Defender, third-party firewalls)
+- **Localhost:** Application assumes `localhost` (127.0.0.1) for local development
+
+#### MongoDB Atlas Setup (If Using Cloud Database)
+- **Network Access:** Your machine's public IP must be whitelisted in MongoDB Atlas
+  - Go to: Cluster → Network Access → Add IP Address
+  - Recommended: Add your IP or "Allow access from anywhere" (0.0.0.0/0) for development
+- **Connection String:** Atlas provides a connection string; store securely in `.env`
+- **Username/Password:** Create MongoDB database user in Atlas (not your account password)
+
+#### Slack API Network Requirements
+- **Outbound HTTPS (443):** Required for Slack API calls
+- **WebSocket (Port 443):** Required for Socket Mode (bot event streaming)
+- **DNS Resolution:** Must be able to reach `slack.com`, `api.slack.com`, `hooks.slack.com`
+
+### Detailed Manual Setup
 
 Follow these steps to install dependencies, configure environment variables, and run both services locally. Commands are PowerShell-friendly for Windows.
 
@@ -312,3 +402,87 @@ npm run test:coverage
 - **MongoDB auth/connection errors:** Verify `MONGODB_USER/PASSWORD`, IP whitelist, and `DB_PORT` in `.env`.
 - **Bot not responding:** Confirm the bot is invited to the channel and Socket Mode tokens are correct; restart `npm start`.
 - **API health:** Check http://localhost:5000/health.
+
+## Uninstall & Cleanup
+
+If you need to remove the application or reset your installation, follow these steps:
+
+### Remove Services & Data
+
+```powershell
+# Stop running services (close Terminal windows or press Ctrl+C)
+
+# Option A: Keep the code, remove only node_modules
+cd c:\project-structuring-unstructured-data\bolt_slack
+rm -Recurse node_modules
+cd ..\mongo_storage
+rm -Recurse node_modules
+
+# Option B: Complete uninstall (remove everything except .env and docs)
+cd c:\project-structuring-unstructured-data
+rm -Recurse bolt_slack/node_modules
+rm -Recurse mongo_storage/node_modules
+```
+
+### Remove MongoDB (Local Setup Only)
+
+**If using Docker:**
+```powershell
+cd c:\project-structuring-unstructured-data\mongo_storage
+
+# Stop MongoDB container
+npm run db:stop
+
+# Remove container and data volume
+docker rm suds-local-mongodb
+docker volume rm suds-mongodb-volume
+```
+
+**If using local MongoDB installation:**
+```powershell
+# Stop MongoDB
+# Windows: Close the mongod terminal window, or:
+taskkill /IM mongod.exe /F
+
+# Uninstall MongoDB (Windows Add/Remove Programs or):
+# - Download MongoDB uninstaller
+# - Delete default data directory: C:\Program Files\MongoDB\Server\[version]\data
+```
+
+### Remove Slack App (Optional)
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Select your app
+3. Click "Settings" → scroll to bottom
+4. Click "Delete this app"
+5. Confirm deletion
+
+### Clean Environment Variables
+
+Delete or clear the `.env` file in the repository root if you don't plan to reinstall:
+
+```powershell
+rm .env
+```
+
+**⚠️ Warning:** Only delete `.env` after stopping all services. It contains tokens and credentials.
+
+### Full Repository Reset
+
+To start completely fresh:
+
+```powershell
+# Delete everything except .git (if version controlled)
+cd c:\project-structuring-unstructured-data
+rm -Recurse -Force bolt_slack/node_modules, mongo_storage/node_modules
+rm .env
+rm .env.local
+
+# Re-run installation from "Manual Setup" section above
+```
+
+---
+
+# For the Maintainer
+
+(This section is reserved for development, contribution, and maintenance guidelines. Please download [maintainer documentation](https://github.com/user-attachments/files/27175924/MAINTAINER.md) or view `MAINTAINER.md` in the repository files for detailed contributor instructions.)
