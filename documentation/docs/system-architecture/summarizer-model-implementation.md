@@ -141,7 +141,8 @@ Wraps the Google Gemini 2.5 Flash API to generate structured text summaries from
 
 Entry point script for generating and storing **day-level channel summaries**. Invoked from the command line or Node.js backend with a target channel database name and optional week arguments.
 
-
+| Function | Description |
+|---|---|
 | `emit_model_result(payload)` | Prints a structured JSON result to stdout with a special prefix (`__MODEL_RESULT__`), allowing the Node.js backend to parse the output programmatically. |
 | `parse_args(argv)` | Parses CLI arguments to extract the database name, an optional `--week` number, and an optional `--week-start` ISO date string. Returns all three with sensible defaults. |
 | `derive_summary_day_utc(day_df)` | Takes a day's DataFrame, finds the earliest timestamp, and returns it as a UTC ISO string representing midnight of that day (e.g. `2026-04-05T00:00:00Z`). |
@@ -156,8 +157,9 @@ Entry point script for generating and storing **day-level channel summaries**. I
 
 Entry point script for generating and storing **per-user summaries** across all historical messages in a channel. Invoked from the command line or Node.js backend with a target channel database name.
 
-
-| `parse_args(argv)` | Parses CLI arguments and returns the database name. Ignores any flag-style `--` arguments. |
+| Function | Description |
+|---|---|
+| `parse_args(argv)` | Parses CLI arguments and returns the database name, defaulting to `'slack'`. Ignores any flag-style `--` arguments. |
 | `extract_all_channel_messages(inst, db_name)` | Extracts raw messages from MongoDB, validates that required columns are present, filters to rows where `type == 'message'`, and drops rows missing a user or text value. |
 | `get_distinct_users(df)` | Returns a deduplicated list of non-empty user ID strings found in the DataFrame's `user` column. |
 | `build_user_summary(full_df, user_list, db_name, summarizer, data_process, member_lookup)` | Iterates over each user, filters all of their messages across all time, joins the text into one string, calls Gemini's `user_summarize`, and assembles a list of summary documents containing user ID, real name, message count, summary text, and generation timestamp. |
