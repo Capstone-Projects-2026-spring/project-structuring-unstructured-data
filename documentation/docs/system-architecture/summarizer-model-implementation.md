@@ -2,7 +2,7 @@
 sidebar_position: 5
 ---
 
-#Summarizer Model Implementation
+# Summarizer Model Implementation
 
 **Purpose**
 
