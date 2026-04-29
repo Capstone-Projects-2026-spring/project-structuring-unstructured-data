@@ -2,6 +2,8 @@
 sidebar_position: 5
 ---
 
+#Summarizer Model Implementation
+
 **Purpose**
 
 This document describes the Python backend architecture of the SUD Bud application, including all classes, scripts, and their relationships. It covers how raw Slack data is extracted, preprocessed, summarized via an LLM, and stored back into MongoDB.
