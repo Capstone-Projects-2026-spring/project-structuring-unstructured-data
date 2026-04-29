@@ -81,7 +81,7 @@ classDiagram
     user_model o-- DataProcess
     user_model o-- Summarizer
 ```
-*Figure 1: UML class diagram of the Python backend showing all classes, their attributes and methods, and their dependencies from the entry point scripts.*
+*Figure 1: UML class diagram of the Python backend showing all classes, their attributes and methods, and their dependencies from scripts.*
 
 ## Components
 
@@ -105,7 +105,7 @@ Handles all preprocessing, filtering, and structuring of raw Slack message DataF
 
 | Function | Description |
 |---|---|
-| `_normalize_ts(df)` | Internal helper that converts the `ts` column from Slack's string epoch format into proper pandas datetime objects. |
+| `_normalize_ts(df)` | Internal helper that converts the `ts` column from Slack's string format into proper datetime objects. |
 | `create_links_df(df)` | Returns a filtered DataFrame containing only rows where the message text contains a URL. |
 | `extract_links(df)` | Returns a filtered DataFrame with URL-containing rows removed (inverse of `create_links_df`). |
 | `create_channel_joins_df(df)` | Returns a filtered DataFrame containing only rows where a user joined the channel. |
